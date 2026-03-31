@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zamzam | Ресторан доставки восточной кухни</title>
+    <meta
+        name="description"
+        content="Zamzam: авторские блюда, быстрая доставка и удобный онлайн-заказ."
+    >
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
+</head>
+<body>
+    <div class="floating-tools">
+        <a class="floating-tool" href="#contact" aria-label="Информация">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="8"></circle>
+                <path d="M12 11v5"></path>
+                <circle cx="12" cy="8" r="1"></circle>
+            </svg>
+        </a>
+        <button class="floating-tool floating-tool-accent" id="cart-toggle" type="button" aria-label="Открыть корзину">
+            <img class="floating-tool-icon" src="{{ url_for('static', path='pic/basket.svg') }}" alt="">
+            <span class="floating-count" id="floating-count">0</span>
+        </button>
+    </div>
+
+    <div class="cart-backdrop" id="cart-backdrop"></div>
+    <div class="checkout-backdrop" id="checkout-backdrop"></div>
+    <div class="admin-backdrop" id="admin-backdrop"></div>
+    <aside class="cart-drawer" id="order-panel">
+        <button class="cart-close" id="cart-close" type="button" aria-label="Закрыть корзину">x</button>
+        <h3>Корзина</h3>
+
+        <div class="cart-checkout-mode">
+            <span class="cart-checkout-mode-label">Тип заказа</span>
+            <div class="checkout-switcher cart-checkout-switcher" role="tablist" aria-label="Тип заказа в корзине">
+                <button class="checkout-switch is-active" id="cart-checkout-type-pickup" type="button">Самовывоз</button>
+                <button class="checkout-switch" id="cart-checkout-type-delivery" type="button">Доставка</button>
+            </div>
+            <p class="cart-checkout-note" id="cart-checkout-note">Самовывоз доступен без минимальной суммы.</p>
+        </div>
+
+        <div class="order-items" id="order-items">
+            <div class="order-empty">
+                <strong>Пока пусто</strong>
+                <p>Добавьте блюда из каталога, и заказ появится здесь.</p>
+            </div>
+        </div>
+
+        <div class="order-summary">
+            <div>
+                <span>Блюда</span>
+                <strong id="items-count">0</strong>
+            </div>
+            <div id="cutlery-summary-item">
+                <span>Приборы</span>
+                <div class="qty-picker qty-picker-ghost" data-cutlery-picker>
+                    <button class="qty-button" id="cutlery-decrease" type="button" data-cutlery-action="decrease">-</button>
+                    <span class="qty-value" id="cutlery-count">0</span>
+                    <button class="qty-button" id="cutlery-increase" type="button" data-cutlery-action="increase">+</button>
+                </div>
+            </div>
+            <div>
+                <span>Итого</span>
+                <strong id="total-price">0 руб.</strong>
+            </div>
+        </div>
+
+        <button class="checkout-button" id="checkout-button">Оформить заказ</button>
+    </aside>
+    <section class="checkout-modal" id="checkout-modal" aria-hidden="true">
+        <div class="checkout-modal-shell">
+            <div class="checkout-modal-form-wrap">
+                <div class="checkout-modal-head">
+                    <div>
+                        <span class="section-kicker">Детали заказа</span>
+                        <h3>Оформить сейчас</h3>
+                    </div>
+                    <button class="admin-close" id="checkout-close" type="button" aria-label="Закрыть оформление">x</button>
+                </div>
+
+                <form class="checkout-form" id="checkout-form">
+                    <div class="checkout-grid">
+                        <label class="checkout-field">
+                            <span>Имя</span>
+                            <input id="checkout-name" type="text" maxlength="120" placeholder="Как к вам обращаться" required>
+                        </label>
+
+                        <label class="checkout-field">
+                            <span>Телефон</span>
+                            <input id="checkout-phone" type="tel" maxlength="32" placeholder="+7 (999) 000-00-00" required>
+                        </label>
+                    </div>
+
+                    <div class="checkout-delivery-fields is-hidden" id="checkout-delivery-fields">
+                        <div class="checkout-grid">
+                            <label class="checkout-field checkout-field-wide">
+                                <span>Адрес доставки</span>
+                                <input id="checkout-address" type="text" maxlength="255" placeholder="Улица, дом, корпус, квартира">
+                            </label>
+                        </div>
+
+                        <div class="checkout-grid">
+                            <label class="checkout-field">
+                                <span>Подъезд / этаж</span>
+                                <input id="checkout-entrance" type="text" maxlength="64" placeholder="Например: 2 подъезд, 6 этаж">
+                            </label>
+
+                            <label class="checkout-field">
+                                <span>Комментарий курьеру</span>
+                                <input id="checkout-comment" type="text" maxlength="255" placeholder="Домофон, ориентир, пожелания">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="checkout-preview checkout-preview-inline">
+                        <div>
+                            <span>Блюда</span>
+                            <strong id="checkout-preview-items">0</strong>
+                        </div>
+                        <div>
+                            <span>Приборы</span>
+                            <strong id="checkout-preview-cutlery">0</strong>
+                        </div>
+                        <div>
+                            <span>К оплате</span>
+                            <strong id="checkout-preview-total">0 руб.</strong>
+                        </div>
+                    </div>
+
+                    <div class="checkout-payment">
+                        <span class="checkout-label">Способ оплаты</span>
+                        <div class="checkout-switcher" role="tablist" aria-label="Способ оплаты">
+                            <button class="checkout-switch is-active" id="checkout-payment-cash" type="button" data-checkout-payment="cash">Наличные</button>
+                            <button class="checkout-switch" id="checkout-payment-card" type="button" data-checkout-payment="card">Безналичные</button>
+                        </div>
+                    </div>
+
+                    <div class="checkout-note" id="checkout-note">
+                        Самовывоз: заказ будет готов к выдаче после подтверждения оператором.
+                    </div>
+
+                    <div class="checkout-actions">
+                        <button class="checkout-submit" id="checkout-submit" type="submit">Подтвердить заказ</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+    <section class="admin-modal" id="admin-modal" aria-hidden="true">
+        <div class="admin-modal-head">
+            <div>
+                <span class="section-kicker">Админка</span>
+                <h3 id="admin-modal-title">Редактирование карточки</h3>
+            </div>
+            <button class="admin-close" id="admin-close" type="button" aria-label="Закрыть форму">x</button>
+        </div>
+
+        <form class="admin-form" id="admin-form">
+            <input id="admin-item-id" type="hidden">
+            <input id="admin-item-version" type="hidden">
+
+            <label class="admin-field">
+                <span>Название</span>
+                <input id="admin-title" type="text" maxlength="255" required>
+            </label>
+
+            <label class="admin-field">
+                <span>Описание</span>
+                <textarea id="admin-description" rows="5" maxlength="4000" required></textarea>
+            </label>
+
+            <div class="admin-grid">
+                <label class="admin-field">
+                    <span>Цена</span>
+                    <input id="admin-price" type="number" min="0" max="1000000" required>
+                </label>
+
+                <label class="admin-field">
+                    <span>Категория</span>
+                    <select id="admin-category" required></select>
+                </label>
+            </div>
+
+            <div class="admin-grid">
+                <label class="admin-field">
+                    <span>Акцент</span>
+                    <input id="admin-accent" type="text" maxlength="32" required>
+                </label>
+
+                <label class="admin-field admin-checkbox">
+                    <span>Активно</span>
+                    <input id="admin-is-active" type="checkbox" checked>
+                </label>
+            </div>
+
+            <label class="admin-field">
+                <span>Фото</span>
+                <input id="admin-image" type="file" accept="image/png,image/jpeg,image/webp">
+            </label>
+
+            <div class="admin-actions">
+                <button class="admin-delete" id="admin-delete" type="button">Удалить блюдо</button>
+                <button class="admin-save" id="admin-save" type="submit">Сохранить</button>
+            </div>
+        </form>
+    </section>
+    <section class="admin-modal" id="hero-admin-modal" aria-hidden="true">
+        <div class="admin-modal-head">
+            <div>
+                <span class="section-kicker">Админка</span>
+                <h3>Редактирование hero-секции</h3>
+            </div>
+            <button class="admin-close" id="hero-admin-close" type="button" aria-label="Закрыть форму">x</button>
+        </div>
+
+        <form class="admin-form" id="hero-admin-form">
+            <label class="admin-field">
+                <span>Верхняя строка</span>
+                <input id="hero-admin-kicker" type="text" maxlength="255" required>
+            </label>
+
+            <label class="admin-field">
+                <span>Главный заголовок</span>
+                <input id="hero-admin-title" type="text" maxlength="255" required>
+            </label>
+
+            <label class="admin-field">
+                <span>Описание</span>
+                <textarea id="hero-admin-address" rows="4" maxlength="500" required></textarea>
+            </label>
+
+            <div class="admin-grid">
+                <label class="admin-field">
+                    <span>Подзаголовок 1</span>
+                    <input id="hero-admin-subtitle-primary" type="text" maxlength="255" required>
+                </label>
+
+                <label class="admin-field">
+                    <span>Подзаголовок 2</span>
+                    <input id="hero-admin-subtitle-secondary" type="text" maxlength="255" required>
+                </label>
+            </div>
+
+            <div class="admin-actions admin-actions-end">
+                <button class="admin-save" id="hero-admin-save" type="submit">Сохранить</button>
+            </div>
+        </form>
+    </section>
+    <section class="admin-modal" id="menu-section-admin-modal" aria-hidden="true">
+        <div class="admin-modal-head">
+            <div>
+                <span class="section-kicker">Админка</span>
+                <h3 id="menu-section-admin-modal-title">Редактирование блока меню</h3>
+            </div>
+            <button class="admin-close" id="menu-section-admin-close" type="button" aria-label="Закрыть форму">x</button>
+        </div>
+
+        <form class="admin-form" id="menu-section-admin-form">
+            <label class="admin-field">
+                <span>Надпись</span>
+                <input id="menu-section-admin-kicker" type="text" maxlength="255" required>
+            </label>
+
+            <label class="admin-field">
+                <span>Заголовок</span>
+                <textarea id="menu-section-admin-title" rows="4" maxlength="500" required></textarea>
+            </label>
+
+            <div class="admin-actions admin-actions-end">
+                <button class="admin-save" id="menu-section-admin-save" type="submit">Сохранить</button>
+            </div>
+        </form>
+    </section>
+    <header class="topbar-wrap">
+        <nav class="topbar">
+            <a class="brand" href="#hero">Zamzam</a>
+
+            <div class="nav-links">
+                <a href="#about">О нас</a>
+                <a href="#menu">Меню</a>
+                <a href="#reviews">Отзывы</a>
+                <a href="#contact">Контакты</a>
+            </div>
+
+            <div class="topbar-controls">
+                <button class="admin-toggle" id="admin-toggle" type="button">Админка</button>
+                <button class="topbar-action topbar-action-button" id="cart-open-topbar" type="button">Заказать онлайн</button>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero" id="hero">
+            <div class="hero-overlay"></div>
+
+            <div class="hero-inner">
+                <span class="hero-kicker">Восточная • Кавказская • Авторская кухня</span>
+
+                <h1>Zamzam</h1>
+
+                <p class="hero-address">
+                    Доставка по городу, ресторанная подача и быстрый онлайн-заказ
+                </p>
+
+                <h2>
+                    <span>Яркая восточная кухня с характером,</span>
+                    <span>Сервис современного уровня</span>
+                </h2>
+
+                <div class="hero-visual">
+                    <div class="hero-plate-shadow"></div>
+                    <img
+                        class="hero-image"
+                        src="{{ url_for('static', path='files/main.jpg') }}"
+                        alt="Пирог Zamzam"
+                    >
+
+                    <div class="hero-badge">
+                        <span>4.9</span>
+                        <small>оценка гостей</small>
+                    </div>
+                </div>
+
+                <div class="hero-actions">
+                    <a class="hero-button hero-button-primary" href="#menu">Смотреть меню</a>
+                    <button class="hero-button hero-button-secondary" id="cart-open-hero" type="button">Собрать заказ</button>
+                </div>
+            </div>
+
+            <div class="hero-wave" aria-hidden="true">
+                <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
+                    <path fill="currentColor" d="M0,160L48,176C96,192,192,224,288,229.3C384,235,480,213,576,186.7C672,160,768,128,864,138.7C960,149,1056,203,1152,213.3C1248,224,1344,192,1392,176L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+                </svg>
+            </div>
+        </section>
+
+        <section class="marquee">
+            <div class="marquee-track">
+                {% for feature in features %}
+                <span class="marquee-item marquee-item-{{ loop.cycle('green', 'yellow', 'black') }}">{{ feature }}</span>
+                <span class="marquee-dot">•</span>
+                {% endfor %}
+                {% for feature in features %}
+                <span class="marquee-item marquee-item-{{ loop.cycle('green', 'yellow', 'black') }}">{{ feature }}</span>
+                <span class="marquee-dot">•</span>
+                {% endfor %}
+            </div>
+        </section>
+
+
+
+
+        <section class="menu-section section-shell" id="menu">
+            <div class="section-head">
+                <div>
+                    <span class="section-kicker">Наше меню</span>
+                    <h2>Соберите заказ в визуале из эталонного шаблона, но с нашей продуктовой логикой.</h2>
+                </div>
+
+            </div>
+
+            <div class="menu-layout">
+                <div class="menu-admin-bar">
+                    <button class="admin-toggle admin-toggle-accent" id="admin-create" type="button">Новое блюдо</button>
+                </div>
+                <div class="menu-content">
+                    <div class="filters" id="filters">
+                        <button class="filter-chip active" data-filter="all">Все блюда</button>
+                        <button class="filter-chip" data-filter="signature">Блюда на углях</button>
+                        <button class="filter-chip" data-filter="seafood">Супы</button>
+                        <button class="filter-chip" data-filter="bowls">Салаты</button>
+                        <button class="filter-chip" data-filter="grill">Горячее</button>
+                        <button class="filter-chip" data-filter="dessert">Десерты</button>
+                    </div>
+
+                    <div class="menu-grid" id="menu-grid">
+                        {% for item in menu_items %}
+                        <article
+                            class="dish-card"
+                            data-category="{{ item.category }}"
+                            data-item-id="{{ item.id }}"
+                            data-item-version="{{ item.version }}"
+                            data-item-is-active="{{ 'true' if item.is_active else 'false' }}"
+                            data-image-path="{{ item.image_path or '' }}"
+                            style="--card-accent: {{ item.accent }}"
+                        >
+                            <div class="dish-visual">
+                                <img
+                                    class="dish-image{% if not item.image_path %} is-hidden{% endif %}"
+                                    src="{% if item.image_path %}{{ url_for('static', path=item.image_path) }}{% endif %}"
+                                    alt="{{ item.title }}"
+                                >
+                                <div class="dish-plate{% if item.image_path %} is-hidden{% endif %}">
+                                    <div class="dish-center"></div>
+                                </div>
+                            </div>
+
+                            <div class="dish-body">
+                                <div class="dish-admin-row">
+                                    <h3 class="dish-title">{{ item.title }}</h3>
+                                    <button class="dish-edit-button" type="button">Редактировать</button>
+                                </div>
+                                <p class="dish-description">{{ item.description }}</p>
+                            </div>
+
+                            <div class="dish-footer">
+                                <strong class="dish-price">{{ item.price }} руб.</strong>
+                                <div class="dish-actions">
+                                    <div class="qty-picker" data-qty-picker>
+                                        <button class="qty-button" type="button" data-qty-action="decrease">-</button>
+                                        <span class="qty-value" data-qty-value>1</span>
+                                        <button class="qty-button" type="button" data-qty-action="increase">+</button>
+                                    </div>
+                                    <button
+                                        class="add-button"
+                                        data-id="{{ item.id }}"
+                                        data-title="{{ item.title }}"
+                                        data-price="{{ item.price }}"
+                                    >
+                                        Добавить
+                                    </button>
+                                </div>
+                            </div>
+                        </article>
+                        {% endfor %}
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <section class="delivery-section section-shell" id="delivery">
+            <div class="section-head">
+                <div>
+                    <span class="section-kicker">Доставка</span>
+                    <h2>Путь к заказу остался простым: выбрать, собрать, получить.</h2>
+                </div>
+            </div>
+
+            <div class="steps-grid">
+                {% for step in steps %}
+                <article class="step-card">
+                    <span>0{{ loop.index }}</span>
+                    <h3>{{ step.title }}</h3>
+                    <p>{{ step.text }}</p>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+
+
+
+
+
+        <section class="contact-section section-shell" id="contact">
+            <div class="contact-grid">
+                <div class="contact-copy">
+                    <span class="section-kicker">Контакты</span>
+                    <h2>Работаем каждый день и держим быструю доставку в центре внимания.</h2>
+                </div>
+
+                <div class="contact-card">
+                    <h3>Режим работы</h3>
+                    <div class="contact-line">
+                        <span>Пн - Пт</span>
+                        <strong>10:00 - 22:00</strong>
+                    </div>
+                    <div class="contact-line">
+                        <span>Сб - Вс</span>
+                        <strong>11:00 - 23:00</strong>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', path='app.js') }}"></script>
+</body>
+</html>
