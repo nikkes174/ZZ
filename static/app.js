@@ -939,7 +939,6 @@ checkoutButton?.addEventListener(
 
 bindClick(cartToggle, openCart);
 bindClick(cartOpenInline, openCart);
-bindClick(cartOpenTopbar, openCart);
 bindClick(cartOpenHero, openCart);
 bindClick(cartClose, closeCart);
 bindClick(cartBackdrop, closeCart);
@@ -1274,3 +1273,29 @@ loadSectionContent("/api/redactor/menu-items/contact-section-content", contactSe
 applyFilter(activeFilter);
 renderCart();
 updateFloatingToolsVisibility();
+
+window.zamzamApp = {
+    getCartEntries: () => getCartEntries().map((item) => ({ ...item })),
+    getCartTotals: () => ({ ...getCartTotals() }),
+    getCheckoutState: () => ({
+        checkoutType,
+        checkoutPayment,
+        cutleryItemsCount,
+    }),
+    closeCart,
+    closeCheckoutModal,
+    formatPrice,
+    resetAfterOrder() {
+        cart.clear();
+        cutleryItemsCount = 0;
+        checkoutForm?.reset();
+        checkoutType = "pickup";
+        checkoutPayment = "cash";
+        syncCheckoutType();
+        syncCheckoutPayment();
+        syncCartCheckoutNote();
+        renderCart();
+        closeCheckoutModal();
+        closeCart();
+    },
+};

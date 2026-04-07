@@ -30,6 +30,7 @@
 
     <div class="cart-backdrop" id="cart-backdrop"></div>
     <div class="checkout-backdrop" id="checkout-backdrop"></div>
+    <div class="checkout-backdrop" id="auth-backdrop"></div>
     <div class="admin-backdrop" id="admin-backdrop"></div>
     <aside class="cart-drawer" id="order-panel">
         <button class="cart-close" id="cart-close" type="button" aria-label="Закрыть корзину">x</button>
@@ -132,6 +133,16 @@
                         </div>
                     </div>
 
+                    <div class="checkout-bonus-box">
+                        <div class="checkout-bonus-copy">
+                            <span class="checkout-label">Списание бонусов</span>
+                            <p id="checkout-bonus-balance-text">Доступно бонусов: 0</p>
+                        </div>
+                        <label class="checkout-field">
+                            <input id="checkout-bonus-spent" type="number" min="0" max="0" value="0" placeholder="0">
+                        </label>
+                    </div>
+
                     <div class="checkout-payment">
                         <span class="checkout-label">Способ оплаты</span>
                         <div class="checkout-switcher" role="tablist" aria-label="Способ оплаты">
@@ -148,6 +159,44 @@
                         <button class="checkout-submit" id="checkout-submit" type="submit">Подтвердить заказ</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </section>
+    <section class="auth-modal" id="auth-modal" aria-hidden="true">
+        <div class="auth-modal-shell">
+            <div class="auth-modal-head">
+                <button class="auth-modal-icon" id="auth-back" type="button" aria-label="Назад">&#8592;</button>
+                <button class="auth-modal-icon" id="auth-close" type="button" aria-label="Закрыть">x</button>
+            </div>
+
+            <div class="auth-modal-body">
+                <form class="auth-form" id="auth-request-form">
+                    <div class="auth-copy">
+                        <h3>Укажите номер телефона</h3>
+                        <p>Мы отправим код подтверждения, чтобы открыть личный кабинет.</p>
+                    </div>
+
+                    <label class="auth-field">
+                        <input id="auth-phone" type="tel" maxlength="32" placeholder="+7" required>
+                    </label>
+
+                    <button class="auth-submit" id="auth-request-submit" type="submit">Получить код</button>
+                </form>
+
+                <form class="auth-form is-hidden" id="auth-verify-form">
+                    <div class="auth-copy">
+                        <h3>Подтвердите вход</h3>
+                        <p id="auth-code-message">Код отправлен на указанный номер.</p>
+                    </div>
+
+                    <label class="auth-field">
+                        <input id="auth-code" type="text" inputmode="numeric" maxlength="6" placeholder="Код из сообщения" required>
+                    </label>
+
+                    <button class="auth-submit" id="auth-verify-submit" type="submit">Подтвердить</button>
+                </form>
+
+                <div class="auth-hint" id="auth-hint"></div>
             </div>
         </div>
     </section>
@@ -289,12 +338,45 @@
 
             <div class="topbar-controls">
                 <button class="admin-toggle" id="admin-toggle" type="button">Админка</button>
-                <button class="topbar-action topbar-action-button" id="cart-open-topbar" type="button">Заказать онлайн</button>
+                <button class="topbar-action topbar-action-button" id="cart-open-topbar" type="button" onclick="if (window.openZamzamAuthModal) { window.openZamzamAuthModal(); } else { var modal = document.getElementById('auth-modal'); var backdrop = document.getElementById('auth-backdrop'); var requestForm = document.getElementById('auth-request-form'); var verifyForm = document.getElementById('auth-verify-form'); var back = document.getElementById('auth-back'); if (requestForm) { requestForm.classList.remove('is-hidden'); } if (verifyForm) { verifyForm.classList.add('is-hidden'); } if (back) { back.style.visibility = 'hidden'; } if (backdrop) { backdrop.classList.add('is-open'); } if (modal) { modal.classList.add('is-open'); modal.setAttribute('aria-hidden', 'false'); } document.body.classList.add('admin-open'); }">Войти</button>
             </div>
         </nav>
     </header>
 
     <main>
+        <section class="account-section section-shell is-hidden" id="account">
+            <div class="section-head">
+                <div>
+                    <span class="section-kicker">Личный кабинет</span>
+                    <h2>Ваши бонусы и актуальный статус заказа.</h2>
+                </div>
+            </div>
+
+            <div class="account-grid">
+                <article class="account-summary-card">
+                    <span class="account-summary-label">Бонусы</span>
+                    <strong id="account-bonus-balance">0</strong>
+                    <p id="account-user-phone">Телефон не подтвержден.</p>
+                </article>
+
+                <article class="account-summary-card">
+                    <span class="account-summary-label">Статус заказа</span>
+                    <strong id="account-order-status">Заказов пока нет</strong>
+                    <p id="account-orders-count">Активных заказов: 0</p>
+                </article>
+            </div>
+
+            <div class="account-orders">
+                <div class="account-orders-head">
+                    <h3>История заказов</h3>
+                    <button class="topbar-action topbar-action-button account-refresh" id="account-refresh" type="button">Обновить</button>
+                </div>
+                <div class="account-orders-list" id="account-orders-list">
+                    <div class="account-order-empty">После первого подтвержденного заказа история появится здесь.</div>
+                </div>
+            </div>
+        </section>
+
         <section class="hero" id="hero">
             <div class="hero-overlay"></div>
 
@@ -480,5 +562,157 @@
     </main>
 
     <script src="{{ url_for('static', path='app.js') }}"></script>
+    <script src="{{ url_for('static', path='account.js') }}"></script>
+    <script>
+        (function () {
+            const authModal = document.getElementById("auth-modal");
+            const authBackdrop = document.getElementById("auth-backdrop");
+            const authRequestForm = document.getElementById("auth-request-form");
+            const authVerifyForm = document.getElementById("auth-verify-form");
+            const authBack = document.getElementById("auth-back");
+            const authClose = document.getElementById("auth-close");
+            const authPhone = document.getElementById("auth-phone");
+            const authCode = document.getElementById("auth-code");
+            const authCodeMessage = document.getElementById("auth-code-message");
+            const authHint = document.getElementById("auth-hint");
+
+            let fallbackPhone = "";
+
+            function setHint(message, isError) {
+                if (!authHint) {
+                    return;
+                }
+                authHint.textContent = message || "";
+                authHint.style.color = isError ? "#9f2d0f" : "";
+            }
+
+            function openRequestStep() {
+                authRequestForm && authRequestForm.classList.remove("is-hidden");
+                authVerifyForm && authVerifyForm.classList.add("is-hidden");
+                if (authBack) {
+                    authBack.style.visibility = "hidden";
+                }
+            }
+
+            function openVerifyStep() {
+                authRequestForm && authRequestForm.classList.add("is-hidden");
+                authVerifyForm && authVerifyForm.classList.remove("is-hidden");
+                if (authBack) {
+                    authBack.style.visibility = "visible";
+                }
+            }
+
+            function closeModal() {
+                authBackdrop && authBackdrop.classList.remove("is-open");
+                authModal && authModal.classList.remove("is-open");
+                authModal && authModal.setAttribute("aria-hidden", "true");
+                document.body.classList.remove("admin-open");
+                setHint("", false);
+            }
+
+            if (authRequestForm) {
+                authRequestForm.addEventListener("submit", async function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (window.zamzamAuthFallbackBound) {
+                        return;
+                    }
+
+                    const phone = authPhone ? authPhone.value.trim() : "";
+                    if (!phone) {
+                        setHint("Введите номер телефона.", true);
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch("/api/user/auth/request-code", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ phone: phone })
+                        });
+                        const payload = await response.json().catch(function () { return {}; });
+                        if (!response.ok) {
+                            throw new Error(payload.detail || "Не удалось отправить код.");
+                        }
+
+                        fallbackPhone = payload.phone;
+                        if (authPhone) {
+                            authPhone.value = payload.phone;
+                        }
+                        if (authCodeMessage) {
+                            authCodeMessage.textContent = payload.message + " Демо-код: " + payload.code;
+                        }
+                        openVerifyStep();
+                        setHint("Введите код подтверждения.", false);
+                    } catch (error) {
+                        setHint(error.message || "Не удалось отправить код.", true);
+                    }
+                }, true);
+            }
+
+            if (authVerifyForm) {
+                authVerifyForm.addEventListener("submit", async function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (window.zamzamAuthFallbackBound) {
+                        return;
+                    }
+
+                    const code = authCode ? authCode.value.trim() : "";
+                    if (!fallbackPhone || !code) {
+                        setHint("Введите код подтверждения.", true);
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch("/api/user/auth/verify", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                phone: fallbackPhone,
+                                code: code,
+                                full_name: null
+                            })
+                        });
+                        const payload = await response.json().catch(function () { return {}; });
+                        if (!response.ok) {
+                            throw new Error(payload.detail || "Не удалось подтвердить номер.");
+                        }
+
+                        window.sessionStorage.setItem("zamzam_session_token", payload.session_token);
+                        closeModal();
+                        window.location.hash = "account";
+                        window.location.reload();
+                    } catch (error) {
+                        setHint(error.message || "Не удалось подтвердить номер.", true);
+                    }
+                }, true);
+            }
+
+            authBack && authBack.addEventListener("click", function () {
+                if (window.zamzamAuthFallbackBound) {
+                    return;
+                }
+                openRequestStep();
+                setHint("", false);
+            }, true);
+
+            authClose && authClose.addEventListener("click", function () {
+                if (window.zamzamAuthFallbackBound) {
+                    return;
+                }
+                closeModal();
+            }, true);
+
+            authBackdrop && authBackdrop.addEventListener("click", function () {
+                if (window.zamzamAuthFallbackBound) {
+                    return;
+                }
+                closeModal();
+            }, true);
+        })();
+    </script>
 </body>
 </html>

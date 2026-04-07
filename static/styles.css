@@ -841,6 +841,245 @@ body.admin-mode .section-edit-button {
     transform: translate(-50%, -50%);
 }
 
+.auth-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 72;
+    width: min(460px, calc(100% - 24px));
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -46%);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.auth-modal.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(-50%, -50%);
+}
+
+.auth-modal-shell {
+    overflow: hidden;
+    border-radius: 32px;
+    background: #ffffff;
+    box-shadow: 0 36px 90px rgba(15, 15, 15, 0.28);
+}
+
+.auth-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 18px 0;
+}
+
+.auth-modal-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: 0;
+    border-radius: 999px;
+    background: #f2efe9;
+    color: var(--text);
+    font: inherit;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.auth-modal-body {
+    display: grid;
+    gap: 18px;
+    padding: 10px 28px 28px;
+}
+
+.auth-form {
+    display: grid;
+    gap: 16px;
+}
+
+.auth-form.is-hidden {
+    display: none;
+}
+
+.auth-copy {
+    display: grid;
+    gap: 10px;
+    text-align: center;
+}
+
+.auth-copy h3,
+.account-orders h3,
+.account-summary-card strong {
+    font-family: "Oswald", sans-serif;
+    text-transform: uppercase;
+}
+
+.auth-copy h3 {
+    margin: 0;
+    font-size: clamp(2rem, 6vw, 3.2rem);
+    line-height: 0.92;
+}
+
+.auth-copy p,
+.account-summary-card p,
+.account-order-empty,
+.account-order-meta,
+.account-order-items {
+    margin: 0;
+    color: var(--text-soft);
+    line-height: 1.6;
+}
+
+.auth-field input {
+    width: 100%;
+    min-height: 58px;
+    padding: 0 20px;
+    border: 1px solid rgba(15, 15, 15, 0.08);
+    border-radius: 18px;
+    background: #f3f3f3;
+    color: var(--text);
+    font: inherit;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.auth-field input:focus {
+    outline: none;
+    border-color: rgba(232, 84, 36, 0.46);
+    box-shadow: 0 0 0 4px rgba(232, 84, 36, 0.12);
+}
+
+.auth-submit {
+    min-height: 48px;
+    border: 0;
+    border-radius: 16px;
+    background: #ffc2ad;
+    color: #ffffff;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.auth-submit:hover {
+    background: var(--orange);
+    transform: translateY(-1px);
+}
+
+.auth-submit:disabled {
+    opacity: 0.7;
+    cursor: wait;
+    transform: none;
+}
+
+.auth-hint {
+    min-height: 24px;
+    color: var(--orange);
+    font-size: 0.92rem;
+    line-height: 1.45;
+    text-align: center;
+}
+
+.account-section.is-hidden {
+    display: none;
+}
+
+.account-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.account-summary-card,
+.account-orders {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-xl);
+    background: #ffffff;
+    box-shadow: 0 16px 40px rgba(17, 17, 17, 0.06);
+}
+
+.account-summary-card {
+    display: grid;
+    gap: 8px;
+    padding: 28px;
+}
+
+.account-summary-label {
+    color: var(--orange);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.account-summary-card strong {
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    line-height: 0.9;
+    color: var(--green);
+}
+
+.account-orders {
+    padding: 28px;
+}
+
+.account-orders-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.account-orders-head h3 {
+    margin: 0;
+    font-size: 1.8rem;
+    color: var(--orange);
+}
+
+.account-refresh {
+    background: var(--green);
+}
+
+.account-orders-list {
+    display: grid;
+    gap: 12px;
+}
+
+.account-order-card {
+    display: grid;
+    gap: 10px;
+    padding: 18px;
+    border: 1px solid rgba(15, 15, 15, 0.08);
+    border-radius: 20px;
+    background: #fbf8f2;
+}
+
+.account-order-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.account-order-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: rgba(35, 66, 32, 0.12);
+    color: var(--green);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
 .checkout-modal-shell {
     display: block;
     overflow: hidden;
@@ -1055,6 +1294,28 @@ body.admin-mode .section-edit-button {
 .checkout-payment {
     display: grid;
     gap: 10px;
+}
+
+.checkout-bonus-box {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 180px;
+    gap: 14px;
+    align-items: end;
+    padding: 16px 18px;
+    border: 1px solid rgba(15, 15, 15, 0.08);
+    border-radius: 18px;
+    background: #f7f1e8;
+}
+
+.checkout-bonus-copy {
+    display: grid;
+    gap: 8px;
+}
+
+.checkout-bonus-copy p {
+    margin: 0;
+    color: rgba(15, 15, 15, 0.68);
+    line-height: 1.5;
 }
 
 .checkout-note {
@@ -1796,6 +2057,10 @@ body.admin-mode .dish-edit-button {
     .checkout-modal-form-wrap {
         padding: 24px;
     }
+
+    .account-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 620px) {
@@ -1827,5 +2092,20 @@ body.admin-mode .dish-edit-button {
     .checkout-preview-inline,
     .checkout-switcher {
         grid-template-columns: 1fr;
+    }
+
+    .checkout-bonus-box {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-modal-body,
+    .account-orders {
+        padding: 18px;
+    }
+
+    .account-orders-head,
+    .account-order-head {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }

@@ -8,11 +8,14 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from backend.orders import router as orders_router
+from backend.orders.migrations import ensure_order_bonus_columns
 from backend.redactor import router as redactor_router
 from backend.redactor.router import load_hero_content
 from backend.redactor.crud import SqlAlchemyMenuItemRepository
 from backend.redactor.schemas import MenuItemCreate
 from backend.redactor.service import MenuItemService
+from backend.user import router as user_router
 from db import AsyncSessionLocal, init_db
 
 
@@ -130,6 +133,7 @@ async def _load_menu_items() -> list[dict[str, object]]:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await init_db()
+    await ensure_order_bonus_columns()
     await _seed_menu_items()
     yield
 
@@ -141,6 +145,8 @@ app = FastAPI(
 )
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(redactor_router)
+app.include_router(user_router)
+app.include_router(orders_router)
 
 
 @app.get("/", response_class=HTMLResponse)
