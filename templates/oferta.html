@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zamzam | Оферта</title>
+    <meta name="description" content="Лицензионное соглашение и оферта Zamzam">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
+</head>
+<body class="legal-page-body preloader-active">
+    <div class="page-preloader" id="page-preloader" aria-hidden="true">
+        <div class="page-preloader-shell">
+            <div class="page-preloader-icon-wrap">
+                <img class="page-preloader-icon" src="{{ url_for('static', path='pic/preloader-cloche.svg') }}" alt="">
+            </div>
+            <strong class="page-preloader-title">Zamzam</strong>
+            <span class="page-preloader-copy">Загружаем страницу</span>
+        </div>
+    </div>
+    <header class="legal-page-header">
+        <div class="legal-page-header-inner">
+            <a class="legal-page-brand" href="/">Zamzam</a>
+            <a class="legal-page-back" href="/">На главную</a>
+        </div>
+    </header>
+
+    <main class="legal-page-main">
+        <section class="legal-page-shell">
+            <div class="legal-page-head">
+                <span class="section-kicker">Документы</span>
+                <h1>Оферта</h1>
+                <p>Лицензионное соглашение и приложения к нему.</p>
+            </div>
+
+            <article class="legal-document">
+                <pre class="legal-document-text">{{ oferta_text }}</pre>
+            </article>
+        </section>
+    </main>
+
+    <div class="checkout-backdrop" id="footer-map-backdrop"></div>
+    <section class="checkout-modal footer-map-modal" id="footer-map-modal" aria-hidden="true">
+        <div class="checkout-modal-shell">
+            <div class="footer-map-modal-wrap">
+                <div class="checkout-modal-head">
+                    <div>
+                        <span class="section-kicker">Мы находимся</span>
+                    </div>
+                    <button class="admin-close" id="footer-map-close" type="button" aria-label="Закрыть карту">x</button>
+                </div>
+
+                <div class="footer-map-frame">
+                    <iframe
+                        title="Карта Zamzam"
+                        src="https://www.google.com/maps?q=%D0%B3.%20%D0%95%D0%BA%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%BD%D0%B1%D1%83%D1%80%D0%B3,%20%D1%83%D0%BB.%20%D0%9C%D0%B0%D0%BB%D1%8B%D1%88%D0%B5%D0%B2%D0%B0,%20%D0%B4.28&output=embed"
+                        loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade"
+                        allowfullscreen>
+                    </iframe>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="site-footer">
+        <div class="site-footer-inner">
+            <div class="site-footer-brand">
+                <a class="site-footer-logo" href="/">Zamzam</a>
+                <p class="site-footer-copy">Восточная кухня, быстрая доставка и аккуратная ресторанная подача каждый день.</p>
+            </div>
+
+            <div class="site-footer-nav">
+                <a href="/#menu">Меню</a>
+                <a href="/policy">Политика конфиденциальности </a>
+                <a href="/oferta">Оферта</a>
+            </div>
+
+            <div class="site-footer-meta">
+                <span class="site-footer-label">Режим работы</span>
+                <strong>Пн - Вс • 10:00 - 23:00</strong>
+                <span class="site-footer-label">Контакты</span>
+                <button class="site-footer-map-trigger" id="footer-map-open" type="button">ул. Малышева, д.28</button>
+                <a class="site-footer-phone" href="tel:+79827505455">тел. +7-982-750-54-55</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        (function () {
+            const preloader = document.getElementById("page-preloader");
+
+            function hidePreloader() {
+                if (preloader) {
+                    preloader.classList.add("is-hidden");
+                }
+                document.body.classList.remove("preloader-active");
+            }
+
+            window.addEventListener("load", function () {
+                window.setTimeout(hidePreloader, 120);
+            });
+        })();
+    </script>
+
+    <script>
+        (function () {
+            const footerMapBackdrop = document.getElementById("footer-map-backdrop");
+            const footerMapModal = document.getElementById("footer-map-modal");
+            const footerMapOpen = document.getElementById("footer-map-open");
+            const footerMapClose = document.getElementById("footer-map-close");
+
+            function closeFooterMapModal() {
+                if (footerMapBackdrop) {
+                    footerMapBackdrop.classList.remove("is-open");
+                }
+                if (footerMapModal) {
+                    footerMapModal.classList.remove("is-open");
+                    footerMapModal.setAttribute("aria-hidden", "true");
+                }
+                document.body.classList.remove("admin-open");
+            }
+
+            function openFooterMapModal() {
+                if (!footerMapBackdrop || !footerMapModal) {
+                    return;
+                }
+                footerMapBackdrop.classList.add("is-open");
+                footerMapModal.classList.add("is-open");
+                footerMapModal.setAttribute("aria-hidden", "false");
+                document.body.classList.add("admin-open");
+            }
+
+            footerMapOpen && footerMapOpen.addEventListener("click", openFooterMapModal);
+            footerMapClose && footerMapClose.addEventListener("click", closeFooterMapModal);
+            footerMapBackdrop && footerMapBackdrop.addEventListener("click", closeFooterMapModal);
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape" && footerMapModal && footerMapModal.classList.contains("is-open")) {
+                    closeFooterMapModal();
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

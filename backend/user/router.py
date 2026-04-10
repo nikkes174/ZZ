@@ -5,39 +5,31 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from backend.orders.depencises import get_order_service
 from backend.orders.service import OrderService
 from backend.user.depencises import get_session_token, get_user_service
-from backend.user.schemas import (
-    AuthCodeRequest,
-    AuthCodeResponse,
-    AuthVerifyRequest,
-    UserAuthRead,
-    UserDashboardRead,
-)
-from backend.user.service import UserNotFoundError, UserService, VerificationCodeError
+from backend.user.schemas import UserAuthRead, UserDashboardRead, UserLoginRequest, UserProfileUpdateRequest, UserRead, UserRegisterRequest
+from backend.user.service import UserAuthError, UserConflictError, UserNotFoundError, UserService
 
 router = APIRouter(prefix="/api/user", tags=["user"])
 
 
-@router.post("/auth/request-code", response_model=AuthCodeResponse)
-async def request_auth_code(
-    payload: AuthCodeRequest,
-    service: UserService = Depends(get_user_service),
-) -> AuthCodeResponse:
-    try:
-        return await service.request_code(payload.phone)
-    except VerificationCodeError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-
-@router.post("/auth/verify", response_model=UserAuthRead)
-async def verify_auth_code(
-    payload: AuthVerifyRequest,
+@router.post("/auth/register", response_model=UserAuthRead, status_code=status.HTTP_201_CREATED)
+async def register_user(
+    payload: UserRegisterRequest,
     service: UserService = Depends(get_user_service),
 ) -> UserAuthRead:
     try:
-        return await service.verify_code(payload)
-    except UserNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден.") from exc
-    except VerificationCodeError as exc:
+        return await service.register(payload)
+    except UserAuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/auth/login", response_model=UserAuthRead)
+async def login_user(
+    payload: UserLoginRequest,
+    service: UserService = Depends(get_user_service),
+) -> UserAuthRead:
+    try:
+        return await service.login(payload)
+    except UserAuthError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
@@ -59,3 +51,20 @@ async def get_current_user_dashboard(
         latest_order_status=latest_order_status,
         active_orders_count=active_orders_count,
     )
+
+
+@router.patch("/me", response_model=UserRead)
+async def update_current_user(
+    payload: UserProfileUpdateRequest,
+    session_token: str = Depends(get_session_token),
+    user_service: UserService = Depends(get_user_service),
+) -> UserRead:
+    try:
+        user = await user_service.get_user_by_session_token(session_token)
+        return await user_service.update_phone(user_id=user.id, phone=payload.phone)
+    except UserNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Сессия не найдена.") from exc
+    except UserAuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except UserConflictError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc

@@ -6,6 +6,7 @@ from typing import Optional
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from backend.orders.statuses import ORDER_STATUS_PREPARING
 from db import Base
 
 
@@ -28,7 +29,7 @@ class OrderModel(Base):
     bonus_spent: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     bonus_awarded: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    status: Mapped[str] = mapped_column(String(64), nullable=False, default="Подтвержден")
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default=ORDER_STATUS_PREPARING)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

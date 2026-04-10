@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Optional, Protocol
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.redactor.models import MenuItemModel
@@ -17,6 +17,13 @@ class MenuItemRepository(Protocol):
         limit: int,
         offset: int,
         include_inactive: bool,
+    ) -> tuple[Sequence[MenuItemModel], int]: ...
+    async def search_catalog(
+        self,
+        *,
+        query: str,
+        limit: int,
+        offset: int,
     ) -> tuple[Sequence[MenuItemModel], int]: ...
 
     async def get(self, item_id: int) -> Optional[MenuItemModel]: ...
@@ -38,7 +45,7 @@ class SqlAlchemyMenuItemRepository:
         offset: int,
         include_inactive: bool,
     ) -> tuple[Sequence[MenuItemModel], int]:
-        filters = []
+        filters = [MenuItemModel.sync_source == "iiko", MenuItemModel.is_published.is_(True)]
         if not include_inactive:
             filters.append(MenuItemModel.is_active.is_(True))
 
@@ -58,8 +65,50 @@ class SqlAlchemyMenuItemRepository:
         items = (await self._session.scalars(items_stmt)).all()
         return items, total
 
+    async def search_catalog(
+        self,
+        *,
+        query: str,
+        limit: int,
+        offset: int,
+    ) -> tuple[Sequence[MenuItemModel], int]:
+        filters = [
+            MenuItemModel.sync_source == "iiko",
+            MenuItemModel.is_active.is_(True),
+            MenuItemModel.is_deleted_in_iiko.is_(False),
+        ]
+        normalized_query = query.strip()
+        if normalized_query:
+            pattern = f"%{normalized_query}%"
+            filters.append(
+                or_(
+                    MenuItemModel.title.ilike(pattern),
+                    MenuItemModel.site_title.ilike(pattern),
+                    MenuItemModel.iiko_category_name.ilike(pattern),
+                    MenuItemModel.category.ilike(pattern),
+                )
+            )
+
+        total_stmt = select(func.count()).select_from(MenuItemModel).where(*filters)
+        items_stmt = (
+            select(MenuItemModel)
+            .where(*filters)
+            .order_by(
+                MenuItemModel.is_published.desc(),
+                MenuItemModel.is_active.desc(),
+                MenuItemModel.title.asc(),
+            )
+            .limit(limit)
+            .offset(offset)
+        )
+
+        total = int(await self._session.scalar(total_stmt) or 0)
+        items = (await self._session.scalars(items_stmt)).all()
+        return items, total
+
     async def get(self, item_id: int) -> Optional[MenuItemModel]:
-        return await self._session.get(MenuItemModel, item_id)
+        stmt = select(MenuItemModel).where(MenuItemModel.id == item_id, MenuItemModel.sync_source == "iiko")
+        return await self._session.scalar(stmt)
 
     async def create(self, payload: MenuItemCreate) -> MenuItemModel:
         model = MenuItemModel(**payload.model_dump())

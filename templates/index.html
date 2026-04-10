@@ -10,18 +10,25 @@
     >
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
 </head>
-<body>
+<body class="preloader-active">
+    <div class="page-preloader" id="page-preloader" aria-hidden="true">
+        <div class="page-preloader-shell">
+            <div class="page-preloader-icon-wrap">
+                <img class="page-preloader-icon" src="{{ url_for('static', path='pic/preloader-cloche.svg') }}" alt="">
+            </div>
+            <strong class="page-preloader-title">Zamzam</strong>
+            <span class="page-preloader-copy">Загружаем страницу</span>
+        </div>
+    </div>
     <div class="floating-tools">
-        <a class="floating-tool" href="#contact" aria-label="Информация">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="8"></circle>
-                <path d="M12 11v5"></path>
-                <circle cx="12" cy="8" r="1"></circle>
+        <button class="floating-tool floating-tool-neutral is-hidden" id="account-floating-trigger" type="button" aria-label="Открыть кабинет">
+            <svg width="18" height="20" viewBox="0 0 18 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M16.75 18.75C16.75 17.3544 16.75 16.6567 16.5778 16.0889C16.19 14.8105 15.1896 13.81 13.9112 13.4222C13.3434 13.25 12.6456 13.25 11.25 13.25H6.25003C4.85447 13.25 4.15668 13.25 3.58889 13.4222C2.31049 13.81 1.31007 14.8105 0.92227 16.0889C0.750031 16.6567 0.750031 17.3544 0.750031 18.75M13.25 5.25C13.25 7.73528 11.2353 9.75 8.75003 9.75C6.26475 9.75 4.25003 7.73528 4.25003 5.25C4.25003 2.76472 6.26475 0.75 8.75003 0.75C11.2353 0.75 13.25 2.76472 13.25 5.25Z" stroke="black" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-        </a>
+        </button>
         <button class="floating-tool floating-tool-accent" id="cart-toggle" type="button" aria-label="Открыть корзину">
             <img class="floating-tool-icon" src="{{ url_for('static', path='pic/basket.svg') }}" alt="">
             <span class="floating-count" id="floating-count">0</span>
@@ -31,6 +38,7 @@
     <div class="cart-backdrop" id="cart-backdrop"></div>
     <div class="checkout-backdrop" id="checkout-backdrop"></div>
     <div class="checkout-backdrop" id="auth-backdrop"></div>
+    <div class="checkout-backdrop" id="footer-map-backdrop"></div>
     <div class="admin-backdrop" id="admin-backdrop"></div>
     <aside class="cart-drawer" id="order-panel">
         <button class="cart-close" id="cart-close" type="button" aria-label="Закрыть корзину">x</button>
@@ -66,7 +74,7 @@
                 </div>
             </div>
             <div>
-                <span>Итого</span>
+                <span>того</span>
                 <strong id="total-price">0 руб.</strong>
             </div>
         </div>
@@ -87,7 +95,7 @@
                 <form class="checkout-form" id="checkout-form">
                     <div class="checkout-grid">
                         <label class="checkout-field">
-                            <span>Имя</span>
+                            <span>мя</span>
                             <input id="checkout-name" type="text" maxlength="120" placeholder="Как к вам обращаться" required>
                         </label>
 
@@ -170,33 +178,92 @@
             </div>
 
             <div class="auth-modal-body">
-                <form class="auth-form" id="auth-request-form">
+                <div class="checkout-switcher auth-switcher" role="tablist" aria-label="Режим авторизации">
+                    <button class="checkout-switch is-active" id="auth-tab-login" type="button" onclick="if(window.setZamzamAuthMode){window.setZamzamAuthMode('login');}else{(function(){var loginForm=document.getElementById('auth-login-form');var registerForm=document.getElementById('auth-register-form');var loginTab=document.getElementById('auth-tab-login');var registerTab=document.getElementById('auth-tab-register');if(loginForm){loginForm.classList.remove('is-hidden');}if(registerForm){registerForm.classList.add('is-hidden');}if(loginTab){loginTab.classList.add('is-active');}if(registerTab){registerTab.classList.remove('is-active');}})();}">Войти</button>
+                    <button class="checkout-switch" id="auth-tab-register" type="button" onclick="if(window.setZamzamAuthMode){window.setZamzamAuthMode('register');}else{(function(){var loginForm=document.getElementById('auth-login-form');var registerForm=document.getElementById('auth-register-form');var loginTab=document.getElementById('auth-tab-login');var registerTab=document.getElementById('auth-tab-register');if(loginForm){loginForm.classList.add('is-hidden');}if(registerForm){registerForm.classList.remove('is-hidden');}if(loginTab){loginTab.classList.remove('is-active');}if(registerTab){registerTab.classList.add('is-active');}})();}">Регистрация</button>
+                </div>
+
+                <form class="auth-form" id="auth-login-form">
                     <div class="auth-copy">
-                        <h3>Укажите номер телефона</h3>
-                        <p>Мы отправим код подтверждения, чтобы открыть личный кабинет.</p>
+                        <h3>Вход в кабинет</h3>
+                        <p>Введите номер телефона и пароль, чтобы посмотреть бонусы и оформить заказ.</p>
                     </div>
 
                     <label class="auth-field">
                         <input id="auth-phone" type="tel" maxlength="32" placeholder="+7" required>
                     </label>
 
-                    <button class="auth-submit" id="auth-request-submit" type="submit">Получить код</button>
+                    <label class="auth-field">
+                        <input id="auth-password" type="password" maxlength="128" placeholder="Пароль" required>
+                    </label>
+
+                    <button class="auth-submit" id="auth-login-submit" type="submit">Войти</button>
                 </form>
 
-                <form class="auth-form is-hidden" id="auth-verify-form">
+                <form class="auth-form is-hidden" id="auth-register-form">
                     <div class="auth-copy">
-                        <h3>Подтвердите вход</h3>
-                        <p id="auth-code-message">Код отправлен на указанный номер.</p>
+                        <h3>Создать кабинет</h3>
+                        <p>Зарегистрируйтесь по номеру телефона и паролю. Без аккаунта оформить заказ нельзя.</p>
                     </div>
 
                     <label class="auth-field">
-                        <input id="auth-code" type="text" inputmode="numeric" maxlength="6" placeholder="Код из сообщения" required>
+                        <input id="auth-register-name" type="text" maxlength="120" placeholder="Имя">
                     </label>
 
-                    <button class="auth-submit" id="auth-verify-submit" type="submit">Подтвердить</button>
+                    <label class="auth-field">
+                        <input id="auth-register-phone" type="tel" maxlength="32" placeholder="+7" required>
+                    </label>
+
+                    <label class="auth-field">
+                        <input id="auth-register-password" type="password" maxlength="128" placeholder="Пароль не менее 6 символов" required>
+                    </label>
+
+                    <button class="auth-submit" id="auth-register-submit" type="submit">Зарегистрироваться</button>
                 </form>
 
                 <div class="auth-hint" id="auth-hint"></div>
+            </div>
+        </div>
+    </section>
+    <section class="auth-modal" id="auth-required-modal" aria-hidden="true">
+        <div class="auth-modal-shell">
+            <div class="auth-modal-head">
+                <div></div>
+                <button class="auth-modal-icon" id="auth-required-close" type="button" aria-label="Закрыть">x</button>
+            </div>
+
+            <div class="auth-modal-body">
+                <div class="auth-copy">
+                    <h3>Сначала войдите в кабинет</h3>
+                    <p>Чтобы оформить заказ, сначала нужно войти в аккаунт или зарегистрироваться. Это займет меньше минуты.</p>
+                </div>
+
+                <div class="auth-required-actions">
+                    <button class="auth-submit" id="auth-required-login" type="button">Войти</button>
+                    <button class="auth-submit auth-submit-secondary" id="auth-required-register" type="button">Зарегистрироваться</button>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="checkout-modal footer-map-modal" id="footer-map-modal" aria-hidden="true">
+        <div class="checkout-modal-shell">
+            <div class="footer-map-modal-wrap">
+                <div class="checkout-modal-head">
+                    <div>
+                        <span class="section-kicker">Мы находимся</span>
+                    </div>
+                    <button class="admin-close" id="footer-map-close" type="button" aria-label="Закрыть карту">x</button>
+                </div>
+
+                <div class="footer-map-frame">
+                    <iframe
+                        title="Карта Zamzam"
+                        src="https://www.google.com/maps?q=%D0%B3.%20%D0%95%D0%BA%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%BD%D0%B1%D1%83%D1%80%D0%B3,%20%D1%83%D0%BB.%20%D0%9C%D0%B0%D0%BB%D1%8B%D1%88%D0%B5%D0%B2%D0%B0,%20%D0%B4.28&output=embed"
+                        loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade"
+                        allowfullscreen>
+                    </iframe>
+                </div>
             </div>
         </div>
     </section>
@@ -226,24 +293,12 @@
             <div class="admin-grid">
                 <label class="admin-field">
                     <span>Цена</span>
-                    <input id="admin-price" type="number" min="0" max="1000000" required>
+                    <input id="admin-price" type="number" min="0" max="1000000" readonly>
                 </label>
 
                 <label class="admin-field">
-                    <span>Категория</span>
+                    <span>Категория на сайте</span>
                     <select id="admin-category" required></select>
-                </label>
-            </div>
-
-            <div class="admin-grid">
-                <label class="admin-field">
-                    <span>Акцент</span>
-                    <input id="admin-accent" type="text" maxlength="32" required>
-                </label>
-
-                <label class="admin-field admin-checkbox">
-                    <span>Активно</span>
-                    <input id="admin-is-active" type="checkbox" checked>
                 </label>
             </div>
 
@@ -252,8 +307,7 @@
                 <input id="admin-image" type="file" accept="image/png,image/jpeg,image/webp">
             </label>
 
-            <div class="admin-actions">
-                <button class="admin-delete" id="admin-delete" type="button">Удалить блюдо</button>
+            <div class="admin-actions admin-actions-end">
                 <button class="admin-save" id="admin-save" type="submit">Сохранить</button>
             </div>
         </form>
@@ -325,6 +379,73 @@
             </div>
         </form>
     </section>
+    <section class="admin-modal" id="menu-categories-admin-modal" aria-hidden="true">
+        <div class="admin-modal-head">
+            <div>
+                <span class="section-kicker">Админка</span>
+                <h3>Категории блюд</h3>
+            </div>
+            <button class="admin-close" id="menu-categories-admin-close" type="button" aria-label="Закрыть форму">x</button>
+        </div>
+
+        <form class="admin-form" id="menu-categories-admin-form">
+            <div class="category-admin-list" id="menu-categories-admin-list"></div>
+
+            <div class="admin-actions">
+                <button class="topbar-action topbar-action-button" id="menu-categories-admin-add" type="button">Добавить категорию</button>
+                <button class="admin-save" id="menu-categories-admin-save" type="submit">Сохранить</button>
+            </div>
+        </form>
+    </section>
+    <section class="admin-modal" id="catalog-admin-modal" aria-hidden="true">
+        <div class="admin-modal-head">
+            <div>
+                <span class="section-kicker">Админка</span>
+                <h3>Добавить товар из iiko</h3>
+            </div>
+            <button class="admin-close" id="catalog-admin-close" type="button" aria-label="Закрыть форму">x</button>
+        </div>
+
+        <div class="admin-form">
+            <label class="admin-field">
+                <span>Поиск по названию из iiko</span>
+                <input id="catalog-search-input" type="text" maxlength="255" placeholder="Введите название товара">
+            </label>
+
+            <div class="admin-actions admin-actions-end">
+                <button class="admin-save" id="catalog-search-submit" type="button">Найти</button>
+            </div>
+
+            <div class="account-orders-list" id="catalog-search-results">
+                <div class="account-order-empty">Начните поиск товара из iiko.</div>
+            </div>
+        </div>
+    </section>
+    <section class="admin-modal" id="orders-admin-modal" aria-hidden="true">
+        <div class="admin-modal-head">
+            <div>
+                <span class="section-kicker">Админка</span>
+                <h3>Управление заказами</h3>
+            </div>
+            <button class="admin-close" id="orders-admin-close" type="button" aria-label="Закрыть форму">x</button>
+        </div>
+
+        <div class="admin-form">
+            <label class="admin-field">
+                <span>Поиск по номеру телефона</span>
+                <input id="orders-admin-phone" type="tel" maxlength="32" placeholder="+7">
+            </label>
+
+            <div class="admin-actions">
+                <button class="topbar-action topbar-action-button" id="orders-admin-refresh" type="button">Показать последние</button>
+                <button class="admin-save" id="orders-admin-search" type="button">Найти заказы</button>
+            </div>
+
+            <div class="account-orders-list" id="orders-admin-results">
+                <div class="account-order-empty">Здесь появятся последние заказы и статусы для управления.</div>
+            </div>
+        </div>
+    </section>
     <header class="topbar-wrap">
         <nav class="topbar">
             <a class="brand" href="#hero">Zamzam</a>
@@ -338,13 +459,13 @@
 
             <div class="topbar-controls">
                 <button class="admin-toggle" id="admin-toggle" type="button">Админка</button>
-                <button class="topbar-action topbar-action-button" id="cart-open-topbar" type="button" onclick="if (window.openZamzamAuthModal) { window.openZamzamAuthModal(); } else { var modal = document.getElementById('auth-modal'); var backdrop = document.getElementById('auth-backdrop'); var requestForm = document.getElementById('auth-request-form'); var verifyForm = document.getElementById('auth-verify-form'); var back = document.getElementById('auth-back'); if (requestForm) { requestForm.classList.remove('is-hidden'); } if (verifyForm) { verifyForm.classList.add('is-hidden'); } if (back) { back.style.visibility = 'hidden'; } if (backdrop) { backdrop.classList.add('is-open'); } if (modal) { modal.classList.add('is-open'); modal.setAttribute('aria-hidden', 'false'); } document.body.classList.add('admin-open'); }">Войти</button>
+                <button class="topbar-action topbar-action-button" id="cart-open-topbar" type="button" onclick="(function(){var modal=document.getElementById('auth-modal');var backdrop=document.getElementById('auth-backdrop');var loginForm=document.getElementById('auth-login-form');var registerForm=document.getElementById('auth-register-form');var loginTab=document.getElementById('auth-tab-login');var registerTab=document.getElementById('auth-tab-register');var hint=document.getElementById('auth-hint');if(registerForm){registerForm.classList.add('is-hidden');}if(loginForm){loginForm.classList.remove('is-hidden');}if(loginTab){loginTab.classList.add('is-active');}if(registerTab){registerTab.classList.remove('is-active');}if(hint){hint.textContent='';hint.style.color='';}if(backdrop){backdrop.classList.add('is-open');}if(modal){modal.classList.add('is-open');modal.setAttribute('aria-hidden','false');}document.body.classList.add('admin-open');})();">Войти</button>
             </div>
         </nav>
     </header>
 
     <main>
-        <section class="account-section section-shell is-hidden" id="account">
+        <section class="account-modal is-hidden" id="account" aria-hidden="true">
             <div class="section-head">
                 <div>
                     <span class="section-kicker">Личный кабинет</span>
@@ -352,6 +473,7 @@
                 </div>
             </div>
 
+            <button class="admin-close account-modal-close" id="account-close" type="button" aria-label="Закрыть кабинет">x</button>
             <div class="account-grid">
                 <article class="account-summary-card">
                     <span class="account-summary-label">Бонусы</span>
@@ -366,15 +488,37 @@
                 </article>
             </div>
 
+            <section class="account-current-order">
+                <div class="account-orders-head">
+                    <h3>Текущий заказ</h3>
+                    <button class="topbar-action topbar-action-button account-refresh" id="account-current-refresh" type="button">Обновить</button>
+                </div>
+                <div id="account-current-order-card">
+                    <div class="account-order-empty">Активного заказа пока нет.</div>
+                </div>
+            </section>
+
             <div class="account-orders">
                 <div class="account-orders-head">
-                    <h3>История заказов</h3>
-                    <button class="topbar-action topbar-action-button account-refresh" id="account-refresh" type="button">Обновить</button>
+                    <h3>стория заказов</h3>
+                    <button class="topbar-action topbar-action-button account-refresh" id="account-history-refresh" type="button">Обновить</button>
                 </div>
                 <div class="account-orders-list" id="account-orders-list">
                     <div class="account-order-empty">После первого подтвержденного заказа история появится здесь.</div>
                 </div>
             </div>
+
+            <section class="account-profile-card">
+                <span class="account-summary-label">Номер телефона</span>
+                <p class="account-profile-copy">спользуется для входа в кабинет и связи по заказам.</p>
+                <form class="account-phone-form" id="account-phone-form">
+                    <label class="auth-field">
+                        <input id="account-phone-input" type="tel" maxlength="32" placeholder="+7" required>
+                    </label>
+                    <button class="auth-submit" id="account-phone-submit" type="submit">Сохранить номер</button>
+                </form>
+                <div class="auth-hint account-phone-hint" id="account-phone-hint"></div>
+            </section>
         </section>
 
         <section class="hero" id="hero">
@@ -383,15 +527,15 @@
             <div class="hero-inner">
                 <span class="hero-kicker">Восточная • Кавказская • Авторская кухня</span>
 
-                <h1>Zamzam</h1>
+                <h1 class="hero-gradient-text">Zamzam</h1>
 
                 <p class="hero-address">
                     Доставка по городу, ресторанная подача и быстрый онлайн-заказ
                 </p>
 
                 <h2>
-                    <span>Яркая восточная кухня с характером,</span>
-                    <span>Сервис современного уровня</span>
+                    <span class="hero-gradient-text">Яркая восточная кухня с характером,</span>
+                    <span class="hero-gradient-text">Сервис современного уровня</span>
                 </h2>
 
                 <div class="hero-visual">
@@ -410,7 +554,7 @@
 
                 <div class="hero-actions">
                     <a class="hero-button hero-button-primary" href="#menu">Смотреть меню</a>
-                    <button class="hero-button hero-button-secondary" id="cart-open-hero" type="button">Собрать заказ</button>
+                    <a class="hero-button hero-button-secondary" id="cart-open-hero" href="tel:+79827505455">Забронировать стол</a>
                 </div>
             </div>
 
@@ -448,16 +592,15 @@
 
             <div class="menu-layout">
                 <div class="menu-admin-bar">
-                    <button class="admin-toggle admin-toggle-accent" id="admin-create" type="button">Новое блюдо</button>
+                    <button class="admin-toggle" id="menu-categories-open" type="button">Категории</button>
+                    <button class="admin-toggle admin-toggle-accent" id="catalog-search-open" type="button">Добавить товар из iiko</button>
                 </div>
                 <div class="menu-content">
                     <div class="filters" id="filters">
                         <button class="filter-chip active" data-filter="all">Все блюда</button>
-                        <button class="filter-chip" data-filter="signature">Блюда на углях</button>
-                        <button class="filter-chip" data-filter="seafood">Супы</button>
-                        <button class="filter-chip" data-filter="bowls">Салаты</button>
-                        <button class="filter-chip" data-filter="grill">Горячее</button>
-                        <button class="filter-chip" data-filter="dessert">Десерты</button>
+                        {% for category in menu_categories %}
+                        <button class="filter-chip" data-filter="{{ category.value }}">{{ category.label }}</button>
+                        {% endfor %}
                     </div>
 
                     <div class="menu-grid" id="menu-grid">
@@ -539,179 +682,54 @@
 
 
 
-        <section class="contact-section section-shell" id="contact">
-            <div class="contact-grid">
-                <div class="contact-copy">
-                    <span class="section-kicker">Контакты</span>
-                    <h2>Работаем каждый день и держим быструю доставку в центре внимания.</h2>
-                </div>
 
-                <div class="contact-card">
-                    <h3>Режим работы</h3>
-                    <div class="contact-line">
-                        <span>Пн - Пт</span>
-                        <strong>10:00 - 22:00</strong>
-                    </div>
-                    <div class="contact-line">
-                        <span>Сб - Вс</span>
-                        <strong>11:00 - 23:00</strong>
-                    </div>
-                </div>
-            </div>
-        </section>
     </main>
 
+    <footer class="site-footer">
+        <div class="site-footer-inner">
+            <div class="site-footer-brand">
+                <a class="site-footer-logo" href="#hero">Zamzam</a>
+                <p class="site-footer-copy">Восточная кухня, быстрая доставка и аккуратная ресторанная подача каждый день.</p>
+            </div>
+
+            <div class="site-footer-nav">
+
+                <a href="#menu">Меню</a>
+                <a href="/policy">Политика конфиденциальности </a>
+                <a href="/oferta">Оферта</a>
+            </div>
+
+            <div class="site-footer-meta">
+                <span class="site-footer-label">Режим работы</span>
+                <strong>Пн - Вс • 10:00 - 23:00</strong>
+<span class="site-footer-label">Контакты</span>
+                <button class="site-footer-map-trigger" id="footer-map-open" type="button">ул. Малышева, д.28</button>
+                <a class="site-footer-phone" href="tel:+79827505455">тел. +7-982-750-54-55</a>
+
+
+
+            </div>
+        </div>
+    </footer>
+
     <script src="{{ url_for('static', path='app.js') }}"></script>
+    <script src="{{ url_for('static', path='catalog-admin.js') }}"></script>
     <script src="{{ url_for('static', path='account.js') }}"></script>
+    <script src="{{ url_for('static', path='orders-admin.js') }}"></script>
     <script>
         (function () {
-            const authModal = document.getElementById("auth-modal");
-            const authBackdrop = document.getElementById("auth-backdrop");
-            const authRequestForm = document.getElementById("auth-request-form");
-            const authVerifyForm = document.getElementById("auth-verify-form");
-            const authBack = document.getElementById("auth-back");
-            const authClose = document.getElementById("auth-close");
-            const authPhone = document.getElementById("auth-phone");
-            const authCode = document.getElementById("auth-code");
-            const authCodeMessage = document.getElementById("auth-code-message");
-            const authHint = document.getElementById("auth-hint");
+            const preloader = document.getElementById("page-preloader");
 
-            let fallbackPhone = "";
-
-            function setHint(message, isError) {
-                if (!authHint) {
-                    return;
+            function hidePreloader() {
+                if (preloader) {
+                    preloader.classList.add("is-hidden");
                 }
-                authHint.textContent = message || "";
-                authHint.style.color = isError ? "#9f2d0f" : "";
+                document.body.classList.remove("preloader-active");
             }
 
-            function openRequestStep() {
-                authRequestForm && authRequestForm.classList.remove("is-hidden");
-                authVerifyForm && authVerifyForm.classList.add("is-hidden");
-                if (authBack) {
-                    authBack.style.visibility = "hidden";
-                }
-            }
-
-            function openVerifyStep() {
-                authRequestForm && authRequestForm.classList.add("is-hidden");
-                authVerifyForm && authVerifyForm.classList.remove("is-hidden");
-                if (authBack) {
-                    authBack.style.visibility = "visible";
-                }
-            }
-
-            function closeModal() {
-                authBackdrop && authBackdrop.classList.remove("is-open");
-                authModal && authModal.classList.remove("is-open");
-                authModal && authModal.setAttribute("aria-hidden", "true");
-                document.body.classList.remove("admin-open");
-                setHint("", false);
-            }
-
-            if (authRequestForm) {
-                authRequestForm.addEventListener("submit", async function (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    if (window.zamzamAuthFallbackBound) {
-                        return;
-                    }
-
-                    const phone = authPhone ? authPhone.value.trim() : "";
-                    if (!phone) {
-                        setHint("Введите номер телефона.", true);
-                        return;
-                    }
-
-                    try {
-                        const response = await fetch("/api/user/auth/request-code", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ phone: phone })
-                        });
-                        const payload = await response.json().catch(function () { return {}; });
-                        if (!response.ok) {
-                            throw new Error(payload.detail || "Не удалось отправить код.");
-                        }
-
-                        fallbackPhone = payload.phone;
-                        if (authPhone) {
-                            authPhone.value = payload.phone;
-                        }
-                        if (authCodeMessage) {
-                            authCodeMessage.textContent = payload.message + " Демо-код: " + payload.code;
-                        }
-                        openVerifyStep();
-                        setHint("Введите код подтверждения.", false);
-                    } catch (error) {
-                        setHint(error.message || "Не удалось отправить код.", true);
-                    }
-                }, true);
-            }
-
-            if (authVerifyForm) {
-                authVerifyForm.addEventListener("submit", async function (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    if (window.zamzamAuthFallbackBound) {
-                        return;
-                    }
-
-                    const code = authCode ? authCode.value.trim() : "";
-                    if (!fallbackPhone || !code) {
-                        setHint("Введите код подтверждения.", true);
-                        return;
-                    }
-
-                    try {
-                        const response = await fetch("/api/user/auth/verify", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                phone: fallbackPhone,
-                                code: code,
-                                full_name: null
-                            })
-                        });
-                        const payload = await response.json().catch(function () { return {}; });
-                        if (!response.ok) {
-                            throw new Error(payload.detail || "Не удалось подтвердить номер.");
-                        }
-
-                        window.sessionStorage.setItem("zamzam_session_token", payload.session_token);
-                        closeModal();
-                        window.location.hash = "account";
-                        window.location.reload();
-                    } catch (error) {
-                        setHint(error.message || "Не удалось подтвердить номер.", true);
-                    }
-                }, true);
-            }
-
-            authBack && authBack.addEventListener("click", function () {
-                if (window.zamzamAuthFallbackBound) {
-                    return;
-                }
-                openRequestStep();
-                setHint("", false);
-            }, true);
-
-            authClose && authClose.addEventListener("click", function () {
-                if (window.zamzamAuthFallbackBound) {
-                    return;
-                }
-                closeModal();
-            }, true);
-
-            authBackdrop && authBackdrop.addEventListener("click", function () {
-                if (window.zamzamAuthFallbackBound) {
-                    return;
-                }
-                closeModal();
-            }, true);
+            window.addEventListener("load", function () {
+                window.setTimeout(hidePreloader, 120);
+            });
         })();
     </script>
 </body>

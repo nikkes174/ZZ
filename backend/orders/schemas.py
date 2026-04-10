@@ -5,6 +5,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from backend.orders.statuses import get_allowed_statuses
+
 
 class OrderItemPayload(BaseModel):
     id: str = Field(..., min_length=1, max_length=64)
@@ -64,3 +66,25 @@ class OrderRead(BaseModel):
 
 class UserOrdersPage(BaseModel):
     items: list[OrderRead]
+
+
+class OrderStatusUpdate(BaseModel):
+    status: str = Field(..., min_length=3, max_length=64)
+
+
+class OrderStatusOptionsRead(BaseModel):
+    checkout_type: str
+    statuses: list[str]
+
+
+class AdminOrdersPage(BaseModel):
+    items: list[OrderRead]
+    status_options: list[OrderStatusOptionsRead]
+
+    @classmethod
+    def build(cls, *, items: list[OrderRead]) -> "AdminOrdersPage":
+        options = [
+            OrderStatusOptionsRead(checkout_type=checkout_type, statuses=list(get_allowed_statuses(checkout_type)))
+            for checkout_type in ("pickup", "delivery")
+        ]
+        return cls(items=items, status_options=options)

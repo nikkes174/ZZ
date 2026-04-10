@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from backend.orders.depencises import get_order_service
-from backend.orders.schemas import OrderCreate, OrderRead, UserOrdersPage
-from backend.orders.service import OrderService, OrderValidationError
+from backend.orders.schemas import AdminOrdersPage, OrderCreate, OrderRead, OrderStatusUpdate, UserOrdersPage
+from backend.orders.service import OrderNotFoundError, OrderService, OrderValidationError
 from backend.user.depencises import get_session_token, get_user_service
 from backend.user.service import UserNotFoundError, UserService
 
@@ -50,3 +52,26 @@ async def list_my_orders(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Сессия не найдена.") from exc
 
     return await order_service.list_user_orders(user.id)
+
+
+@router.get("/admin", response_model=AdminOrdersPage)
+async def list_admin_orders(
+    limit: int = Query(default=30, ge=1, le=100),
+    phone: Optional[str] = Query(default=None, min_length=6, max_length=32),
+    order_service: OrderService = Depends(get_order_service),
+) -> AdminOrdersPage:
+    return await order_service.list_admin_orders(limit=limit, phone=phone)
+
+
+@router.patch("/{order_id}/status", response_model=OrderRead)
+async def update_order_status(
+    order_id: int,
+    payload: OrderStatusUpdate,
+    order_service: OrderService = Depends(get_order_service),
+) -> OrderRead:
+    try:
+        return await order_service.update_order_status(order_id=order_id, status=payload.status)
+    except OrderNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Заказ не найден.") from exc
+    except OrderValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

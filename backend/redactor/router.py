@@ -1,19 +1,27 @@
 from __future__ import annotations
 
 import json
+from io import BytesIO
 from pathlib import Path
+from typing import Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from backend.redactor.depencises import get_menu_item_service
 from backend.redactor.schemas import (
     HeroContentRead,
     HeroContentUpdate,
+    MenuCategoriesRead,
+    MenuCategoriesUpdate,
+    MenuCategoryItem,
     MenuSectionContentRead,
     MenuSectionContentUpdate,
     MenuItemCreate,
     MenuItemDelete,
+    MenuItemCatalogPage,
+    MenuItemLocalUpdate,
     MenuItemRead,
     MenuItemsPage,
     MenuItemUpdate,
@@ -32,7 +40,10 @@ HERO_CONTENT_FILE = BASE_DIR / "files" / "hero-content.json"
 MENU_SECTION_CONTENT_FILE = BASE_DIR / "files" / "menu-section-content.json"
 DELIVERY_SECTION_CONTENT_FILE = BASE_DIR / "files" / "delivery-section-content.json"
 CONTACT_SECTION_CONTENT_FILE = BASE_DIR / "files" / "contact-section-content.json"
-MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
+MENU_CATEGORIES_FILE = BASE_DIR / "files" / "menu-categories.json"
+MAX_IMAGE_SIZE_BYTES = 20 * 1024 * 1024
+MAX_IMAGE_SIDE_PX = 1600
+WEBP_QUALITY = 82
 ALLOWED_IMAGE_TYPES = {
     "image/jpeg": ".jpg",
     "image/png": ".png",
@@ -62,7 +73,7 @@ DEFAULT_CONTACT_SECTION_CONTENT = MenuSectionContentRead(
 )
 
 
-def _resolve_image_file_path(image_path: str | None) -> Path | None:
+def _resolve_image_file_path(image_path: Optional[str]) -> Optional[Path]:
     if not image_path:
         return None
 
@@ -72,6 +83,29 @@ def _resolve_image_file_path(image_path: str | None) -> Path | None:
     except ValueError:
         return None
     return candidate
+
+
+def _optimize_menu_image(content: bytes) -> bytes:
+    try:
+        with Image.open(BytesIO(content)) as image:
+            image = ImageOps.exif_transpose(image)
+            if image.mode not in ("RGB", "RGBA"):
+                image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
+
+            if image.mode == "RGBA":
+                background = Image.new("RGB", image.size, (255, 255, 255))
+                background.paste(image, mask=image.getchannel("A"))
+                image = background
+            elif image.mode != "RGB":
+                image = image.convert("RGB")
+
+            image.thumbnail((MAX_IMAGE_SIDE_PX, MAX_IMAGE_SIDE_PX), Image.Resampling.LANCZOS)
+
+            output = BytesIO()
+            image.save(output, format="WEBP", quality=WEBP_QUALITY, method=6)
+            return output.getvalue()
+    except UnidentifiedImageError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid image file.") from exc
 
 
 def load_hero_content() -> HeroContentRead:
@@ -170,6 +204,56 @@ def save_contact_section_content(payload: MenuSectionContentUpdate) -> MenuSecti
     return MenuSectionContentRead.model_validate(payload)
 
 
+DEFAULT_MENU_CATEGORIES = MenuCategoriesRead(
+    items=[
+        MenuCategoryItem(value="signature", label="Блюда на углях"),
+        MenuCategoryItem(value="seafood", label="Супы"),
+        MenuCategoryItem(value="bowls", label="Салаты"),
+        MenuCategoryItem(value="grill", label="Горячее"),
+        MenuCategoryItem(value="dessert", label="Десерты"),
+    ]
+)
+
+
+def load_menu_categories() -> MenuCategoriesRead:
+    if not MENU_CATEGORIES_FILE.exists():
+        return DEFAULT_MENU_CATEGORIES
+
+    try:
+        payload = json.loads(MENU_CATEGORIES_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return DEFAULT_MENU_CATEGORIES
+
+    try:
+        return MenuCategoriesRead.model_validate(payload)
+    except Exception:
+        return DEFAULT_MENU_CATEGORIES
+
+
+def save_menu_categories(payload: MenuCategoriesUpdate) -> MenuCategoriesRead:
+    normalized_items: list[dict[str, str]] = []
+    seen_values: set[str] = set()
+
+    for item in payload.items:
+        value = item.value.strip().lower()
+        label = item.label.strip()
+        if not value or not label or value in seen_values:
+            continue
+        seen_values.add(value)
+        normalized_items.append({"value": value, "label": label})
+
+    if not normalized_items:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="At least one category is required.")
+
+    normalized_payload = MenuCategoriesRead.model_validate({"items": normalized_items})
+    MENU_CATEGORIES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    MENU_CATEGORIES_FILE.write_text(
+        json.dumps(normalized_payload.model_dump(), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return normalized_payload
+
+
 @router.get("/hero-content", response_model=HeroContentRead)
 async def get_hero_content() -> HeroContentRead:
     return load_hero_content()
@@ -210,6 +294,16 @@ async def update_contact_section_content(payload: MenuSectionContentUpdate) -> M
     return save_contact_section_content(payload)
 
 
+@router.get("/menu-categories", response_model=MenuCategoriesRead)
+async def get_menu_categories() -> MenuCategoriesRead:
+    return load_menu_categories()
+
+
+@router.patch("/menu-categories", response_model=MenuCategoriesRead)
+async def update_menu_categories(payload: MenuCategoriesUpdate) -> MenuCategoriesRead:
+    return save_menu_categories(payload)
+
+
 @router.get("", response_model=MenuItemsPage)
 async def list_menu_items(
     limit: int = Query(default=20, ge=1, le=100),
@@ -221,6 +315,20 @@ async def list_menu_items(
         limit=limit,
         offset=offset,
         include_inactive=include_inactive,
+    )
+
+
+@router.get("/catalog/search", response_model=MenuItemCatalogPage)
+async def search_catalog_items(
+    q: str = Query(default=""),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    service: MenuItemService = Depends(get_menu_item_service),
+) -> MenuItemCatalogPage:
+    return await service.search_catalog_items(
+        query=q,
+        limit=limit,
+        offset=offset,
     )
 
 
@@ -240,17 +348,29 @@ async def create_menu_item(
     payload: MenuItemCreate,
     service: MenuItemService = Depends(get_menu_item_service),
 ) -> MenuItemRead:
-    return await service.create_item(payload)
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Catalog products are managed by iiko and cannot be created manually.",
+    )
 
 
 @router.patch("/{item_id}", response_model=MenuItemRead)
 async def update_menu_item(
     item_id: int,
-    payload: MenuItemUpdate,
+    payload: MenuItemLocalUpdate,
     service: MenuItemService = Depends(get_menu_item_service),
 ) -> MenuItemRead:
     try:
-        return await service.update_item(item_id, payload)
+        return await service.update_item(
+            item_id,
+            MenuItemUpdate(
+                version=payload.version,
+                site_title=payload.title,
+                site_description=payload.description,
+                category=payload.category,
+                is_published=payload.is_published,
+            ),
+        )
     except MenuItemNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found") from exc
     except MenuItemConflictError as exc:
@@ -286,11 +406,12 @@ async def upload_menu_item_image(
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Image is too large.")
 
     STATIC_FILES_DIR.mkdir(parents=True, exist_ok=True)
-    file_name = f"menu-item-{item_id}-{uuid4().hex}{extension}"
+    optimized_content = _optimize_menu_image(content)
+    file_name = f"menu-item-{item_id}-{uuid4().hex}.webp"
     target_path = STATIC_FILES_DIR / file_name
 
     try:
-        target_path.write_bytes(content)
+        target_path.write_bytes(optimized_content)
         updated_item = await service.update_item(
             item_id,
             MenuItemUpdate(version=version, image_path=f"files/{file_name}"),
@@ -316,16 +437,7 @@ async def delete_menu_item(
     payload: MenuItemDelete,
     service: MenuItemService = Depends(get_menu_item_service),
 ) -> MenuItemRead:
-    try:
-        item = await service.delete_item(item_id, payload)
-        image_path = _resolve_image_file_path(item.image_path)
-        if image_path is not None:
-            image_path.unlink(missing_ok=True)
-        return item
-    except MenuItemNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found") from exc
-    except MenuItemConflictError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Menu item was changed concurrently. Reload and retry.",
-        ) from exc
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Catalog products are managed by iiko and cannot be deleted manually.",
+    )

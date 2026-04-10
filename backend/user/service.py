@@ -1,25 +1,25 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from secrets import randbelow, token_hex
+from secrets import token_hex
+from typing import Optional
 
 from backend.user.crud import UserRepository
-from backend.user.schemas import (
-    AuthCodeResponse,
-    AuthVerifyRequest,
-    UserAuthRead,
-    UserDashboardRead,
-    UserRead,
-)
+from backend.user.schemas import UserAuthRead, UserDashboardRead, UserLoginRequest, UserRead, UserRegisterRequest
 
 
 class UserNotFoundError(Exception):
     pass
 
 
-class VerificationCodeError(Exception):
+class UserAuthError(Exception):
+    pass
+
+
+class UserConflictError(Exception):
     pass
 
 
@@ -32,48 +32,80 @@ class UserService:
         if len(digits) == 11 and digits.startswith("8"):
             digits = f"7{digits[1:]}"
         if len(digits) != 11 or not digits.startswith("7"):
-            raise VerificationCodeError("Укажите корректный номер телефона в формате +7.")
+            raise UserAuthError("Укажите корректный номер телефона в формате +7.")
         return f"+{digits}"
 
-    async def request_code(self, phone: str) -> AuthCodeResponse:
-        normalized_phone = self.normalize_phone(phone)
-        code = f"{randbelow(9000) + 1000}"
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
-        await self.repository.create_or_update_code(
-            phone=normalized_phone,
-            code=code,
-            expires_at=expires_at,
-        )
-        return AuthCodeResponse(
-            phone=normalized_phone,
-            message=f"Код подтверждения отправлен на номер {normalized_phone}.",
-            code=code,
-            expires_at=expires_at,
-        )
+    def _hash_password(self, password: str) -> str:
+        normalized = password.strip()
+        if len(normalized) < 6:
+            raise UserAuthError("Пароль должен содержать не менее 6 символов.")
 
-    async def verify_code(self, payload: AuthVerifyRequest) -> UserAuthRead:
+        salt = token_hex(16)
+        digest = hashlib.pbkdf2_hmac(
+            "sha256",
+            normalized.encode("utf-8"),
+            salt.encode("utf-8"),
+            120_000,
+        )
+        return f"{salt}${digest.hex()}"
+
+    def _verify_password(self, password: str, password_hash: Optional[str]) -> bool:
+        if not password_hash:
+            return False
+        try:
+            salt, digest = password_hash.split("$", 1)
+        except ValueError:
+            return False
+
+        candidate = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.strip().encode("utf-8"),
+            salt.encode("utf-8"),
+            120_000,
+        ).hex()
+        return hmac.compare_digest(candidate, digest)
+
+    async def register(self, payload: UserRegisterRequest) -> UserAuthRead:
         normalized_phone = self.normalize_phone(payload.phone)
-        user = await self.repository.get_by_phone(normalized_phone)
-        if user is None:
-            raise UserNotFoundError(normalized_phone)
-
-        if (
-            not user.verification_code
-            or user.verification_code != payload.code.strip()
-            or user.verification_expires_at is None
-            or user.verification_expires_at < datetime.now(timezone.utc)
-        ):
-            raise VerificationCodeError("Код подтверждения недействителен или истек.")
-
+        full_name = (payload.full_name or "").strip() or None
+        password_hash = self._hash_password(payload.password)
         session_token = token_hex(24)
-        verified_user = await self.repository.verify_user(
-            user_id=user.id,
-            full_name=(payload.full_name or "").strip() or None,
-            session_token=session_token,
-        )
+
+        user = await self.repository.get_by_phone(normalized_phone)
+        if user is not None and user.password_hash:
+            raise UserAuthError("Пользователь с таким номером уже зарегистрирован.")
+
+        if user is None:
+            created_user = await self.repository.create_user(
+                phone=normalized_phone,
+                password_hash=password_hash,
+                full_name=full_name,
+                session_token=session_token,
+            )
+        else:
+            created_user = await self.repository.activate_existing_user(
+                user_id=user.id,
+                password_hash=password_hash,
+                full_name=full_name,
+                session_token=session_token,
+            )
+
         return UserAuthRead(
             session_token=session_token,
-            user=UserRead.model_validate(verified_user),
+            user=UserRead.model_validate(created_user),
+        )
+
+    async def login(self, payload: UserLoginRequest) -> UserAuthRead:
+        normalized_phone = self.normalize_phone(payload.phone)
+        user = await self.repository.get_by_phone(normalized_phone)
+        if user is None or not self._verify_password(payload.password, user.password_hash):
+            raise UserAuthError("Неверный номер телефона или пароль.")
+
+        session_token = token_hex(24)
+        logged_user = await self.repository.update_session_token(user_id=user.id, session_token=session_token)
+        return UserAuthRead(
+            session_token=session_token,
+            user=UserRead.model_validate(logged_user),
         )
 
     async def get_user_by_session_token(self, session_token: str) -> UserRead:
@@ -88,11 +120,20 @@ class UserService:
             raise UserNotFoundError(user_id)
         return UserRead.model_validate(user)
 
+    async def update_phone(self, *, user_id: int, phone: str) -> UserRead:
+        normalized_phone = self.normalize_phone(phone)
+        existing_user = await self.repository.get_by_phone(normalized_phone)
+        if existing_user is not None and existing_user.id != user_id:
+            raise UserConflictError("Этот номер телефона уже используется.")
+
+        user = await self.repository.update_phone(user_id=user_id, phone=normalized_phone)
+        return UserRead.model_validate(user)
+
     def build_dashboard(
         self,
         *,
         user: UserRead,
-        latest_order_status: str | None,
+        latest_order_status: Optional[str],
         active_orders_count: int,
     ) -> UserDashboardRead:
         return UserDashboardRead(

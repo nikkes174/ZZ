@@ -18,6 +18,7 @@ const menuSection = document.getElementById("menu");
 const cartDrawer = document.getElementById("order-panel");
 const cartBackdrop = document.getElementById("cart-backdrop");
 const checkoutBackdrop = document.getElementById("checkout-backdrop");
+const footerMapBackdrop = document.getElementById("footer-map-backdrop");
 const cartToggle = document.getElementById("cart-toggle");
 const cartOpenInline = document.getElementById("cart-open-inline");
 const cartOpenTopbar = document.getElementById("cart-open-topbar");
@@ -26,6 +27,9 @@ const cartClose = document.getElementById("cart-close");
 const checkoutButton = document.getElementById("checkout-button");
 const checkoutModal = document.getElementById("checkout-modal");
 const checkoutClose = document.getElementById("checkout-close");
+const footerMapModal = document.getElementById("footer-map-modal");
+const footerMapOpen = document.getElementById("footer-map-open");
+const footerMapClose = document.getElementById("footer-map-close");
 const checkoutForm = document.getElementById("checkout-form");
 const checkoutTypePickup = document.getElementById("cart-checkout-type-pickup");
 const checkoutTypeDelivery = document.getElementById("cart-checkout-type-delivery");
@@ -44,7 +48,6 @@ const checkoutPreviewCutlery = document.getElementById("checkout-preview-cutlery
 const checkoutPreviewTotal = document.getElementById("checkout-preview-total");
 const floatingTools = document.querySelector(".floating-tools");
 const adminToggle = document.getElementById("admin-toggle");
-const adminCreate = document.getElementById("admin-create");
 const adminModal = document.getElementById("admin-modal");
 const adminModalTitle = document.getElementById("admin-modal-title");
 const adminBackdrop = document.getElementById("admin-backdrop");
@@ -56,10 +59,7 @@ const adminTitle = document.getElementById("admin-title");
 const adminDescription = document.getElementById("admin-description");
 const adminPrice = document.getElementById("admin-price");
 const adminCategory = document.getElementById("admin-category");
-const adminAccent = document.getElementById("admin-accent");
-const adminIsActive = document.getElementById("admin-is-active");
 const adminImage = document.getElementById("admin-image");
-const adminDelete = document.getElementById("admin-delete");
 const adminSave = document.getElementById("admin-save");
 const heroSection = document.getElementById("hero");
 const heroAdminModal = document.getElementById("hero-admin-modal");
@@ -81,6 +81,13 @@ const menuSectionAdminForm = document.getElementById("menu-section-admin-form");
 const menuSectionAdminKicker = document.getElementById("menu-section-admin-kicker");
 const menuSectionAdminTitle = document.getElementById("menu-section-admin-title");
 const menuSectionAdminSave = document.getElementById("menu-section-admin-save");
+const menuCategoriesOpen = document.getElementById("menu-categories-open");
+const menuCategoriesAdminModal = document.getElementById("menu-categories-admin-modal");
+const menuCategoriesAdminClose = document.getElementById("menu-categories-admin-close");
+const menuCategoriesAdminForm = document.getElementById("menu-categories-admin-form");
+const menuCategoriesAdminList = document.getElementById("menu-categories-admin-list");
+const menuCategoriesAdminAdd = document.getElementById("menu-categories-admin-add");
+const menuCategoriesAdminSave = document.getElementById("menu-categories-admin-save");
 
 let lastScrollY = window.scrollY;
 let activeAdminCard = null;
@@ -92,6 +99,66 @@ let cutleryItemsCount = 0;
 let checkoutType = "pickup";
 let checkoutPayment = "cash";
 let isDelivery = false;
+let cartToastTimeoutId = null;
+let revealObserver = null;
+
+if ("scrollRestoration" in window.history) {
+    window.history.scrollRestoration = "manual";
+}
+
+const cartToast = (() => {
+    const node = document.createElement("div");
+    node.className = "cart-toast";
+    node.setAttribute("aria-live", "polite");
+    document.body.appendChild(node);
+    return node;
+})();
+
+function ensurePhonePrefixValue(input) {
+    if (!input) {
+        return "";
+    }
+
+    const digits = input.value.replace(/\D/g, "");
+    let normalized = digits;
+
+    if (!normalized) {
+        normalized = "7";
+    } else if (normalized[0] === "8") {
+        normalized = `7${normalized.slice(1)}`;
+    } else if (normalized[0] !== "7") {
+        normalized = `7${normalized}`;
+    }
+
+    input.value = `+${normalized}`;
+    return input.value;
+}
+
+function bindPhonePrefix(input) {
+    if (!input) {
+        return;
+    }
+
+    ensurePhonePrefixValue(input);
+
+    input.addEventListener("focus", () => {
+        ensurePhonePrefixValue(input);
+    });
+
+    input.addEventListener("input", () => {
+        const moveCaretToEnd = input.selectionStart === input.value.length;
+        ensurePhonePrefixValue(input);
+        if (moveCaretToEnd) {
+            input.setSelectionRange(input.value.length, input.value.length);
+        }
+    });
+
+    input.addEventListener("blur", () => {
+        ensurePhonePrefixValue(input);
+    });
+}
+
+window.zamzamEnsurePhonePrefix = ensurePhonePrefixValue;
 
 function bindClick(element, handler) {
     if (element) {
@@ -157,6 +224,79 @@ function closeCart() {
     document.body.classList.remove("cart-open");
 }
 
+function showCartToast(message) {
+    cartToast.textContent = message;
+    cartToast.classList.add("is-visible");
+
+    if (cartToastTimeoutId) {
+        window.clearTimeout(cartToastTimeoutId);
+    }
+
+    cartToastTimeoutId = window.setTimeout(() => {
+        cartToast.classList.remove("is-visible");
+    }, 1800);
+}
+
+function ensureRevealObserver() {
+    if (revealObserver || !("IntersectionObserver" in window)) {
+        return;
+    }
+
+    revealObserver = new IntersectionObserver(
+        (entries) => {
+            entries.forEach((entry) => {
+                if (!entry.isIntersecting) {
+                    return;
+                }
+
+                entry.target.classList.add("is-visible");
+                revealObserver.unobserve(entry.target);
+            });
+        },
+        {
+            threshold: 0.12,
+            rootMargin: "0px 0px -8% 0px",
+        },
+    );
+}
+
+function registerRevealElement(element, index = 0) {
+    if (!element || element.classList.contains("is-hidden")) {
+        return;
+    }
+
+    if (!("IntersectionObserver" in window)) {
+        element.classList.add("is-visible");
+        return;
+    }
+
+    ensureRevealObserver();
+    element.classList.add("reveal-on-scroll");
+    element.style.setProperty("--reveal-delay", `${Math.min(index, 8) * 70}ms`);
+    revealObserver?.observe(element);
+}
+
+function initRevealAnimations() {
+    const groups = [
+        { selector: ".hero-inner > *", stagger: 90 },
+        { selector: ".section-head", stagger: 0 },
+        { selector: ".account-summary-card", stagger: 80 },
+        { selector: ".account-orders", stagger: 120 },
+        { selector: ".dish-card", stagger: 70 },
+        { selector: ".step-card", stagger: 90 },
+        { selector: ".review-card", stagger: 90 },
+        { selector: ".contact-copy", stagger: 0 },
+        { selector: ".contact-card", stagger: 120 },
+        { selector: ".site-footer-inner > *", stagger: 100 },
+    ];
+
+    groups.forEach((group) => {
+        document.querySelectorAll(group.selector).forEach((element, index) => {
+            registerRevealElement(element, Math.round((index * group.stagger) / 70));
+        });
+    });
+}
+
 function syncCheckoutPreview() {
     const { totalItems, totalPriceValue } = getCartTotals();
 
@@ -173,6 +313,9 @@ function syncCheckoutPreview() {
 
 function syncCheckoutType() {
     isDelivery = checkoutType === "delivery";
+    if (!isDelivery) {
+        checkoutPayment = "card";
+    }
 
     checkoutTypePickup?.classList.toggle("is-active", !isDelivery);
     checkoutTypeDelivery?.classList.toggle("is-active", isDelivery);
@@ -187,9 +330,18 @@ function syncCheckoutType() {
             ? "Доставка: заполните адрес и детали для курьера, чтобы оператор подтвердил заказ без уточнений."
             : "Самовывоз: заказ будет готов к выдаче после подтверждения оператором.";
     }
+
+    if (checkoutPaymentCash) {
+        checkoutPaymentCash.disabled = !isDelivery;
+        checkoutPaymentCash.classList.toggle("is-disabled", !isDelivery);
+        checkoutPaymentCash.setAttribute("aria-disabled", String(!isDelivery));
+    }
 }
 
 function syncCheckoutPayment() {
+    if (checkoutType !== "delivery") {
+        checkoutPayment = "card";
+    }
     checkoutPaymentCash?.classList.toggle("is-active", checkoutPayment === "cash");
     checkoutPaymentCard?.classList.toggle("is-active", checkoutPayment === "card");
 }
@@ -216,6 +368,26 @@ function closeCheckoutModal() {
     checkoutBackdrop.classList.remove("is-open");
     checkoutModal.classList.remove("is-open");
     checkoutModal.setAttribute("aria-hidden", "true");
+}
+
+function openFooterMapModal() {
+    if (!footerMapModal || !footerMapBackdrop) {
+        return;
+    }
+
+    footerMapBackdrop.classList.add("is-open");
+    footerMapModal.classList.add("is-open");
+    footerMapModal.setAttribute("aria-hidden", "false");
+}
+
+function closeFooterMapModal() {
+    if (!footerMapModal || !footerMapBackdrop) {
+        return;
+    }
+
+    footerMapBackdrop.classList.remove("is-open");
+    footerMapModal.classList.remove("is-open");
+    footerMapModal.setAttribute("aria-hidden", "true");
 }
 
 function updateFloatingToolsVisibility() {
@@ -273,17 +445,59 @@ function ensureFilterChip(category) {
     filtersContainer.appendChild(chip);
 }
 
-function syncCategoryOptions(selectedCategory = "") {
-    if (!adminCategory || !filtersContainer) {
-        return;
+function getMenuCategoriesFromFilters() {
+    if (!filtersContainer) {
+        return [];
     }
 
-    const categories = Array.from(filtersContainer.querySelectorAll(".filter-chip"))
+    return Array.from(filtersContainer.querySelectorAll(".filter-chip"))
         .map((chip) => ({
             value: chip.dataset.filter || "",
             label: chip.textContent?.trim() || "",
         }))
         .filter((category) => category.value && category.value !== "all");
+}
+
+function renderFilterChips(categories) {
+    if (!filtersContainer) {
+        return;
+    }
+
+    const allChip = filtersContainer.querySelector('[data-filter="all"]');
+    filtersContainer.innerHTML = "";
+    if (allChip) {
+        filtersContainer.appendChild(allChip);
+    } else {
+        const chip = document.createElement("button");
+        chip.className = "filter-chip active";
+        chip.type = "button";
+        chip.dataset.filter = "all";
+        chip.textContent = "Все блюда";
+        filtersContainer.appendChild(chip);
+    }
+
+    categories.forEach((category) => {
+        const chip = document.createElement("button");
+        chip.className = "filter-chip";
+        chip.type = "button";
+        chip.dataset.filter = category.value;
+        chip.textContent = category.label;
+        filtersContainer.appendChild(chip);
+    });
+
+    const hasActiveFilter = activeFilter === "all" || categories.some((category) => category.value === activeFilter);
+    applyFilter(hasActiveFilter ? activeFilter : "all");
+}
+
+function syncCategoryOptions(selectedCategory = "") {
+    if (!adminCategory || !filtersContainer) {
+        return;
+    }
+
+    const categories = getMenuCategoriesFromFilters();
+    if (selectedCategory && !categories.some((category) => category.value === selectedCategory)) {
+        categories.push({ value: selectedCategory, label: selectedCategory });
+    }
 
     adminCategory.innerHTML = categories
         .map((category) => `<option value="${category.value}">${category.label}</option>`)
@@ -357,6 +571,7 @@ function createDishCard(item) {
     `;
 
     syncCardFromItem(article, item);
+    registerRevealElement(article, 0);
     return article;
 }
 
@@ -410,43 +625,65 @@ function syncCardFromItem(card, item) {
     card.classList.toggle("is-hidden", !(item.is_active && (activeFilter === "all" || activeFilter === item.category)));
 }
 
+function populateAdminFormFromItem(item) {
+    if (!item) {
+        return;
+    }
+
+    adminModalTitle.textContent = "Р РµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ РєР°СЂС‚РѕС‡РєРё";
+    adminItemId.value = item.id ? String(item.id) : "";
+    adminItemVersion.value = item.version ? String(item.version) : "1";
+    adminTitle.value = item.title || "";
+    adminDescription.value = item.description || "";
+    adminPrice.value = String(Number(item.price || 0));
+    syncCategoryOptions(item.category || "");
+}
+
+function openAdminModalWithItem(item) {
+    if (!adminModal || !adminBackdrop || !adminForm || !item) {
+        return;
+    }
+
+    adminMode = "edit";
+    activeAdminCard = menuGrid?.querySelector(`.dish-card[data-item-id="${item.id}"]`) || null;
+    adminForm.reset();
+    if (adminImage) {
+        adminImage.value = "";
+    }
+
+    populateAdminFormFromItem(item);
+    adminBackdrop.classList.add("is-open");
+    adminModal.classList.add("is-open");
+    adminModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("admin-open");
+}
+
 function openAdminModal(mode, card = null) {
     if (!adminModal || !adminBackdrop || !adminForm) {
         return;
     }
+    if (mode !== "edit" || !card) {
+        return;
+    }
 
-    adminMode = mode;
+    adminMode = "edit";
     activeAdminCard = card;
     adminForm.reset();
     if (adminImage) {
         adminImage.value = "";
     }
 
-    if (mode === "create") {
-        adminModalTitle.textContent = "Новое блюдо";
-        adminItemId.value = "";
-        adminItemVersion.value = "";
-        adminPrice.value = "0";
-        adminIsActive.checked = true;
-        adminAccent.value = "#e85424";
-        syncCategoryOptions();
-        adminDelete?.classList.add("is-hidden");
-    } else if (card) {
-        const titleNode = card.querySelector(".dish-title");
-        const descriptionNode = card.querySelector(".dish-description");
-        const priceNode = card.querySelector(".dish-price");
+    const titleNode = card.querySelector(".dish-title");
+    const descriptionNode = card.querySelector(".dish-description");
+    const priceNode = card.querySelector(".dish-price");
 
-        adminModalTitle.textContent = "Редактирование карточки";
-        adminItemId.value = card.dataset.itemId || "";
-        adminItemVersion.value = card.dataset.itemVersion || "1";
-        adminTitle.value = titleNode?.textContent?.trim() || "";
-        adminDescription.value = descriptionNode?.textContent?.trim() || "";
-        adminPrice.value = String(parseInt(priceNode?.textContent || "0", 10) || 0);
-        syncCategoryOptions(card.dataset.category || "");
-        adminAccent.value = (card.style.getPropertyValue("--card-accent") || "").trim();
-        adminIsActive.checked = card.dataset.itemIsActive !== "false";
-        adminDelete?.classList.remove("is-hidden");
-    }
+    adminModalTitle.textContent = "Редактирование карточки";
+    adminItemId.value = card.dataset.itemId || "";
+    adminItemVersion.value = card.dataset.itemVersion || "1";
+    adminTitle.value = titleNode?.textContent?.trim() || "";
+    adminDescription.value = descriptionNode?.textContent?.trim() || "";
+    adminPrice.value = String(parseInt(priceNode?.textContent || "0", 10) || 0);
+    syncCategoryOptions(card.dataset.category || "");
 
     adminBackdrop.classList.add("is-open");
     adminModal.classList.add("is-open");
@@ -471,9 +708,6 @@ function closeAdminModal() {
 function setAdminMode(enabled) {
     document.body.classList.toggle("admin-mode", enabled);
     adminToggle?.classList.toggle("is-active", enabled);
-    if (adminCreate) {
-        adminCreate.style.display = enabled ? "inline-flex" : "none";
-    }
 }
 
 function getHeroFields() {
@@ -686,6 +920,59 @@ function closeMenuSectionAdminModal() {
     menuSectionAdminForm.reset();
 }
 
+function createCategoryAdminRow(category = { value: "", label: "" }) {
+    const row = document.createElement("div");
+    row.className = "category-admin-row";
+    row.innerHTML = `
+        <input class="category-admin-input" type="text" maxlength="64" placeholder="slug, например grill" value="${category.value || ""}">
+        <input class="category-admin-input" type="text" maxlength="64" placeholder="Название категории" value="${category.label || ""}">
+        <button class="admin-close category-admin-remove" type="button" aria-label="Удалить категорию">x</button>
+    `;
+    return row;
+}
+
+function closeMenuCategoriesAdminModal() {
+    if (!menuCategoriesAdminModal || !adminBackdrop || !menuCategoriesAdminForm) {
+        return;
+    }
+
+    adminBackdrop.classList.remove("is-open");
+    menuCategoriesAdminModal.classList.remove("is-open");
+    menuCategoriesAdminModal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("admin-open");
+    menuCategoriesAdminForm.reset();
+    if (menuCategoriesAdminList) {
+        menuCategoriesAdminList.innerHTML = "";
+    }
+}
+
+async function openMenuCategoriesAdminModal() {
+    if (!menuCategoriesAdminModal || !adminBackdrop || !menuCategoriesAdminList) {
+        return;
+    }
+
+    closeAdminModal();
+    closeHeroAdminModal();
+    closeMenuSectionAdminModal();
+
+    const response = await fetch("/api/redactor/menu-items/menu-categories");
+    if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        throw new Error(errorBody?.detail || "Не удалось загрузить категории.");
+    }
+
+    const payload = await response.json();
+    menuCategoriesAdminList.innerHTML = "";
+    (payload.items || []).forEach((item) => {
+        menuCategoriesAdminList.appendChild(createCategoryAdminRow(item));
+    });
+
+    adminBackdrop.classList.add("is-open");
+    menuCategoriesAdminModal.classList.add("is-open");
+    menuCategoriesAdminModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("admin-open");
+}
+
 async function loadSectionContent(url, sectionHead) {
     if (!sectionHead) {
         return;
@@ -743,7 +1030,10 @@ function renderCart() {
                         <strong>${item.title}</strong>
                         <small>${item.quantity} x ${formatPrice(item.price)}</small>
                     </div>
-                    <strong>${formatPrice(item.price * item.quantity)}</strong>
+                    <div class="order-line-actions">
+                        <strong>${formatPrice(item.price * item.quantity)}</strong>
+                        <button class="order-remove-button" type="button" data-remove-id="${item.id}" aria-label="Удалить блюдо">x</button>
+                    </div>
                 </div>
             `,
         )
@@ -804,7 +1094,7 @@ if (menuGrid) {
 
             cart.get(id).quantity += quantityToAdd;
             renderCart();
-            openCart();
+            showCartToast(`$Блюдо добавлено в корзину`);
             return;
         }
 
@@ -830,6 +1120,23 @@ if (menuGrid) {
 
             openAdminModal("edit", target.closest(".dish-card"));
         }
+    });
+}
+
+if (orderItems) {
+    orderItems.addEventListener("click", (event) => {
+        const removeButton = event.target.closest("[data-remove-id]");
+        if (!removeButton) {
+            return;
+        }
+
+        const id = removeButton.dataset.removeId;
+        if (!id || !cart.has(id)) {
+            return;
+        }
+
+        cart.delete(id);
+        renderCart();
     });
 }
 
@@ -939,11 +1246,13 @@ checkoutButton?.addEventListener(
 
 bindClick(cartToggle, openCart);
 bindClick(cartOpenInline, openCart);
-bindClick(cartOpenHero, openCart);
 bindClick(cartClose, closeCart);
 bindClick(cartBackdrop, closeCart);
 bindClick(checkoutClose, closeCheckoutModal);
 bindClick(checkoutBackdrop, closeCheckoutModal);
+bindClick(footerMapOpen, openFooterMapModal);
+bindClick(footerMapClose, closeFooterMapModal);
+bindClick(footerMapBackdrop, closeFooterMapModal);
 bindClick(checkoutTypePickup, () => {
     checkoutType = "pickup";
     syncCheckoutType();
@@ -957,6 +1266,11 @@ bindClick(checkoutTypeDelivery, () => {
     renderCart();
 });
 bindClick(checkoutPaymentCash, () => {
+    if (checkoutType !== "delivery") {
+        checkoutPayment = "card";
+        syncCheckoutPayment();
+        return;
+    }
     checkoutPayment = "cash";
     syncCheckoutPayment();
 });
@@ -967,58 +1281,26 @@ bindClick(checkoutPaymentCard, () => {
 bindClick(adminToggle, () => {
     setAdminMode(!document.body.classList.contains("admin-mode"));
 });
-bindClick(adminCreate, () => {
-    if (!document.body.classList.contains("admin-mode")) {
-        setAdminMode(true);
-    }
-    openAdminModal("create");
-});
 bindClick(adminClose, closeAdminModal);
 bindClick(heroAdminClose, closeHeroAdminModal);
 bindClick(menuSectionAdminClose, closeMenuSectionAdminModal);
+bindClick(menuCategoriesAdminClose, closeMenuCategoriesAdminModal);
 bindClick(adminBackdrop, () => {
     closeAdminModal();
     closeHeroAdminModal();
     closeMenuSectionAdminModal();
+    closeMenuCategoriesAdminModal();
+    window.zamzamCatalogAdmin?.close?.();
 });
-bindClick(adminDelete, async () => {
-    if (!activeAdminCard || !adminItemId.value) {
-        return;
-    }
-
-    if (!window.confirm("Удалить это блюдо?")) {
-        return;
-    }
-
-    adminDelete.disabled = true;
-
+bindClick(menuCategoriesOpen, async () => {
     try {
-        const category = activeAdminCard.dataset.category || "";
-        const response = await fetch(`/api/redactor/menu-items/${adminItemId.value}`, {
-            method: "DELETE",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                version: Number(adminItemVersion.value || "1"),
-            }),
-        });
-
-        if (!response.ok) {
-            const errorBody = await response.json().catch(() => ({}));
-            throw new Error(errorBody?.detail || "Не удалось удалить блюдо.");
-        }
-
-        cart.delete(String(adminItemId.value));
-        renderCart();
-        activeAdminCard.remove();
-        removeEmptyFilterChip(category);
-        closeAdminModal();
+        await openMenuCategoriesAdminModal();
     } catch (error) {
-        window.alert(error.message || "Не удалось удалить блюдо.");
-    } finally {
-        adminDelete.disabled = false;
+        window.alert(error.message || "Не удалось открыть категории.");
     }
+});
+bindClick(menuCategoriesAdminAdd, () => {
+    menuCategoriesAdminList?.appendChild(createCategoryAdminRow());
 });
 
 if (adminForm) {
@@ -1028,77 +1310,50 @@ if (adminForm) {
         const basePayload = {
             title: adminTitle.value.trim(),
             description: adminDescription.value.trim(),
-            price: Number(adminPrice.value),
             category: adminCategory.value.trim(),
-            accent: adminAccent.value.trim(),
-            is_active: adminIsActive.checked,
+            is_published: true,
         };
 
         adminSave.disabled = true;
 
         try {
-            let item;
+            if (!adminItemId.value) {
+                throw new Error("Не выбрана карточка для редактирования.");
+            }
 
-            if (adminMode === "create") {
-                const createResponse = await fetch("/api/redactor/menu-items", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        ...basePayload,
-                        badge: null,
-                        image_path: null,
-                        sort_order: getCards().length + 1,
-                    }),
-                });
+            const previousCategory = activeAdminCard?.dataset.category || "";
+            const updateResponse = await fetch(`/api/redactor/menu-items/${adminItemId.value}`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    ...basePayload,
+                    version: Number(adminItemVersion.value || "1"),
+                }),
+            });
 
-                if (!createResponse.ok) {
-                    const errorBody = await createResponse.json().catch(() => ({}));
-                    throw new Error(errorBody?.detail || "Не удалось создать блюдо.");
-                }
+            if (!updateResponse.ok) {
+                const errorBody = await updateResponse.json().catch(() => ({}));
+                throw new Error(errorBody?.detail || "Не удалось сохранить изменения.");
+            }
 
-                item = await createResponse.json();
+            let item = await updateResponse.json();
 
-                if (adminImage?.files?.length) {
-                    item = (await uploadImage(item.id, item.version)) || item;
-                }
+            if (adminImage?.files?.length) {
+                item = (await uploadImage(item.id, item.version)) || item;
+            }
 
-                ensureFilterChip(item.category);
+            ensureFilterChip(item.category);
+            if (activeAdminCard) {
+                syncCardFromItem(activeAdminCard, item);
+                removeEmptyFilterChip(previousCategory);
+            } else {
                 const card = createDishCard(item);
                 menuGrid?.appendChild(card);
-                applyFilter(activeFilter);
-            } else {
-                if (!activeAdminCard || !adminItemId.value) {
-                    throw new Error("Не выбрана карточка для редактирования.");
-                }
-
-                const updateResponse = await fetch(`/api/redactor/menu-items/${adminItemId.value}`, {
-                    method: "PATCH",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        ...basePayload,
-                        version: Number(adminItemVersion.value || "1"),
-                    }),
-                });
-
-                if (!updateResponse.ok) {
-                    const errorBody = await updateResponse.json().catch(() => ({}));
-                    throw new Error(errorBody?.detail || "Не удалось сохранить изменения.");
-                }
-
-                item = await updateResponse.json();
-
-                if (adminImage?.files?.length) {
-                    item = (await uploadImage(item.id, item.version)) || item;
-                }
-
-                ensureFilterChip(item.category);
-                syncCardFromItem(activeAdminCard, item);
-                applyFilter(activeFilter);
+                activeAdminCard = card;
             }
+            applyFilter(activeFilter);
 
             closeAdminModal();
         } catch (error) {
@@ -1188,6 +1443,57 @@ if (menuSectionAdminForm) {
     });
 }
 
+menuCategoriesAdminList?.addEventListener("click", (event) => {
+    const button = event.target.closest(".category-admin-remove");
+    if (!button) {
+        return;
+    }
+
+    button.closest(".category-admin-row")?.remove();
+});
+
+if (menuCategoriesAdminForm) {
+    menuCategoriesAdminForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const items = Array.from(menuCategoriesAdminList?.querySelectorAll(".category-admin-row") || [])
+            .map((row) => {
+                const inputs = row.querySelectorAll(".category-admin-input");
+                return {
+                    value: (inputs[0]?.value || "").trim().toLowerCase(),
+                    label: (inputs[1]?.value || "").trim(),
+                };
+            })
+            .filter((item) => item.value && item.label);
+
+        menuCategoriesAdminSave.disabled = true;
+
+        try {
+            const response = await fetch("/api/redactor/menu-items/menu-categories", {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ items }),
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.json().catch(() => ({}));
+                throw new Error(errorBody?.detail || "Не удалось сохранить категории.");
+            }
+
+            const payload = await response.json();
+            renderFilterChips(payload.items || []);
+            syncCategoryOptions(adminCategory?.value || "");
+            closeMenuCategoriesAdminModal();
+        } catch (error) {
+            window.alert(error.message || "Не удалось сохранить категории.");
+        } finally {
+            menuCategoriesAdminSave.disabled = false;
+        }
+    });
+}
+
 if (checkoutForm) {
     checkoutForm.addEventListener("submit", (event) => {
         event.preventDefault();
@@ -1199,7 +1505,7 @@ if (checkoutForm) {
         }
 
         const customerName = checkoutName?.value.trim() || "";
-        const customerPhone = checkoutPhone?.value.trim() || "";
+        const customerPhone = ensurePhonePrefixValue(checkoutPhone).trim();
         const deliveryAddress = checkoutAddress?.value.trim() || "";
 
         if (!customerName || !customerPhone) {
@@ -1229,7 +1535,8 @@ if (checkoutForm) {
             cutleryItemsCount = 0;
             checkoutForm.reset();
             checkoutType = "pickup";
-            checkoutPayment = "cash";
+            checkoutPayment = "card";
+            ensurePhonePrefixValue(checkoutPhone);
             syncCheckoutType();
             syncCheckoutPayment();
             syncCartCheckoutNote();
@@ -1247,9 +1554,12 @@ document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
         closeCart();
         closeCheckoutModal();
+        closeFooterMapModal();
         closeAdminModal();
         closeHeroAdminModal();
         closeMenuSectionAdminModal();
+        closeMenuCategoriesAdminModal();
+        window.zamzamCatalogAdmin?.close?.();
     }
 });
 
@@ -1258,7 +1568,16 @@ window.addEventListener("scroll", () => {
     updateFloatingToolsVisibility();
 });
 
+window.addEventListener("load", () => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+});
+
 setAdminMode(false);
+bindPhonePrefix(checkoutPhone);
+bindPhonePrefix(document.getElementById("auth-phone"));
+bindPhonePrefix(document.getElementById("auth-register-phone"));
+bindPhonePrefix(document.getElementById("orders-admin-phone"));
+bindPhonePrefix(document.getElementById("account-phone-input"));
 syncCheckoutType();
 syncCheckoutPayment();
 syncCartCheckoutNote();
@@ -1273,6 +1592,7 @@ loadSectionContent("/api/redactor/menu-items/contact-section-content", contactSe
 applyFilter(activeFilter);
 renderCart();
 updateFloatingToolsVisibility();
+initRevealAnimations();
 
 window.zamzamApp = {
     getCartEntries: () => getCartEntries().map((item) => ({ ...item })),
@@ -1284,13 +1604,15 @@ window.zamzamApp = {
     }),
     closeCart,
     closeCheckoutModal,
+    openAdminModalWithItem,
     formatPrice,
     resetAfterOrder() {
         cart.clear();
         cutleryItemsCount = 0;
         checkoutForm?.reset();
         checkoutType = "pickup";
-        checkoutPayment = "cash";
+        checkoutPayment = "card";
+        ensurePhonePrefixValue(checkoutPhone);
         syncCheckoutType();
         syncCheckoutPayment();
         syncCartCheckoutNote();

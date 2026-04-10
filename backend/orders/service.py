@@ -2,12 +2,18 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from typing import Optional
 
 from backend.orders.crud import OrderRepository
-from backend.orders.schemas import OrderCreate, OrderRead, UserOrdersPage
+from backend.orders.schemas import AdminOrdersPage, OrderCreate, OrderRead, UserOrdersPage
+from backend.orders.statuses import get_allowed_statuses
 
 
 class OrderValidationError(Exception):
+    pass
+
+
+class OrderNotFoundError(Exception):
     pass
 
 
@@ -42,12 +48,35 @@ class OrderService:
         orders = await self.repository.list_by_user(user_id)
         return UserOrdersPage(items=[self._to_read(order) for order in orders])
 
-    async def get_latest_status(self, user_id: int) -> str | None:
-        latest_order = await self.repository.get_latest_by_user(user_id)
+    async def get_latest_status(self, user_id: int) -> Optional[str]:
+        latest_order = await self.repository.get_latest_active_by_user(user_id)
+        if latest_order is None:
+            latest_order = await self.repository.get_latest_by_user(user_id)
         return latest_order.status if latest_order else None
 
     async def count_active_orders(self, user_id: int) -> int:
         return await self.repository.count_active_by_user(user_id)
+
+    async def list_admin_orders(self, *, limit: int = 30, phone: Optional[str] = None) -> AdminOrdersPage:
+        safe_limit = max(1, min(limit, 100))
+        normalized_phone = (phone or "").strip() or None
+        orders = await self.repository.list_recent(limit=safe_limit, phone=normalized_phone)
+        return AdminOrdersPage.build(items=[self._to_read(order) for order in orders])
+
+    async def update_order_status(self, *, order_id: int, status: str) -> OrderRead:
+        order = await self.repository.get_by_id(order_id)
+        if order is None:
+            raise OrderNotFoundError(order_id)
+
+        next_status = status.strip()
+        if next_status not in get_allowed_statuses(order.checkout_type):
+            raise OrderValidationError("Некорректный статус для этого типа заказа.")
+
+        updated_order = await self.repository.update_status(order_id=order_id, status=next_status)
+        if updated_order is None:
+            raise OrderNotFoundError(order_id)
+
+        return self._to_read(updated_order)
 
     def _to_read(self, order) -> OrderRead:
         return OrderRead(

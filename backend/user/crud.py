@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Optional, Protocol
 
 from sqlalchemy import select, update
@@ -12,20 +11,24 @@ from backend.user.models import UserModel
 class UserRepository(Protocol):
     async def get_by_phone(self, phone: str) -> Optional[UserModel]: ...
     async def get_by_session_token(self, session_token: str) -> Optional[UserModel]: ...
-    async def create_or_update_code(
+    async def create_user(
         self,
         *,
         phone: str,
-        code: str,
-        expires_at: datetime,
+        password_hash: str,
+        full_name: Optional[str],
+        session_token: str,
     ) -> UserModel: ...
-    async def verify_user(
+    async def activate_existing_user(
         self,
         *,
         user_id: int,
-        full_name: str | None,
+        password_hash: str,
+        full_name: Optional[str],
         session_token: str,
     ) -> UserModel: ...
+    async def update_session_token(self, *, user_id: int, session_token: str) -> UserModel: ...
+    async def update_phone(self, *, user_id: int, phone: str) -> UserModel: ...
     async def add_bonus(self, *, user_id: int, bonus_delta: int) -> Optional[UserModel]: ...
 
 
@@ -41,37 +44,38 @@ class SqlAlchemyUserRepository:
         stmt = select(UserModel).where(UserModel.session_token == session_token)
         return await self._session.scalar(stmt)
 
-    async def create_or_update_code(
+    async def create_user(
         self,
         *,
         phone: str,
-        code: str,
-        expires_at: datetime,
+        password_hash: str,
+        full_name: Optional[str],
+        session_token: str,
     ) -> UserModel:
-        user = await self.get_by_phone(phone)
-        if user is None:
-            user = UserModel(
-                phone=phone,
-                verification_code=code,
-                verification_expires_at=expires_at,
-            )
-            self._session.add(user)
-        else:
-            user.verification_code = code
-            user.verification_expires_at = expires_at
-
+        user = UserModel(
+            phone=phone,
+            full_name=full_name,
+            password_hash=password_hash,
+            is_verified=True,
+            session_token=session_token,
+            verification_code=None,
+            verification_expires_at=None,
+        )
+        self._session.add(user)
         await self._session.commit()
         await self._session.refresh(user)
         return user
 
-    async def verify_user(
+    async def activate_existing_user(
         self,
         *,
         user_id: int,
-        full_name: str | None,
+        password_hash: str,
+        full_name: Optional[str],
         session_token: str,
     ) -> UserModel:
         values: dict[str, object] = {
+            "password_hash": password_hash,
             "is_verified": True,
             "session_token": session_token,
             "verification_code": None,
@@ -84,6 +88,33 @@ class SqlAlchemyUserRepository:
             update(UserModel)
             .where(UserModel.id == user_id)
             .values(**values)
+            .returning(UserModel)
+        )
+        result = await self._session.execute(stmt)
+        user = result.scalar_one()
+        await self._session.commit()
+        return user
+
+    async def update_session_token(self, *, user_id: int, session_token: str) -> UserModel:
+        stmt = (
+            update(UserModel)
+            .where(UserModel.id == user_id)
+            .values(
+                is_verified=True,
+                session_token=session_token,
+            )
+            .returning(UserModel)
+        )
+        result = await self._session.execute(stmt)
+        user = result.scalar_one()
+        await self._session.commit()
+        return user
+
+    async def update_phone(self, *, user_id: int, phone: str) -> UserModel:
+        stmt = (
+            update(UserModel)
+            .where(UserModel.id == user_id)
+            .values(phone=phone)
             .returning(UserModel)
         )
         result = await self._session.execute(stmt)

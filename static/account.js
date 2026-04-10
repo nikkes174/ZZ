@@ -1,25 +1,46 @@
 const SESSION_STORAGE_KEY = "zamzam_session_token";
 window.zamzamAuthFallbackBound = true;
 
+const ACTIVE_ORDER_STATUSES = new Set(["Готовится", "Заказ отправлен", "Готов к выдаче"]);
+
 const authModal = document.getElementById("auth-modal");
 const authBackdrop = document.getElementById("auth-backdrop");
 const authBack = document.getElementById("auth-back");
 const authClose = document.getElementById("auth-close");
 const authHint = document.getElementById("auth-hint");
+const authTabLogin = document.getElementById("auth-tab-login");
+const authTabRegister = document.getElementById("auth-tab-register");
+const authLoginForm = document.getElementById("auth-login-form");
+const authRegisterForm = document.getElementById("auth-register-form");
 const authPhone = document.getElementById("auth-phone");
-const authCode = document.getElementById("auth-code");
-const authCodeMessage = document.getElementById("auth-code-message");
-const authRequestForm = document.getElementById("auth-request-form");
-const authVerifyForm = document.getElementById("auth-verify-form");
-const authRequestSubmit = document.getElementById("auth-request-submit");
-const authVerifySubmit = document.getElementById("auth-verify-submit");
+const authPassword = document.getElementById("auth-password");
+const authRegisterName = document.getElementById("auth-register-name");
+const authRegisterPhone = document.getElementById("auth-register-phone");
+const authRegisterPassword = document.getElementById("auth-register-password");
+const authLoginSubmit = document.getElementById("auth-login-submit");
+const authRegisterSubmit = document.getElementById("auth-register-submit");
+
+const authRequiredModal = document.getElementById("auth-required-modal");
+const authRequiredClose = document.getElementById("auth-required-close");
+const authRequiredLogin = document.getElementById("auth-required-login");
+const authRequiredRegister = document.getElementById("auth-required-register");
+
 const accountSection = document.getElementById("account");
+const accountClose = document.getElementById("account-close");
 const accountBonusBalance = document.getElementById("account-bonus-balance");
 const accountUserPhone = document.getElementById("account-user-phone");
 const accountOrderStatus = document.getElementById("account-order-status");
 const accountOrdersCount = document.getElementById("account-orders-count");
 const accountOrdersList = document.getElementById("account-orders-list");
-const accountRefresh = document.getElementById("account-refresh");
+const accountCurrentOrderCard = document.getElementById("account-current-order-card");
+const accountCurrentRefresh = document.getElementById("account-current-refresh");
+const accountHistoryRefresh = document.getElementById("account-history-refresh");
+const accountPhoneForm = document.getElementById("account-phone-form");
+const accountPhoneInput = document.getElementById("account-phone-input");
+const accountPhoneSubmit = document.getElementById("account-phone-submit");
+const accountPhoneHint = document.getElementById("account-phone-hint");
+const accountFloatingTrigger = document.getElementById("account-floating-trigger");
+
 const loginButton = document.getElementById("cart-open-topbar");
 const checkoutForm = document.getElementById("checkout-form");
 const checkoutBonusSpent = document.getElementById("checkout-bonus-spent");
@@ -27,18 +48,41 @@ const checkoutBonusBalanceText = document.getElementById("checkout-bonus-balance
 const checkoutPreviewTotal = document.getElementById("checkout-preview-total");
 const checkoutButton = document.getElementById("checkout-button");
 
-let currentPhone = "";
 let sessionToken = window.sessionStorage.getItem(SESSION_STORAGE_KEY) || "";
-let authContext = "login";
-let pendingOrderAfterVerify = false;
+let authMode = "login";
 let currentBonusBalance = 0;
+
+function ensurePhonePrefixValue(input) {
+    if (typeof window.zamzamEnsurePhonePrefix === "function") {
+        return window.zamzamEnsurePhonePrefix(input);
+    }
+
+    if (!input) {
+        return "";
+    }
+
+    const digits = input.value.replace(/\D/g, "");
+    let normalized = digits;
+
+    if (!normalized) {
+        normalized = "7";
+    } else if (normalized[0] === "8") {
+        normalized = `7${normalized.slice(1)}`;
+    } else if (normalized[0] !== "7") {
+        normalized = `7${normalized}`;
+    }
+
+    input.value = `+${normalized}`;
+    return input.value;
+}
 
 function getAppApi() {
     return window.zamzamApp || null;
 }
 
 function getCheckoutPhone() {
-    return document.getElementById("checkout-phone")?.value.trim() || "";
+    const input = document.getElementById("checkout-phone");
+    return ensurePhonePrefixValue(input).trim();
 }
 
 function getCheckoutName() {
@@ -92,63 +136,127 @@ function setHint(message, isError = false) {
     authHint.style.color = isError ? "#9f2d0f" : "";
 }
 
-function setAuthStep(step) {
-    authRequestForm?.classList.toggle("is-hidden", step !== "request");
-    authVerifyForm?.classList.toggle("is-hidden", step !== "verify");
+function setAccountPhoneHint(message, isError = false) {
+    if (!accountPhoneHint) {
+        return;
+    }
+
+    accountPhoneHint.textContent = message;
+    accountPhoneHint.style.color = isError ? "#9f2d0f" : "";
+}
+
+function syncAuthMode() {
+    authLoginForm?.classList.toggle("is-hidden", authMode !== "login");
+    authRegisterForm?.classList.toggle("is-hidden", authMode !== "register");
+    authTabLogin?.classList.toggle("is-active", authMode === "login");
+    authTabRegister?.classList.toggle("is-active", authMode === "register");
     if (authBack) {
-        authBack.style.visibility = step === "verify" ? "visible" : "hidden";
+        authBack.style.visibility = "hidden";
     }
 }
 
-function openAuthModal(context = "login") {
-    authContext = context;
-    authBackdrop?.classList.add("is-open");
-    authModal?.classList.add("is-open");
-    authModal?.setAttribute("aria-hidden", "false");
-    document.body.classList.add("admin-open");
-    setAuthStep("request");
+function setAuthMode(mode = "login") {
+    authMode = mode === "register" ? "register" : "login";
+    syncAuthMode();
     setHint("");
 
-    if (authCode) {
-        authCode.value = "";
+    if (authMode === "login") {
+        if (authPhone && !authPhone.value.trim()) {
+            authPhone.value = getCheckoutPhone();
+        }
+        return;
     }
 
-    if (context === "order" && authPhone) {
-        authPhone.value = getCheckoutPhone();
+    if (authRegisterPhone && !authRegisterPhone.value.trim()) {
+        authRegisterPhone.value = getCheckoutPhone();
     }
-
-    if (authVerifySubmit) {
-        authVerifySubmit.textContent = context === "order" ? "Подтвердить и оформить" : "Подтвердить";
+    if (authRegisterName && !authRegisterName.value.trim()) {
+        authRegisterName.value = getCheckoutName();
     }
 }
 
-window.openZamzamAuthModal = function openZamzamAuthModal() {
+window.setZamzamAuthMode = setAuthMode;
+
+function syncSharedBackdrop() {
+    const isAnyModalOpen =
+        authModal?.classList.contains("is-open") ||
+        authRequiredModal?.classList.contains("is-open") ||
+        !accountSection?.classList.contains("is-hidden");
+
+    authBackdrop?.classList.toggle("is-open", Boolean(isAnyModalOpen));
+    document.body.classList.toggle("admin-open", Boolean(isAnyModalOpen));
+}
+
+function openAuthModal(mode = "login") {
+    setAuthMode(mode);
+    authModal?.classList.add("is-open");
+    authModal?.setAttribute("aria-hidden", "false");
+    syncSharedBackdrop();
+}
+
+window.openZamzamAuthModal = async function openZamzamAuthModal(mode = "login") {
     if (sessionToken) {
-        pendingOrderAfterVerify = false;
-        showAccountSection();
-        loadAccount();
-        return false;
+        await loadAccount();
+        if (sessionToken) {
+            showAccountSection();
+            return false;
+        }
     }
 
-    openAuthModal("login");
+    openAuthModal(mode);
     return false;
 };
 
 function closeAuthModal() {
-    authBackdrop?.classList.remove("is-open");
     authModal?.classList.remove("is-open");
     authModal?.setAttribute("aria-hidden", "true");
-    document.body.classList.remove("admin-open");
     setHint("");
-    authContext = "login";
+    syncSharedBackdrop();
 }
 
-function updateLoginButton() {
-    if (!loginButton) {
+function openAuthRequiredModal() {
+    authRequiredModal?.classList.add("is-open");
+    authRequiredModal?.setAttribute("aria-hidden", "false");
+    syncSharedBackdrop();
+}
+
+function closeAuthRequiredModal() {
+    authRequiredModal?.classList.remove("is-open");
+    authRequiredModal?.setAttribute("aria-hidden", "true");
+    syncSharedBackdrop();
+}
+
+function openAccountModal() {
+    if (!accountSection) {
         return;
     }
 
-    loginButton.textContent = sessionToken ? "Личный кабинет" : "Войти";
+    accountSection.classList.remove("is-hidden");
+    accountSection.setAttribute("aria-hidden", "false");
+    syncSharedBackdrop();
+}
+
+function closeAccountModal() {
+    if (!accountSection) {
+        return;
+    }
+
+    accountSection.classList.add("is-hidden");
+    accountSection.setAttribute("aria-hidden", "true");
+    setAccountPhoneHint("");
+    syncSharedBackdrop();
+}
+
+function openAuthFromRequired(mode) {
+    closeAuthRequiredModal();
+    openAuthModal(mode);
+}
+
+function updateLoginButton() {
+    if (loginButton) {
+        loginButton.textContent = sessionToken ? "Кабинет" : "Войти";
+    }
+    accountFloatingTrigger?.classList.toggle("is-hidden", !sessionToken);
 }
 
 function getSessionHeaders() {
@@ -163,6 +271,37 @@ function formatOrderDate(value) {
     return Number.isNaN(date.getTime()) ? "" : date.toLocaleString("ru-RU");
 }
 
+function getCheckoutTypeLabel(checkoutType) {
+    return checkoutType === "delivery" ? "Доставка" : "Самовывоз";
+}
+
+function renderCurrentOrder(order) {
+    if (!accountCurrentOrderCard) {
+        return;
+    }
+
+    if (!order) {
+        accountCurrentOrderCard.innerHTML = '<div class="account-order-empty">Активного заказа пока нет.</div>';
+        return;
+    }
+
+    const itemsText = order.items.map((item) => `${item.title} x ${item.quantity}`).join(", ");
+    const addressText = order.delivery_address || "Самовывоз";
+
+    accountCurrentOrderCard.innerHTML = `
+        <article class="account-order-card account-order-card-current">
+            <div class="account-order-head">
+                <strong>Заказ №${order.id}</strong>
+                <span class="account-order-status">${order.status}</span>
+            </div>
+            <div class="account-order-meta">Тип: ${getCheckoutTypeLabel(order.checkout_type)} • Создан: ${formatOrderDate(order.created_at)}</div>
+            <div class="account-order-meta">Сумма: ${order.total_amount} руб. • Бонусы: +${order.bonus_awarded}</div>
+            <div class="account-order-meta">Получение: ${addressText}</div>
+            <div class="account-order-items">${itemsText}</div>
+        </article>
+    `;
+}
+
 function renderOrders(orders) {
     if (!accountOrdersList) {
         return;
@@ -170,8 +309,12 @@ function renderOrders(orders) {
 
     if (!orders.length) {
         accountOrdersList.innerHTML = '<div class="account-order-empty">После первого подтвержденного заказа история появится здесь.</div>';
+        renderCurrentOrder(null);
         return;
     }
+
+    const activeOrder = orders.find((order) => ACTIVE_ORDER_STATUSES.has(order.status)) || null;
+    renderCurrentOrder(activeOrder);
 
     accountOrdersList.innerHTML = orders
         .map((order) => {
@@ -192,8 +335,7 @@ function renderOrders(orders) {
 }
 
 function showAccountSection() {
-    accountSection?.classList.remove("is-hidden");
-    accountSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+    openAccountModal();
 }
 
 async function loadAccount() {
@@ -201,6 +343,7 @@ async function loadAccount() {
         currentBonusBalance = 0;
         updateLoginButton();
         syncBonusUi();
+        closeAccountModal();
         return;
     }
 
@@ -216,7 +359,7 @@ async function loadAccount() {
             currentBonusBalance = 0;
             updateLoginButton();
             syncBonusUi();
-            accountSection?.classList.add("is-hidden");
+            closeAccountModal();
             return;
         }
 
@@ -234,6 +377,9 @@ async function loadAccount() {
         if (accountUserPhone) {
             accountUserPhone.textContent = dashboard.user.phone;
         }
+        if (accountPhoneInput) {
+            accountPhoneInput.value = dashboard.user.phone;
+        }
         if (accountOrderStatus) {
             accountOrderStatus.textContent = dashboard.latest_order_status || "Заказов пока нет";
         }
@@ -244,102 +390,137 @@ async function loadAccount() {
         renderOrders(ordersPage.items || []);
         updateLoginButton();
         syncBonusUi();
-
-        if (window.location.hash === "#account" || sessionToken) {
-            accountSection?.classList.remove("is-hidden");
-        }
     } catch (error) {
         console.error(error);
     }
 }
 
-async function requestCode(event) {
+window.loadZamzamAccount = loadAccount;
+
+async function handleAuthSuccess(payload) {
+    sessionToken = payload.session_token;
+    window.sessionStorage.setItem(SESSION_STORAGE_KEY, sessionToken);
+    updateLoginButton();
+    closeAuthModal();
+    await loadAccount();
+    showAccountSection();
+}
+
+async function login(event) {
     event.preventDefault();
 
-    const phone = authPhone?.value.trim() || getCheckoutPhone();
-    if (!phone) {
-        setHint("Введите номер телефона.", true);
+    const phone = ensurePhonePrefixValue(authPhone).trim();
+    const password = authPassword?.value.trim() || "";
+    if (!phone || !password) {
+        setHint("Введите номер телефона и пароль.", true);
         return;
     }
 
-    authRequestSubmit.disabled = true;
+    if (authLoginSubmit) {
+        authLoginSubmit.disabled = true;
+    }
     setHint("");
 
     try {
-        const response = await fetch("/api/user/auth/request-code", {
+        const response = await fetch("/api/user/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phone }),
+            body: JSON.stringify({ phone, password }),
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
-            throw new Error(payload?.detail || "Не удалось отправить код.");
+            throw new Error(payload?.detail || "Не удалось выполнить вход.");
         }
 
-        currentPhone = payload.phone;
-        if (authPhone) {
-            authPhone.value = payload.phone;
-        }
-        if (authCodeMessage) {
-            authCodeMessage.textContent =
-                authContext === "order"
-                    ? `${payload.message} Введите код, и заказ оформится автоматически. Демо-код: ${payload.code}`
-                    : `${payload.message} Код для демо-подтверждения: ${payload.code}`;
-        }
-        setAuthStep("verify");
-        setHint("Проверьте сообщение и введите код.");
+        await handleAuthSuccess(payload);
     } catch (error) {
-        setHint(error.message || "Не удалось отправить код.", true);
+        setHint(error.message || "Не удалось выполнить вход.", true);
     } finally {
-        authRequestSubmit.disabled = false;
+        if (authLoginSubmit) {
+            authLoginSubmit.disabled = false;
+        }
     }
 }
 
-async function verifyCode(event) {
+async function register(event) {
     event.preventDefault();
 
-    const code = authCode?.value.trim() || "";
-    const fullName = getCheckoutName();
-    if (!currentPhone || !code) {
-        setHint("Введите код подтверждения.", true);
+    const phone = ensurePhonePrefixValue(authRegisterPhone).trim();
+    const password = authRegisterPassword?.value.trim() || "";
+    const fullName = authRegisterName?.value.trim() || getCheckoutName() || null;
+    if (!phone || !password) {
+        setHint("Введите номер телефона и пароль.", true);
         return;
     }
 
-    authVerifySubmit.disabled = true;
+    if (authRegisterSubmit) {
+        authRegisterSubmit.disabled = true;
+    }
     setHint("");
 
     try {
-        const response = await fetch("/api/user/auth/verify", {
+        const response = await fetch("/api/user/auth/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                phone: currentPhone,
-                code,
-                full_name: fullName || null,
+                phone,
+                password,
+                full_name: fullName,
             }),
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
-            throw new Error(payload?.detail || "Не удалось подтвердить номер.");
+            throw new Error(payload?.detail || "Не удалось завершить регистрацию.");
         }
 
-        sessionToken = payload.session_token;
-        window.sessionStorage.setItem(SESSION_STORAGE_KEY, sessionToken);
-        updateLoginButton();
-        closeAuthModal();
-        await loadAccount();
-
-        if (pendingOrderAfterVerify) {
-            pendingOrderAfterVerify = false;
-            await submitOrderWithSession();
-            return;
-        }
-
-        showAccountSection();
+        await handleAuthSuccess(payload);
     } catch (error) {
-        setHint(error.message || "Не удалось подтвердить номер.", true);
+        setHint(error.message || "Не удалось завершить регистрацию.", true);
     } finally {
-        authVerifySubmit.disabled = false;
+        if (authRegisterSubmit) {
+            authRegisterSubmit.disabled = false;
+        }
+    }
+}
+
+async function updatePhone(event) {
+    event.preventDefault();
+
+    const phone = ensurePhonePrefixValue(accountPhoneInput).trim();
+    if (!phone) {
+        setAccountPhoneHint("Введите номер телефона.", true);
+        return;
+    }
+
+    if (accountPhoneSubmit) {
+        accountPhoneSubmit.disabled = true;
+    }
+    setAccountPhoneHint("");
+
+    try {
+        const response = await fetch("/api/user/me", {
+            method: "PATCH",
+            headers: getSessionHeaders(),
+            body: JSON.stringify({ phone }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(payload?.detail || "Не удалось обновить номер телефона.");
+        }
+
+        if (accountUserPhone) {
+            accountUserPhone.textContent = payload.phone;
+        }
+        if (accountPhoneInput) {
+            accountPhoneInput.value = payload.phone;
+        }
+        setAccountPhoneHint("Номер телефона обновлен.");
+    } catch (error) {
+        setAccountPhoneHint(error.message || "Не удалось обновить номер телефона.", true);
+    } finally {
+        if (accountPhoneSubmit) {
+            accountPhoneSubmit.disabled = false;
+        }
     }
 }
 
@@ -397,7 +578,6 @@ async function submitOrderWithSession() {
     }
 
     syncBonusUi();
-
     checkoutSubmit.disabled = true;
 
     try {
@@ -447,58 +627,81 @@ async function submitOrder(event) {
     }
 
     if (!sessionToken) {
-        pendingOrderAfterVerify = true;
-        openAuthModal("order");
-        setHint("Подтвердите номер телефона, и заказ оформится автоматически.", true);
+        openAuthRequiredModal();
         return;
     }
 
-    pendingOrderAfterVerify = false;
     await submitOrderWithSession();
 }
 
-loginButton?.addEventListener(
-    "click",
-    (event) => {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        window.openZamzamAuthModal();
-    },
-    true,
-);
+async function handleLoginButtonClick(event) {
+    event?.preventDefault?.();
+    if (sessionToken) {
+        await loadAccount();
+        if (sessionToken) {
+            showAccountSection();
+            return;
+        }
+    }
+    await window.openZamzamAuthModal("login");
+}
 
-authBackdrop?.addEventListener("click", () => {
-    pendingOrderAfterVerify = false;
-    closeAuthModal();
+if (loginButton) {
+    loginButton.onclick = handleLoginButtonClick;
+    loginButton.addEventListener("click", handleLoginButtonClick);
+}
+
+accountFloatingTrigger?.addEventListener("click", async () => {
+    await loadAccount();
+    if (sessionToken) {
+        showAccountSection();
+        return;
+    }
+    await window.openZamzamAuthModal("login");
 });
-authClose?.addEventListener("click", () => {
-    pendingOrderAfterVerify = false;
-    closeAuthModal();
+
+authTabLogin?.addEventListener("click", () => {
+    setAuthMode("login");
+});
+authTabRegister?.addEventListener("click", () => {
+    setAuthMode("register");
 });
 authBack?.addEventListener("click", () => {
-    setAuthStep("request");
-    setHint("");
-    pendingOrderAfterVerify = false;
+    setAuthMode("login");
 });
-authRequestForm?.addEventListener("submit", requestCode);
-authVerifyForm?.addEventListener("submit", verifyCode);
-accountRefresh?.addEventListener("click", loadAccount);
+authBackdrop?.addEventListener("click", () => {
+    closeAuthModal();
+    closeAuthRequiredModal();
+    closeAccountModal();
+});
+authClose?.addEventListener("click", closeAuthModal);
+authRequiredClose?.addEventListener("click", closeAuthRequiredModal);
+accountClose?.addEventListener("click", closeAccountModal);
+authRequiredLogin?.addEventListener("click", () => {
+    openAuthFromRequired("login");
+});
+authRequiredRegister?.addEventListener("click", () => {
+    openAuthFromRequired("register");
+});
+authLoginForm?.addEventListener("submit", login);
+authRegisterForm?.addEventListener("submit", register);
+accountCurrentRefresh?.addEventListener("click", loadAccount);
+accountHistoryRefresh?.addEventListener("click", loadAccount);
+accountPhoneForm?.addEventListener("submit", updatePhone);
 checkoutForm?.addEventListener("submit", submitOrder, true);
 
 document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-        pendingOrderAfterVerify = false;
         closeAuthModal();
+        closeAuthRequiredModal();
+        closeAccountModal();
     }
 });
 
 updateLoginButton();
 syncBonusUi();
+syncAuthMode();
 loadAccount();
-
-if (window.location.hash === "#account" && sessionToken) {
-    accountSection?.classList.remove("is-hidden");
-}
 
 checkoutBonusSpent?.addEventListener("input", syncBonusUi);
 checkoutButton?.addEventListener("click", () => {

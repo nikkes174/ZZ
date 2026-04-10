@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from app_logging import configure_application_logging
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -10,71 +13,87 @@ from fastapi.templating import Jinja2Templates
 
 from backend.orders import router as orders_router
 from backend.orders.migrations import ensure_order_bonus_columns
+from backend.iiko_manager.client import IikoApiClient
+from backend.iiko_manager.repository import IikoCatalogRepository
+from backend.iiko_manager.service import IikoCatalogSyncService
 from backend.redactor import router as redactor_router
-from backend.redactor.router import load_hero_content
+from backend.redactor.router import load_hero_content, load_menu_categories
 from backend.redactor.crud import SqlAlchemyMenuItemRepository
-from backend.redactor.schemas import MenuItemCreate
+from backend.redactor.migrations import ensure_menu_item_iiko_columns
 from backend.redactor.service import MenuItemService
 from backend.user import router as user_router
+from backend.user.migrations import ensure_user_auth_columns
+from config import (
+    API_IIKO,
+    IIKO_BASE_URL,
+    IIKO_ORGANIZATION_ID,
+    IIKO_SYNC_INTERVAL_SECONDS,
+    IIKO_SYNC_TIMEOUT_SECONDS,
+    TERMINAL_ID_GROUP,
+)
 from db import AsyncSessionLocal, init_db
 
 
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+configure_application_logging()
+logger = logging.getLogger(__name__)
+OFERTA_TEXT_PATH = BASE_DIR / "files" / "legal" / "oferta.txt"
+POLICY_TEXT_PATH = BASE_DIR / "files" / "legal" / "politic.txt"
 
 
 MENU_ITEMS = [
     {
-        "title": "Томлёная говядина Zamzam",
-        "description": "Мраморная говядина, демиглас, картофельный крем и соус из печёного чеснока.",
+        "title": "  Zamzam",
+        "description": " , ,       .",
         "price": 1290,
         "category": "signature",
-        "badge": "Хит вечера",
+        "badge": " ",
         "accent": "#d9a35f",
         "sort_order": 10,
     },
     {
-        "title": "Сёмга на углях",
-        "description": "Филе сёмги, молодые овощи, лимонный гель и травяное масло.",
+        "title": "Ѹ  ",
+        "description": " ,  ,     .",
         "price": 1180,
         "category": "seafood",
-        "badge": "Свежий улов",
+        "badge": " ",
         "accent": "#5ab6a6",
         "sort_order": 20,
     },
     {
-        "title": "Ризотто с белыми грибами",
-        "description": "Кремовая текстура, выдержанный пармезан и трюфельный штрих.",
+        "title": "   ",
+        "description": " ,     .",
         "price": 910,
         "category": "signature",
-        "badge": "Премиум comfort",
+        "badge": " comfort",
         "accent": "#b98d62",
         "sort_order": 30,
     },
     {
-        "title": "Поке с тунцом блюфин",
-        "description": "Рис для суши, тунец, авокадо, манго, эдамаме и пикантный соус.",
+        "title": "   ",
+        "description": "  , , , ,    .",
         "price": 860,
         "category": "bowls",
-        "badge": "Лёгкий выбор",
+        "badge": "˸ ",
         "accent": "#6da4ff",
         "sort_order": 40,
     },
     {
-        "title": "Бургер Black Angus",
-        "description": "Бриошь, котлета dry-aged, чеддер, айоли и фирменный BBQ.",
+        "title": " Black Angus",
+        "description": ",  dry-aged, ,    BBQ.",
         "price": 970,
         "category": "grill",
-        "badge": "Сытный фаворит",
+        "badge": " ",
         "accent": "#ef7b5c",
         "sort_order": 50,
     },
     {
-        "title": "Десерт Фисташковое облако",
-        "description": "Нежный мусс, малина, белый шоколад и хрустящий слой пралине.",
+        "title": "  ",
+        "description": " , ,      .",
         "price": 540,
         "category": "dessert",
-        "badge": "Финальный акцент",
+        "badge": " ",
         "accent": "#9ccf7f",
         "sort_order": 60,
     },
@@ -115,32 +134,90 @@ REVIEWS = [
         "text": "Очень удобный каталог и сильный визуал. Чувствуется сервис, а не просто доставка еды.",
     },
 ]
-
-
-async def _seed_menu_items() -> None:
-    async with AsyncSessionLocal() as session:
-        service = MenuItemService(repository=SqlAlchemyMenuItemRepository(session))
-        await service.ensure_seed_data([MenuItemCreate(**item) for item in MENU_ITEMS])
-
-
 async def _load_menu_items() -> list[dict[str, object]]:
     async with AsyncSessionLocal() as session:
         service = MenuItemService(repository=SqlAlchemyMenuItemRepository(session))
         page = await service.list_items(limit=100, offset=0, include_inactive=False)
+        logger.info("Loaded %s active iiko menu items for storefront.", len(page.items))
+        if not page.items:
+            logger.warning("Storefront has zero active iiko menu items.")
         return [item.model_dump(mode="json") for item in page.items]
+
+
+async def _sync_iiko_catalog() -> None:
+    logger.info("Starting iiko catalog sync.")
+    if not API_IIKO:
+        raise RuntimeError("API_IIKO is required because iiko is the only source of truth for catalog data.")
+    if not TERMINAL_ID_GROUP:
+        raise RuntimeError("TERMINAL_ID_GROUP is required because iiko is the only source of truth for catalog data.")
+
+    async with AsyncSessionLocal() as session:
+        service = IikoCatalogSyncService(
+            client=IikoApiClient(
+                api_login=API_IIKO,
+                base_url=IIKO_BASE_URL,
+                timeout_seconds=IIKO_SYNC_TIMEOUT_SECONDS,
+            ),
+            repository=IikoCatalogRepository(session),
+            terminal_group_id=TERMINAL_ID_GROUP,
+            organization_id=IIKO_ORGANIZATION_ID,
+        )
+        result = await service.sync()
+        logger.info(
+            "Finished iiko catalog sync. created=%s updated=%s deactivated=%s",
+            result.created,
+            result.updated,
+            result.deactivated,
+        )
+
+
+async def _run_iiko_sync_loop(stop_event: asyncio.Event) -> None:
+    logger.info("Started background iiko sync loop. interval_seconds=%s", IIKO_SYNC_INTERVAL_SECONDS)
+    while not stop_event.is_set():
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=IIKO_SYNC_INTERVAL_SECONDS)
+            break
+        except asyncio.TimeoutError:
+            pass
+
+        try:
+            logger.info("Running scheduled iiko catalog sync.")
+            await _sync_iiko_catalog()
+        except Exception:
+            logger.exception("Background iiko catalog sync failed.")
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    logger.info("Application startup initiated.")
     await init_db()
+    logger.info("Database metadata initialized.")
     await ensure_order_bonus_columns()
-    await _seed_menu_items()
-    yield
+    logger.info("Order migrations ensured.")
+    await ensure_menu_item_iiko_columns()
+    logger.info("Menu item iiko migrations ensured.")
+    await ensure_user_auth_columns()
+    logger.info("User auth migrations ensured.")
+    await _sync_iiko_catalog()
+    stop_event = asyncio.Event()
+    sync_task = asyncio.create_task(_run_iiko_sync_loop(stop_event))
+    try:
+        logger.info("Application startup completed.")
+        yield
+    finally:
+        logger.info("Application shutdown initiated.")
+        stop_event.set()
+        sync_task.cancel()
+        try:
+            await sync_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Application shutdown completed.")
 
 
 app = FastAPI(
     title="Zamzam",
-    description="Ресторан доставки восточной кухни",
+    description="   ",
     lifespan=lifespan,
 )
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -156,10 +233,35 @@ async def home(request: Request) -> HTMLResponse:
         "index.html",
         {
             "hero_content": load_hero_content(),
+            "menu_categories": load_menu_categories().items,
             "menu_items": await _load_menu_items(),
             "features": FEATURES,
             "steps": STEPS,
             "reviews": REVIEWS,
+        },
+    )
+
+
+@app.get("/oferta", response_class=HTMLResponse)
+async def oferta_page(request: Request) -> HTMLResponse:
+    oferta_text = OFERTA_TEXT_PATH.read_text(encoding="utf-8")
+    return templates.TemplateResponse(
+        request,
+        "oferta.html",
+        {
+            "oferta_text": oferta_text,
+        },
+    )
+
+
+@app.get("/policy", response_class=HTMLResponse)
+async def policy_page(request: Request) -> HTMLResponse:
+    policy_text = POLICY_TEXT_PATH.read_text(encoding="utf-8")
+    return templates.TemplateResponse(
+        request,
+        "policy.html",
+        {
+            "policy_text": policy_text,
         },
     )
 

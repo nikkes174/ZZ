@@ -4,11 +4,12 @@ import json
 from collections.abc import Sequence
 from typing import Optional, Protocol
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.orders.models import OrderModel
 from backend.orders.schemas import OrderCreate
+from backend.orders.statuses import ACTIVE_ORDER_STATUSES, ORDER_STATUS_PREPARING
 
 
 class OrderRepository(Protocol):
@@ -24,11 +25,15 @@ class OrderRepository(Protocol):
     ) -> OrderModel: ...
     async def list_by_user(self, user_id: int) -> Sequence[OrderModel]: ...
     async def get_latest_by_user(self, user_id: int) -> Optional[OrderModel]: ...
+    async def get_latest_active_by_user(self, user_id: int) -> Optional[OrderModel]: ...
     async def count_active_by_user(self, user_id: int) -> int: ...
+    async def list_recent(self, *, limit: int, phone: Optional[str] = None) -> Sequence[OrderModel]: ...
+    async def get_by_id(self, order_id: int) -> Optional[OrderModel]: ...
+    async def update_status(self, *, order_id: int, status: str) -> Optional[OrderModel]: ...
 
 
 class SqlAlchemyOrderRepository:
-    ACTIVE_STATUSES = {"Новый", "Подтвержден", "Готовится", "В пути"}
+    ACTIVE_STATUSES = ACTIVE_ORDER_STATUSES
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -59,7 +64,7 @@ class SqlAlchemyOrderRepository:
             bonus_spent=bonus_spent,
             total_amount=total_amount,
             bonus_awarded=bonus_awarded,
-            status="Подтвержден",
+            status=ORDER_STATUS_PREPARING,
         )
         self._session.add(model)
         await self._session.commit()
@@ -79,6 +84,15 @@ class SqlAlchemyOrderRepository:
         )
         return await self._session.scalar(stmt)
 
+    async def get_latest_active_by_user(self, user_id: int) -> Optional[OrderModel]:
+        stmt = (
+            select(OrderModel)
+            .where(OrderModel.user_id == user_id, OrderModel.status.in_(self.ACTIVE_STATUSES))
+            .order_by(OrderModel.created_at.desc(), OrderModel.id.desc())
+            .limit(1)
+        )
+        return await self._session.scalar(stmt)
+
     async def count_active_by_user(self, user_id: int) -> int:
         stmt = (
             select(func.count())
@@ -86,3 +100,30 @@ class SqlAlchemyOrderRepository:
             .where(OrderModel.user_id == user_id, OrderModel.status.in_(self.ACTIVE_STATUSES))
         )
         return int(await self._session.scalar(stmt) or 0)
+
+    async def list_recent(self, *, limit: int, phone: Optional[str] = None) -> Sequence[OrderModel]:
+        stmt = select(OrderModel)
+        if phone:
+            stmt = stmt.where(OrderModel.customer_phone == phone)
+        stmt = stmt.order_by(OrderModel.created_at.desc(), OrderModel.id.desc()).limit(limit)
+        return (await self._session.scalars(stmt)).all()
+
+    async def get_by_id(self, order_id: int) -> Optional[OrderModel]:
+        stmt = select(OrderModel).where(OrderModel.id == order_id)
+        return await self._session.scalar(stmt)
+
+    async def update_status(self, *, order_id: int, status: str) -> Optional[OrderModel]:
+        stmt = (
+            update(OrderModel)
+            .where(OrderModel.id == order_id)
+            .values(status=status)
+            .returning(OrderModel)
+        )
+        result = await self._session.execute(stmt)
+        order = result.scalar_one_or_none()
+        if order is None:
+            await self._session.rollback()
+            return None
+
+        await self._session.commit()
+        return order

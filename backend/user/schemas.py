@@ -6,21 +6,19 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-class AuthCodeRequest(BaseModel):
+class UserRegisterRequest(BaseModel):
     phone: str = Field(..., min_length=6, max_length=32)
-
-
-class AuthCodeResponse(BaseModel):
-    phone: str
-    message: str
-    code: str = Field(..., min_length=4, max_length=6)
-    expires_at: datetime
-
-
-class AuthVerifyRequest(BaseModel):
-    phone: str = Field(..., min_length=6, max_length=32)
-    code: str = Field(..., min_length=4, max_length=6)
+    password: str = Field(..., min_length=6, max_length=128)
     full_name: Optional[str] = Field(default=None, max_length=120)
+
+
+class UserLoginRequest(BaseModel):
+    phone: str = Field(..., min_length=6, max_length=32)
+    password: str = Field(..., min_length=6, max_length=128)
+
+
+class UserProfileUpdateRequest(BaseModel):
+    phone: str = Field(..., min_length=6, max_length=32)
 
 
 class UserRead(BaseModel):

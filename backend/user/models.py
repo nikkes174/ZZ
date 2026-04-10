@@ -15,6 +15,7 @@ class UserModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     phone: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, index=True)
     full_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     bonus_balance: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     verification_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
