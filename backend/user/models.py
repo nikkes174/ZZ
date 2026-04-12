@@ -17,6 +17,7 @@ class UserModel(Base):
     full_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     bonus_balance: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     verification_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
     verification_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -9,6 +9,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from backend.auth.dependencies import ensure_admin_user, get_optional_current_user, require_admin_user
 from backend.redactor.depencises import get_menu_item_service
 from backend.redactor.schemas import (
     HeroContentRead,
@@ -31,6 +32,7 @@ from backend.redactor.service import (
     MenuItemNotFoundError,
     MenuItemService,
 )
+from backend.user.schemas import UserRead
 
 router = APIRouter(prefix="/api/redactor/menu-items", tags=["redactor"])
 
@@ -260,7 +262,11 @@ async def get_hero_content() -> HeroContentRead:
 
 
 @router.patch("/hero-content", response_model=HeroContentRead)
-async def update_hero_content(payload: HeroContentUpdate) -> HeroContentRead:
+async def update_hero_content(
+    payload: HeroContentUpdate,
+    admin_user: UserRead = Depends(require_admin_user),
+) -> HeroContentRead:
+    _ = admin_user
     return save_hero_content(payload)
 
 
@@ -270,7 +276,11 @@ async def get_menu_section_content() -> MenuSectionContentRead:
 
 
 @router.patch("/menu-section-content", response_model=MenuSectionContentRead)
-async def update_menu_section_content(payload: MenuSectionContentUpdate) -> MenuSectionContentRead:
+async def update_menu_section_content(
+    payload: MenuSectionContentUpdate,
+    admin_user: UserRead = Depends(require_admin_user),
+) -> MenuSectionContentRead:
+    _ = admin_user
     return save_menu_section_content(payload)
 
 
@@ -280,7 +290,11 @@ async def get_delivery_section_content() -> MenuSectionContentRead:
 
 
 @router.patch("/delivery-section-content", response_model=MenuSectionContentRead)
-async def update_delivery_section_content(payload: MenuSectionContentUpdate) -> MenuSectionContentRead:
+async def update_delivery_section_content(
+    payload: MenuSectionContentUpdate,
+    admin_user: UserRead = Depends(require_admin_user),
+) -> MenuSectionContentRead:
+    _ = admin_user
     return save_delivery_section_content(payload)
 
 
@@ -290,7 +304,11 @@ async def get_contact_section_content() -> MenuSectionContentRead:
 
 
 @router.patch("/contact-section-content", response_model=MenuSectionContentRead)
-async def update_contact_section_content(payload: MenuSectionContentUpdate) -> MenuSectionContentRead:
+async def update_contact_section_content(
+    payload: MenuSectionContentUpdate,
+    admin_user: UserRead = Depends(require_admin_user),
+) -> MenuSectionContentRead:
+    _ = admin_user
     return save_contact_section_content(payload)
 
 
@@ -300,7 +318,11 @@ async def get_menu_categories() -> MenuCategoriesRead:
 
 
 @router.patch("/menu-categories", response_model=MenuCategoriesRead)
-async def update_menu_categories(payload: MenuCategoriesUpdate) -> MenuCategoriesRead:
+async def update_menu_categories(
+    payload: MenuCategoriesUpdate,
+    admin_user: UserRead = Depends(require_admin_user),
+) -> MenuCategoriesRead:
+    _ = admin_user
     return save_menu_categories(payload)
 
 
@@ -309,8 +331,11 @@ async def list_menu_items(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     include_inactive: bool = Query(default=False),
+    current_user: Optional[UserRead] = Depends(get_optional_current_user),
     service: MenuItemService = Depends(get_menu_item_service),
 ) -> MenuItemsPage:
+    if include_inactive:
+        ensure_admin_user(current_user)
     return await service.list_items(
         limit=limit,
         offset=offset,
@@ -323,8 +348,10 @@ async def search_catalog_items(
     q: str = Query(default=""),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    admin_user: UserRead = Depends(require_admin_user),
     service: MenuItemService = Depends(get_menu_item_service),
 ) -> MenuItemCatalogPage:
+    _ = admin_user
     return await service.search_catalog_items(
         query=q,
         limit=limit,
@@ -335,8 +362,10 @@ async def search_catalog_items(
 @router.get("/{item_id}", response_model=MenuItemRead)
 async def get_menu_item(
     item_id: int,
+    admin_user: UserRead = Depends(require_admin_user),
     service: MenuItemService = Depends(get_menu_item_service),
 ) -> MenuItemRead:
+    _ = admin_user
     try:
         return await service.get_item(item_id)
     except MenuItemNotFoundError as exc:
@@ -346,8 +375,10 @@ async def get_menu_item(
 @router.post("", response_model=MenuItemRead, status_code=status.HTTP_201_CREATED)
 async def create_menu_item(
     payload: MenuItemCreate,
+    admin_user: UserRead = Depends(require_admin_user),
     service: MenuItemService = Depends(get_menu_item_service),
 ) -> MenuItemRead:
+    _ = admin_user
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Catalog products are managed by iiko and cannot be created manually.",
@@ -358,8 +389,10 @@ async def create_menu_item(
 async def update_menu_item(
     item_id: int,
     payload: MenuItemLocalUpdate,
+    admin_user: UserRead = Depends(require_admin_user),
     service: MenuItemService = Depends(get_menu_item_service),
 ) -> MenuItemRead:
+    _ = admin_user
     try:
         return await service.update_item(
             item_id,
@@ -385,8 +418,10 @@ async def upload_menu_item_image(
     item_id: int,
     version: int = Form(..., ge=1),
     image: UploadFile = File(...),
+    admin_user: UserRead = Depends(require_admin_user),
     service: MenuItemService = Depends(get_menu_item_service),
 ) -> MenuItemRead:
+    _ = admin_user
     try:
         previous_item = await service.get_item(item_id)
     except MenuItemNotFoundError as exc:
@@ -435,8 +470,10 @@ async def upload_menu_item_image(
 async def delete_menu_item(
     item_id: int,
     payload: MenuItemDelete,
+    admin_user: UserRead = Depends(require_admin_user),
     service: MenuItemService = Depends(get_menu_item_service),
 ) -> MenuItemRead:
+    _ = admin_user
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Catalog products are managed by iiko and cannot be deleted manually.",

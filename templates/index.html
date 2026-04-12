@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Zamzam | Ресторан доставки восточной кухни</title>
     <meta
         name="description"
@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}?v=20260412-4">
 </head>
 <body class="preloader-active">
     <div class="page-preloader" id="page-preloader" aria-hidden="true">
@@ -161,6 +161,17 @@
 
                     <div class="checkout-note" id="checkout-note">
                         Самовывоз: заказ будет готов к выдаче после подтверждения оператором.
+                    </div>
+
+                    <div class="checkout-consents">
+                        <label class="checkout-consent">
+                            <input id="checkout-oferta-consent" type="checkbox" required>
+                            <span>Ознакомлен и соглашаюсь с <a href="/oferta" target="_blank" rel="noopener">офертой</a></span>
+                        </label>
+                        <label class="checkout-consent">
+                            <input id="checkout-policy-consent" type="checkbox" required>
+                            <span>Ознакомлен и соглашаюсь с <a href="/policy" target="_blank" rel="noopener">политикой конфиденциальности</a></span>
+                        </label>
                     </div>
 
                     <div class="checkout-actions">
@@ -449,6 +460,11 @@
     <header class="topbar-wrap">
         <nav class="topbar">
             <a class="brand" href="#hero">Zamzam</a>
+            <button class="topbar-burger" id="topbar-burger" type="button" aria-label="Открыть меню" aria-expanded="false">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
 
             <div class="nav-links">
                 <a href="#about">О нас</a>
@@ -458,7 +474,6 @@
             </div>
 
             <div class="topbar-controls">
-                <button class="admin-toggle" id="admin-toggle" type="button">Админка</button>
                 <button class="topbar-action topbar-action-button" id="cart-open-topbar" type="button" onclick="(function(){var modal=document.getElementById('auth-modal');var backdrop=document.getElementById('auth-backdrop');var loginForm=document.getElementById('auth-login-form');var registerForm=document.getElementById('auth-register-form');var loginTab=document.getElementById('auth-tab-login');var registerTab=document.getElementById('auth-tab-register');var hint=document.getElementById('auth-hint');if(registerForm){registerForm.classList.add('is-hidden');}if(loginForm){loginForm.classList.remove('is-hidden');}if(loginTab){loginTab.classList.add('is-active');}if(registerTab){registerTab.classList.remove('is-active');}if(hint){hint.textContent='';hint.style.color='';}if(backdrop){backdrop.classList.add('is-open');}if(modal){modal.classList.add('is-open');modal.setAttribute('aria-hidden','false');}document.body.classList.add('admin-open');})();">Войти</button>
             </div>
         </nav>
@@ -466,12 +481,13 @@
 
     <main>
         <section class="account-modal is-hidden" id="account" aria-hidden="true">
-            <div class="section-head">
-                <div>
+            <div class="account-modal-shell">
+                <div class="section-head account-modal-head">
+                    <div>
                     <span class="section-kicker">Личный кабинет</span>
                     <h2>Ваши бонусы и актуальный статус заказа.</h2>
+                    </div>
                 </div>
-            </div>
 
             <button class="admin-close account-modal-close" id="account-close" type="button" aria-label="Закрыть кабинет">x</button>
             <div class="account-grid">
@@ -500,7 +516,7 @@
 
             <div class="account-orders">
                 <div class="account-orders-head">
-                    <h3>стория заказов</h3>
+                    <h3>История заказов</h3>
                     <button class="topbar-action topbar-action-button account-refresh" id="account-history-refresh" type="button">Обновить</button>
                 </div>
                 <div class="account-orders-list" id="account-orders-list">
@@ -510,7 +526,6 @@
 
             <section class="account-profile-card">
                 <span class="account-summary-label">Номер телефона</span>
-                <p class="account-profile-copy">спользуется для входа в кабинет и связи по заказам.</p>
                 <form class="account-phone-form" id="account-phone-form">
                     <label class="auth-field">
                         <input id="account-phone-input" type="tel" maxlength="32" placeholder="+7" required>
@@ -519,6 +534,7 @@
                 </form>
                 <div class="auth-hint account-phone-hint" id="account-phone-hint"></div>
             </section>
+                </div>
         </section>
 
         <section class="hero" id="hero">
@@ -712,13 +728,16 @@
         </div>
     </footer>
 
-    <script src="{{ url_for('static', path='app.js') }}"></script>
-    <script src="{{ url_for('static', path='catalog-admin.js') }}"></script>
-    <script src="{{ url_for('static', path='account.js') }}"></script>
-    <script src="{{ url_for('static', path='orders-admin.js') }}"></script>
+    <script src="{{ url_for('static', path='app.js') }}?v=20260412-3"></script>
+    <script src="{{ url_for('static', path='catalog-admin.js') }}?v=20260412-1"></script>
+    <script src="{{ url_for('static', path='account.js') }}?v=20260412-3"></script>
+    <script src="{{ url_for('static', path='checkout-bridge.js') }}?v=20260412-3"></script>
+    <script src="{{ url_for('static', path='orders-admin.js') }}?v=20260412-1"></script>
     <script>
         (function () {
             const preloader = document.getElementById("page-preloader");
+            const topbar = document.querySelector(".topbar");
+            const topbarBurger = document.getElementById("topbar-burger");
 
             function hidePreloader() {
                 if (preloader) {
@@ -726,6 +745,18 @@
                 }
                 document.body.classList.remove("preloader-active");
             }
+
+            topbarBurger?.addEventListener("click", function () {
+                const isOpen = topbar?.classList.toggle("is-menu-open");
+                topbarBurger.setAttribute("aria-expanded", String(Boolean(isOpen)));
+            });
+
+            topbar?.querySelectorAll(".nav-links a, .topbar-controls button").forEach(function (item) {
+                item.addEventListener("click", function () {
+                    topbar?.classList.remove("is-menu-open");
+                    topbarBurger?.setAttribute("aria-expanded", "false");
+                });
+            });
 
             window.addEventListener("load", function () {
                 window.setTimeout(hidePreloader, 120);

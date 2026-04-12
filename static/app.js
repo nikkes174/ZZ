@@ -1,7 +1,13 @@
 const cart = new Map();
 const MIN_CHECKOUT_AMOUNT = 1000;
+const SESSION_STORAGE_KEY = "zamzam_session_token";
 
 const formatPrice = (value) => `${value.toLocaleString("ru-RU")} руб.`;
+
+function getAdminHeaders(extraHeaders = {}) {
+    const token = window.sessionStorage.getItem(SESSION_STORAGE_KEY) || "";
+    return token ? { ...extraHeaders, Authorization: `Bearer ${token}` } : { ...extraHeaders };
+}
 
 const orderItems = document.getElementById("order-items");
 const totalPrice = document.getElementById("total-price");
@@ -237,6 +243,8 @@ function showCartToast(message) {
     }, 1800);
 }
 
+window.showZamzamToast = showCartToast;
+
 function ensureRevealObserver() {
     if (revealObserver || !("IntersectionObserver" in window)) {
         return;
@@ -396,8 +404,9 @@ function updateFloatingToolsVisibility() {
     }
 
     const hasCartItems = cart.size > 0;
+    const hasVisibleAccountTrigger = document.getElementById("account-floating-trigger")?.classList.contains("is-hidden") === false;
     const menuTriggerY = menuSection ? Math.max(0, menuSection.offsetTop - 140) : 0;
-    const shouldShow = hasCartItems || window.scrollY >= menuTriggerY;
+    const shouldShow = hasCartItems || hasVisibleAccountTrigger || window.scrollY >= menuTriggerY;
 
     floatingTools.classList.toggle("is-hidden", !shouldShow);
 }
@@ -994,8 +1003,7 @@ async function loadSectionContent(url, sectionHead) {
 function renderCart() {
     const { entries, totalItems, totalPriceValue } = getCartTotals();
     const hasEntries = entries.length > 0;
-    const canCheckout =
-        hasEntries && (checkoutType === "pickup" || totalPriceValue >= MIN_CHECKOUT_AMOUNT);
+    const canCheckout = hasEntries;
 
     if (cutleryCount) {
         cutleryCount.textContent = `${cutleryItemsCount}`;
@@ -1062,6 +1070,7 @@ async function uploadImage(itemId, version) {
 
     const response = await fetch(`/api/redactor/menu-items/${itemId}/image`, {
         method: "POST",
+        headers: getAdminHeaders(),
         body: formData,
     });
 
@@ -1094,7 +1103,7 @@ if (menuGrid) {
 
             cart.get(id).quantity += quantityToAdd;
             renderCart();
-            showCartToast(`$Блюдо добавлено в корзину`);
+            showCartToast(`Блюдо добавлено в корзину`);
             return;
         }
 
@@ -1233,7 +1242,7 @@ checkoutButton?.addEventListener(
     "click",
     (event) => {
         const { totalPriceValue } = getCartTotals();
-        if (!cart.size || (checkoutType === "delivery" && totalPriceValue < MIN_CHECKOUT_AMOUNT)) {
+        if (!cart.size) {
             return;
         }
 
@@ -1324,9 +1333,9 @@ if (adminForm) {
             const previousCategory = activeAdminCard?.dataset.category || "";
             const updateResponse = await fetch(`/api/redactor/menu-items/${adminItemId.value}`, {
                 method: "PATCH",
-                headers: {
+                headers: getAdminHeaders({
                     "Content-Type": "application/json",
-                },
+                }),
                 body: JSON.stringify({
                     ...basePayload,
                     version: Number(adminItemVersion.value || "1"),
@@ -1381,9 +1390,9 @@ if (heroAdminForm) {
         try {
             const response = await fetch("/api/redactor/menu-items/hero-content", {
                 method: "PATCH",
-                headers: {
+                headers: getAdminHeaders({
                     "Content-Type": "application/json",
-                },
+                }),
                 body: JSON.stringify(payload),
             });
 
@@ -1421,9 +1430,9 @@ if (menuSectionAdminForm) {
         try {
             const response = await fetch(activeSectionEditor.saveUrl, {
                 method: "PATCH",
-                headers: {
+                headers: getAdminHeaders({
                     "Content-Type": "application/json",
-                },
+                }),
                 body: JSON.stringify(payload),
             });
 
@@ -1471,9 +1480,9 @@ if (menuCategoriesAdminForm) {
         try {
             const response = await fetch("/api/redactor/menu-items/menu-categories", {
                 method: "PATCH",
-                headers: {
+                headers: getAdminHeaders({
                     "Content-Type": "application/json",
-                },
+                }),
                 body: JSON.stringify({ items }),
             });
 
@@ -1496,6 +1505,10 @@ if (menuCategoriesAdminForm) {
 
 if (checkoutForm) {
     checkoutForm.addEventListener("submit", (event) => {
+        if (window.zamzamAccountCheckoutEnabled) {
+            return;
+        }
+
         event.preventDefault();
 
         const { totalItems, totalPriceValue } = getCartTotals();
@@ -1605,6 +1618,7 @@ window.zamzamApp = {
     closeCart,
     closeCheckoutModal,
     openAdminModalWithItem,
+    setAdminMode,
     formatPrice,
     resetAfterOrder() {
         cart.clear();

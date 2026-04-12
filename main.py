@@ -11,8 +11,12 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from backend.auth import router as auth_router
 from backend.orders import router as orders_router
+from backend.orders.crud import SqlAlchemyOrderRepository
 from backend.orders.migrations import ensure_order_bonus_columns
+from backend.orders.service import IikoOrderStatusSyncService
+from backend.payment.router import router as payment_router
 from backend.iiko_manager.client import IikoApiClient
 from backend.iiko_manager.repository import IikoCatalogRepository
 from backend.iiko_manager.service import IikoCatalogSyncService
@@ -22,11 +26,14 @@ from backend.redactor.crud import SqlAlchemyMenuItemRepository
 from backend.redactor.migrations import ensure_menu_item_iiko_columns
 from backend.redactor.service import MenuItemService
 from backend.user import router as user_router
-from backend.user.migrations import ensure_user_auth_columns
+from backend.user.migrations import ensure_user_auth_columns, sync_admin_users_from_env
 from config import (
     API_IIKO,
     IIKO_BASE_URL,
     IIKO_ORGANIZATION_ID,
+    IIKO_ORDER_STATUS_SYNC_INTERVAL_SECONDS,
+    IIKO_ORDER_STATUS_SYNC_LIMIT,
+    IIKO_ORDER_TIMEOUT_SECONDS,
     IIKO_SYNC_INTERVAL_SECONDS,
     IIKO_SYNC_TIMEOUT_SECONDS,
     TERMINAL_ID_GROUP,
@@ -187,6 +194,49 @@ async def _run_iiko_sync_loop(stop_event: asyncio.Event) -> None:
             logger.exception("Background iiko catalog sync failed.")
 
 
+async def _sync_iiko_order_statuses() -> None:
+    if not API_IIKO:
+        logger.info("Skipping iiko order status sync because API_IIKO is not configured.")
+        return
+
+    async with AsyncSessionLocal() as session:
+        service = IikoOrderStatusSyncService(
+            repository=SqlAlchemyOrderRepository(session),
+            client=IikoApiClient(
+                api_login=API_IIKO,
+                base_url=IIKO_BASE_URL,
+                timeout_seconds=IIKO_ORDER_TIMEOUT_SECONDS,
+            ),
+            organization_id=IIKO_ORGANIZATION_ID,
+            limit=IIKO_ORDER_STATUS_SYNC_LIMIT,
+        )
+        result = await service.sync()
+        if result.checked or result.updated:
+            logger.info(
+                "Finished iiko order status sync. checked=%s updated=%s",
+                result.checked,
+                result.updated,
+            )
+
+
+async def _run_iiko_order_status_sync_loop(stop_event: asyncio.Event) -> None:
+    logger.info(
+        "Started background iiko order status sync loop. interval_seconds=%s",
+        IIKO_ORDER_STATUS_SYNC_INTERVAL_SECONDS,
+    )
+    while not stop_event.is_set():
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=IIKO_ORDER_STATUS_SYNC_INTERVAL_SECONDS)
+            break
+        except asyncio.TimeoutError:
+            pass
+
+        try:
+            await _sync_iiko_order_statuses()
+        except Exception:
+            logger.exception("Background iiko order status sync failed.")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     logger.info("Application startup initiated.")
@@ -198,20 +248,21 @@ async def lifespan(_: FastAPI):
     logger.info("Menu item iiko migrations ensured.")
     await ensure_user_auth_columns()
     logger.info("User auth migrations ensured.")
+    await sync_admin_users_from_env()
+    logger.info("Admin users synchronized from environment.")
     await _sync_iiko_catalog()
     stop_event = asyncio.Event()
     sync_task = asyncio.create_task(_run_iiko_sync_loop(stop_event))
+    order_status_sync_task = asyncio.create_task(_run_iiko_order_status_sync_loop(stop_event))
     try:
         logger.info("Application startup completed.")
         yield
     finally:
         logger.info("Application shutdown initiated.")
         stop_event.set()
-        sync_task.cancel()
-        try:
-            await sync_task
-        except asyncio.CancelledError:
-            pass
+        for task in (sync_task, order_status_sync_task):
+            task.cancel()
+        await asyncio.gather(sync_task, order_status_sync_task, return_exceptions=True)
         logger.info("Application shutdown completed.")
 
 
@@ -222,8 +273,10 @@ app = FastAPI(
 )
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(redactor_router)
+app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(orders_router)
+app.include_router(payment_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -269,4 +322,4 @@ async def policy_page(request: Request) -> HTMLResponse:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="127.0.0.1", port=8083)
+    uvicorn.run("main:app", host="127.0.0.1", port=8011)

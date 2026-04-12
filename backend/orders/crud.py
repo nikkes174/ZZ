@@ -22,6 +22,9 @@ class OrderRepository(Protocol):
         bonus_spent: int,
         total_amount: int,
         bonus_awarded: int,
+        iiko_order_id: Optional[str] = None,
+        iiko_correlation_id: Optional[str] = None,
+        iiko_creation_status: Optional[str] = None,
     ) -> OrderModel: ...
     async def list_by_user(self, user_id: int) -> Sequence[OrderModel]: ...
     async def get_latest_by_user(self, user_id: int) -> Optional[OrderModel]: ...
@@ -30,6 +33,8 @@ class OrderRepository(Protocol):
     async def list_recent(self, *, limit: int, phone: Optional[str] = None) -> Sequence[OrderModel]: ...
     async def get_by_id(self, order_id: int) -> Optional[OrderModel]: ...
     async def update_status(self, *, order_id: int, status: str) -> Optional[OrderModel]: ...
+    async def list_active_iiko_orders(self, *, limit: int) -> Sequence[OrderModel]: ...
+    async def update_status_by_iiko_order_id(self, *, iiko_order_id: str, status: str) -> Optional[OrderModel]: ...
 
 
 class SqlAlchemyOrderRepository:
@@ -47,6 +52,9 @@ class SqlAlchemyOrderRepository:
         bonus_spent: int,
         total_amount: int,
         bonus_awarded: int,
+        iiko_order_id: Optional[str] = None,
+        iiko_correlation_id: Optional[str] = None,
+        iiko_creation_status: Optional[str] = None,
     ) -> OrderModel:
         model = OrderModel(
             user_id=user_id,
@@ -64,6 +72,9 @@ class SqlAlchemyOrderRepository:
             bonus_spent=bonus_spent,
             total_amount=total_amount,
             bonus_awarded=bonus_awarded,
+            iiko_order_id=iiko_order_id,
+            iiko_correlation_id=iiko_correlation_id,
+            iiko_creation_status=iiko_creation_status,
             status=ORDER_STATUS_PREPARING,
         )
         self._session.add(model)
@@ -116,7 +127,35 @@ class SqlAlchemyOrderRepository:
         stmt = (
             update(OrderModel)
             .where(OrderModel.id == order_id)
-            .values(status=status)
+            .values(status=status, updated_at=func.now())
+            .returning(OrderModel)
+        )
+        result = await self._session.execute(stmt)
+        order = result.scalar_one_or_none()
+        if order is None:
+            await self._session.rollback()
+            return None
+
+        await self._session.commit()
+        return order
+
+    async def list_active_iiko_orders(self, *, limit: int) -> Sequence[OrderModel]:
+        stmt = (
+            select(OrderModel)
+            .where(
+                OrderModel.status.in_(self.ACTIVE_STATUSES),
+                OrderModel.iiko_order_id.is_not(None),
+            )
+            .order_by(OrderModel.created_at.asc(), OrderModel.id.asc())
+            .limit(limit)
+        )
+        return (await self._session.scalars(stmt)).all()
+
+    async def update_status_by_iiko_order_id(self, *, iiko_order_id: str, status: str) -> Optional[OrderModel]:
+        stmt = (
+            update(OrderModel)
+            .where(OrderModel.iiko_order_id == iiko_order_id)
+            .values(status=status, updated_at=func.now())
             .returning(OrderModel)
         )
         result = await self._session.execute(stmt)

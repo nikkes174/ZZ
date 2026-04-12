@@ -50,6 +50,57 @@ class IikoApiClient:
         )
         return payload
 
+    async def get_delivery_order_types(self, *, token: str, organization_ids: list[str]) -> list[dict[str, Any]]:
+        logger.info("Requesting iiko delivery order types. organization_ids=%s", organization_ids)
+        payload = await self._post("deliveries/order_types", {"organizationIds": organization_ids}, token=token)
+        order_types = payload.get("orderTypes")
+        if not isinstance(order_types, list):
+            raise IikoClientError("iiko delivery order types response is invalid.")
+        logger.info("iiko delivery order types received. groups=%s", len(order_types))
+        return order_types
+
+    async def get_payment_types(self, *, token: str, organization_ids: list[str]) -> list[dict[str, Any]]:
+        logger.info("Requesting iiko payment types. organization_ids=%s", organization_ids)
+        payload = await self._post("payment_types", {"organizationIds": organization_ids}, token=token)
+        payment_types = payload.get("paymentTypes")
+        if not isinstance(payment_types, list):
+            raise IikoClientError("iiko payment types response is invalid.")
+        logger.info("iiko payment types received. count=%s", len(payment_types))
+        return payment_types
+
+    async def create_delivery_order(self, *, token: str, payload: dict[str, Any]) -> dict[str, Any]:
+        logger.info(
+            "Sending delivery order to iiko. organization_id=%s terminal_group_id=%s",
+            payload.get("organizationId"),
+            payload.get("terminalGroupId"),
+        )
+        response_payload = await self._post("deliveries/create", payload, token=token)
+        if not isinstance(response_payload, dict):
+            raise IikoClientError("iiko delivery create response is invalid.")
+        return response_payload
+
+    async def get_delivery_orders_by_ids(
+        self,
+        *,
+        token: str,
+        organization_id: str,
+        order_ids: list[str],
+    ) -> list[dict[str, Any]]:
+        logger.info("Requesting iiko delivery orders by ids. count=%s", len(order_ids))
+        payload = await self._post(
+            "deliveries/by_id",
+            {
+                "organizationId": organization_id,
+                "orderIds": order_ids,
+            },
+            token=token,
+        )
+        orders = payload.get("orders")
+        if not isinstance(orders, list):
+            raise IikoClientError("iiko deliveries by id response is invalid.")
+        logger.info("iiko delivery orders received. count=%s", len(orders))
+        return orders
+
     async def _post(self, path: str, json_payload: dict[str, Any], *, token: Optional[str]) -> dict[str, Any]:
         headers = {"Authorization": f"Bearer {token}"} if token else None
         logger.debug("Sending iiko request. path=%s payload_keys=%s", path, sorted(json_payload.keys()))
@@ -60,6 +111,12 @@ class IikoApiClient:
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             detail = response.text.strip()
+            logger.warning(
+                "iiko request failed. path=%s status=%s detail=%s",
+                path,
+                response.status_code,
+                detail,
+            )
             raise IikoClientError(f"iiko request failed for {path}: {response.status_code} {detail}") from exc
 
         payload = response.json()

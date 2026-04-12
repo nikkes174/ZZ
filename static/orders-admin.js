@@ -7,6 +7,11 @@ const ordersAdminRefresh = document.getElementById("orders-admin-refresh");
 const ordersAdminResults = document.getElementById("orders-admin-results");
 const adminBackdropShared = document.getElementById("admin-backdrop");
 
+function getAdminHeaders(extraHeaders = {}) {
+    const token = window.sessionStorage.getItem("zamzam_session_token") || "";
+    return token ? { ...extraHeaders, Authorization: `Bearer ${token}` } : { ...extraHeaders };
+}
+
 let ordersAdminPhoneFilter = "";
 let ordersAdminStatusOptions = {
     pickup: ["Готовится", "Готов к выдаче", "Выдан", "Отменен"],
@@ -79,6 +84,9 @@ function renderOrdersAdmin(orders) {
         .map((order) => {
             const itemsText = order.items.map((item) => `${item.title} x ${item.quantity}`).join(", ");
             const addressText = order.delivery_address || "Не требуется";
+            const iikoText = order.iiko_order_id
+                ? `iiko: ${order.iiko_creation_status || "unknown"} | order ${order.iiko_order_id} | correlation ${order.iiko_correlation_id || "-"}`
+                : "iiko: no data";
             const statusOptions = getStatusOptions(order.checkout_type)
                 .map((status) => `<option value="${status}" ${status === order.status ? "selected" : ""}>${status}</option>`)
                 .join("");
@@ -110,6 +118,7 @@ function renderOrdersAdmin(orders) {
                     <div class="account-order-meta">Создан: ${formatOrdersAdminDate(order.created_at)}</div>
                     <div class="account-order-meta">Сумма: ${order.total_amount} руб. • Бонусы: +${order.bonus_awarded}</div>
                     <div class="account-order-meta">Адрес: ${addressText}</div>
+                    <div class="account-order-meta">${iikoText}</div>
                     <div class="order-admin-items">${itemsText}</div>
                     <form class="order-admin-actions" data-order-status-form>
                         <label class="admin-field">
@@ -131,7 +140,9 @@ async function loadOrdersAdmin(phone = "") {
         params.set("phone", phone);
     }
 
-    const response = await fetch(`/api/orders/admin?${params.toString()}`);
+    const response = await fetch(`/api/orders/admin?${params.toString()}`, {
+        headers: getAdminHeaders(),
+    });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
         throw new Error(payload?.detail || "Не удалось загрузить список заказов.");
@@ -216,9 +227,9 @@ ordersAdminResults?.addEventListener("submit", async (event) => {
     try {
         const response = await fetch(`/api/orders/${orderId}/status`, {
             method: "PATCH",
-            headers: {
+            headers: getAdminHeaders({
                 "Content-Type": "application/json",
-            },
+            }),
             body: JSON.stringify({ status }),
         });
         const payload = await response.json().catch(() => ({}));

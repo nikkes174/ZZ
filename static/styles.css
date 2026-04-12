@@ -23,6 +23,13 @@ html {
     scroll-behavior: smooth;
 }
 
+@media (max-width: 768px) {
+    html,
+    body {
+        touch-action: manipulation;
+    }
+}
+
 body {
     margin: 0;
     background: var(--bg);
@@ -346,10 +353,10 @@ body.preloader-active {
     z-index: 80;
     max-width: min(360px, calc(100% - 24px));
     padding: 14px 18px;
-    border-radius: 16px;
-    background: rgba(17, 17, 17, 0.94);
+    border-radius: 8px;
+    background: var(--green);
     color: #ffffff;
-    box-shadow: 0 18px 36px rgba(15, 15, 15, 0.2);
+    box-shadow: 0 18px 36px rgba(35, 66, 32, 0.28);
     opacity: 0;
     transform: translateY(12px);
     pointer-events: none;
@@ -412,17 +419,21 @@ body.preloader-active {
     position: fixed;
     top: 0;
     right: 0;
+    bottom: 0;
     z-index: 70;
     display: flex;
     flex-direction: column;
     width: min(420px, 100%);
-    height: 100vh;
+    height: auto;
+    max-height: none;
     padding: 28px;
+    overflow-y: auto;
     background: var(--green);
     color: #ffffff;
     box-shadow: -24px 0 48px rgba(15, 15, 15, 0.18);
     transform: translateX(100%);
     transition: transform 0.28s ease;
+    -webkit-overflow-scrolling: touch;
 }
 
 .cart-drawer.is-open {
@@ -464,6 +475,39 @@ body.preloader-active {
     border-radius: 24px;
     background: rgba(255, 255, 255, 0.96);
     box-shadow: var(--shadow);
+}
+
+.topbar-burger {
+    display: none;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border: 1px solid rgba(15, 15, 15, 0.12);
+    border-radius: 8px;
+    background: #ffffff;
+    cursor: pointer;
+}
+
+.topbar-burger span {
+    display: block;
+    width: 18px;
+    height: 2px;
+    margin: 4px auto;
+    border-radius: 999px;
+    background: var(--green);
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.topbar.is-menu-open .topbar-burger span:nth-child(1) {
+    transform: translateY(6px) rotate(45deg);
+}
+
+.topbar.is-menu-open .topbar-burger span:nth-child(2) {
+    opacity: 0;
+}
+
+.topbar.is-menu-open .topbar-burger span:nth-child(3) {
+    transform: translateY(-6px) rotate(-45deg);
 }
 
 .brand,
@@ -1410,31 +1454,43 @@ body.admin-mode .menu-admin-bar {
 
 .account-modal {
     position: fixed;
-    inset: 0;
+    top: 0;
+    right: 0;
+    bottom: auto;
     z-index: 72;
-    display: grid;
-    place-items: center;
-    padding: 24px;
-    opacity: 1;
-    pointer-events: auto;
+    width: min(430px, 100%);
+    height: 100vh;
+    height: 100svh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100svh;
+    max-height: 100dvh;
+    padding: 0;
+    background: transparent;
+    transform: translateX(0);
+    transition: transform 0.28s ease;
 }
 
 .account-modal.is-hidden {
-    display: none;
+    display: block;
+    pointer-events: none;
+    transform: translateX(100%);
 }
 
 .account-modal-shell {
     position: relative;
-    width: min(980px, calc(100vw - 32px));
-    max-height: min(88vh, 920px);
-    overflow: auto;
-    padding: 28px;
-    border: 1px solid rgba(15, 15, 15, 0.08);
-    border-radius: 34px;
-    background:
-        radial-gradient(circle at top right, rgba(217, 163, 95, 0.16), transparent 28%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 242, 233, 0.98));
-    box-shadow: 0 40px 100px rgba(15, 15, 15, 0.22);
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    padding: 24px;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    border: 0;
+    border-radius: 0;
+    background: var(--surface);
+    box-shadow: -24px 0 48px rgba(15, 15, 15, 0.18);
+    -webkit-overflow-scrolling: touch;
 }
 
 .account-modal-head {
@@ -1442,20 +1498,20 @@ body.admin-mode .menu-admin-bar {
     align-items: start;
     justify-content: space-between;
     gap: 16px;
-    margin-bottom: 22px;
-    padding-right: 56px;
+    margin-bottom: 14px;
+    padding-right: 48px;
 }
 
 .account-modal-head h2 {
-    margin: 8px 0 0;
-    font-size: clamp(2rem, 4vw, 3.2rem);
-    line-height: 0.95;
+    margin: 6px 0 0;
+    font-size: 1.45rem;
+    line-height: 1.1;
 }
 
 .account-modal-close {
     position: absolute;
-    top: 24px;
-    right: 24px;
+    top: 20px;
+    right: 20px;
     z-index: 2;
 }
 
@@ -1469,14 +1525,14 @@ body.admin-mode .menu-admin-bar {
 .account-current-order,
 .account-profile-card {
     border: 1px solid var(--line);
-    border-radius: var(--radius-xl);
+    border-radius: 8px;
     background: #ffffff;
-    box-shadow: 0 16px 40px rgba(17, 17, 17, 0.06);
-    padding: 28px;
+    box-shadow: 0 12px 30px rgba(17, 17, 17, 0.06);
+    padding: 16px;
 }
 
 .account-current-order {
-    margin-bottom: 18px;
+    margin-bottom: 12px;
 }
 
 .account-order-card-current {
@@ -1492,46 +1548,56 @@ body.admin-mode .menu-admin-bar {
 }
 
 .account-profile-copy {
-    margin: 10px 0 18px;
+    margin: 8px 0 12px;
     color: var(--text-soft);
-    line-height: 1.6;
+    line-height: 1.45;
 }
 
 .account-phone-form {
     display: grid;
-    gap: 14px;
+    gap: 10px;
 }
 
 .account-phone-hint {
     text-align: left;
-    min-height: 22px;
-    margin-top: 10px;
+    min-height: 18px;
+    margin-top: 8px;
+}
+
+.account-modal .auth-field input {
+    min-height: 48px;
+    border-radius: 8px;
+}
+
+.account-modal .auth-submit {
+    min-height: 44px;
+    border-radius: 8px;
 }
 
 .account-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 18px;
-    margin-bottom: 18px;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
 }
 
 .account-summary-card,
 .account-orders {
     border: 1px solid var(--line);
-    border-radius: var(--radius-xl);
+    border-radius: 8px;
     background: #ffffff;
-    box-shadow: 0 16px 40px rgba(17, 17, 17, 0.06);
+    box-shadow: 0 12px 30px rgba(17, 17, 17, 0.06);
 }
 
 .account-summary-card {
     display: grid;
-    gap: 8px;
-    padding: 28px;
+    gap: 6px;
+    padding: 16px;
 }
 
 .account-summary-label {
     color: var(--orange);
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -1539,26 +1605,27 @@ body.admin-mode .menu-admin-bar {
 }
 
 .account-summary-card strong {
-    font-size: clamp(2rem, 5vw, 3.4rem);
+    font-size: clamp(1.5rem, 3.4vw, 2.25rem);
     line-height: 0.9;
     color: var(--green);
 }
 
 .account-orders {
-    padding: 28px;
+    padding: 16px;
+    margin-bottom: 10px;
 }
 
 .account-orders-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 18px;
+    gap: 10px;
+    margin-bottom: 12px;
 }
 
 .account-orders-head h3 {
     margin: 0;
-    font-size: 1.8rem;
+    font-size: 1.2rem;
     color: var(--orange);
 }
 
@@ -1568,7 +1635,7 @@ body.admin-mode .menu-admin-bar {
 
 .account-orders-list {
     display: grid;
-    gap: 12px;
+    gap: 8px;
 }
 
 #catalog-search-results .order-line {
@@ -1589,10 +1656,10 @@ body.admin-mode .menu-admin-bar {
 
 .account-order-card {
     display: grid;
-    gap: 10px;
-    padding: 18px;
+    gap: 7px;
+    padding: 12px;
     border: 1px solid rgba(15, 15, 15, 0.08);
-    border-radius: 20px;
+    border-radius: 8px;
     background: #fbf8f2;
 }
 
@@ -1600,22 +1667,32 @@ body.admin-mode .menu-admin-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
 }
 
 .account-order-status {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 34px;
-    padding: 0 14px;
-    border-radius: 999px;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 8px;
     background: rgba(35, 66, 32, 0.12);
     color: var(--green);
-    font-size: 0.78rem;
+    font-size: 0.68rem;
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
+}
+
+.account-order-status-preparing {
+    background: rgba(232, 84, 36, 0.14);
+    color: var(--orange);
+}
+
+.account-order-status-ready {
+    background: rgba(35, 66, 32, 0.12);
+    color: var(--green);
 }
 
 .order-admin-meta-grid {
@@ -1922,6 +1999,73 @@ body.admin-mode .menu-admin-bar {
     background: #f6efe7;
     color: rgba(15, 15, 15, 0.76);
     line-height: 1.5;
+}
+
+.checkout-consents {
+    display: grid;
+    gap: 10px;
+    padding: 14px 16px;
+    border: 1px solid rgba(15, 15, 15, 0.08);
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.checkout-consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: rgba(15, 15, 15, 0.76);
+    font-size: 0.9rem;
+    line-height: 1.35;
+}
+
+.checkout-consent input {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    accent-color: var(--green);
+}
+
+.checkout-consent a {
+    color: var(--orange);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.checkout-consent a:hover {
+    text-decoration: underline;
+}
+
+.checkout-consents.is-attention {
+    border-color: rgba(232, 84, 36, 0.72);
+    box-shadow: 0 0 0 3px rgba(232, 84, 36, 0.14);
+}
+
+.checkout-consent-popup {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    z-index: 130;
+    width: min(420px, calc(100% - 24px));
+    padding: 14px 16px;
+    border-radius: 8px;
+    background: var(--green);
+    color: #ffffff;
+    box-shadow: 0 18px 36px rgba(35, 66, 32, 0.28);
+    font-size: 0.92rem;
+    font-weight: 700;
+    line-height: 1.35;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, 14px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.checkout-consent-popup.is-visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
 }
 
 .checkout-actions {
@@ -2426,6 +2570,7 @@ body.admin-mode .dish-edit-button {
     display: grid;
     gap: 12px;
     margin: 18px 0 20px;
+    min-height: 0;
 }
 
 .order-empty,
@@ -2491,6 +2636,8 @@ body.admin-mode .dish-edit-button {
 .checkout-button {
     width: 100%;
     min-height: 54px;
+    flex: 0 0 auto;
+    margin-top: auto;
     border-radius: 14px;
     background: var(--yellow);
     color: var(--text);
@@ -2967,6 +3114,17 @@ body.admin-mode .dish-edit-button {
         padding: 20px;
     }
 
+    .cart-drawer {
+        inset: 0 0 0 auto;
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        max-height: none;
+        padding: 18px;
+        padding-bottom: calc(32px + env(safe-area-inset-bottom));
+        overflow-y: auto;
+    }
+
     .dish-footer {
         flex-direction: column;
         align-items: stretch;
@@ -3000,10 +3158,55 @@ body.admin-mode .dish-edit-button {
         height: 68px;
     }
 
+    .topbar {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+        padding: 12px;
+        border-radius: 16px;
+    }
+
+    .topbar-burger {
+        display: block;
+        border: 0;
+        background: transparent;
+    }
+
+    .nav-links,
     .topbar-controls {
+        display: none;
+        grid-column: 1 / -1;
         width: 100%;
-        justify-content: center;
-        flex-wrap: wrap;
+    }
+
+    .topbar.is-menu-open .nav-links,
+    .topbar.is-menu-open .topbar-controls {
+        display: grid;
+    }
+
+    .nav-links {
+        gap: 6px;
+        padding-top: 8px;
+    }
+
+    .nav-links a {
+        padding: 10px 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        text-align: center;
+    }
+
+    .topbar-controls {
+        gap: 8px;
+    }
+
+    .topbar-controls .admin-toggle,
+    .topbar-controls .topbar-action {
+        width: 100%;
+        border: 0;
+        box-shadow: none;
     }
 
     .cart-toast {
@@ -3076,6 +3279,35 @@ body.admin-mode .dish-edit-button {
     .auth-modal-body,
     .account-orders {
         padding: 18px;
+    }
+
+    .account-modal {
+        width: min(430px, 100%);
+        height: 100svh;
+        height: 100dvh;
+        max-height: 100svh;
+        max-height: 100dvh;
+        padding: 0;
+    }
+
+    .account-modal-shell {
+        width: 100%;
+        max-height: none;
+        padding: 18px;
+        padding-bottom: calc(18px + env(safe-area-inset-bottom));
+    }
+
+    .account-modal-head {
+        padding-right: 44px;
+    }
+
+    .account-modal-head h2 {
+        font-size: 1.25rem;
+    }
+
+    .account-modal-close {
+        top: 16px;
+        right: 16px;
     }
 
     .account-orders-head,

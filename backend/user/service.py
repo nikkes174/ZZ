@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import re
 from dataclasses import dataclass
 from secrets import token_hex
 from typing import Optional
 
 from backend.user.crud import UserRepository
+from backend.user.migrations import is_admin_phone
 from backend.user.schemas import UserAuthRead, UserDashboardRead, UserLoginRequest, UserRead, UserRegisterRequest
+
+
+logger = logging.getLogger(__name__)
 
 
 class UserNotFoundError(Exception):
@@ -32,13 +37,13 @@ class UserService:
         if len(digits) == 11 and digits.startswith("8"):
             digits = f"7{digits[1:]}"
         if len(digits) != 11 or not digits.startswith("7"):
-            raise UserAuthError("Укажите корректный номер телефона в формате +7.")
+            raise UserAuthError("РЈРєР°Р¶РёС‚Рµ РєРѕСЂСЂРµРєС‚РЅС‹Р№ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅР° РІ С„РѕСЂРјР°С‚Рµ +7.")
         return f"+{digits}"
 
     def _hash_password(self, password: str) -> str:
         normalized = password.strip()
         if len(normalized) < 6:
-            raise UserAuthError("Пароль должен содержать не менее 6 символов.")
+            raise UserAuthError("РџР°СЂРѕР»СЊ РґРѕР»Р¶РµРЅ СЃРѕРґРµСЂР¶Р°С‚СЊ РЅРµ РјРµРЅРµРµ 6 СЃРёРјРІРѕР»РѕРІ.")
 
         salt = token_hex(16)
         digest = hashlib.pbkdf2_hmac(
@@ -70,10 +75,12 @@ class UserService:
         full_name = (payload.full_name or "").strip() or None
         password_hash = self._hash_password(payload.password)
         session_token = token_hex(24)
+        is_admin = is_admin_phone(normalized_phone)
+        logger.info("Registering user. phone=%s", normalized_phone)
 
         user = await self.repository.get_by_phone(normalized_phone)
         if user is not None and user.password_hash:
-            raise UserAuthError("Пользователь с таким номером уже зарегистрирован.")
+            raise UserAuthError("РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ СЃ С‚Р°РєРёРј РЅРѕРјРµСЂРѕРј СѓР¶Рµ Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°РЅ.")
 
         if user is None:
             created_user = await self.repository.create_user(
@@ -81,6 +88,7 @@ class UserService:
                 password_hash=password_hash,
                 full_name=full_name,
                 session_token=session_token,
+                is_admin=is_admin,
             )
         else:
             created_user = await self.repository.activate_existing_user(
@@ -88,6 +96,7 @@ class UserService:
                 password_hash=password_hash,
                 full_name=full_name,
                 session_token=session_token,
+                is_admin=is_admin,
             )
 
         return UserAuthRead(
@@ -97,21 +106,49 @@ class UserService:
 
     async def login(self, payload: UserLoginRequest) -> UserAuthRead:
         normalized_phone = self.normalize_phone(payload.phone)
+        logger.info("Login attempt. phone=%s", normalized_phone)
         user = await self.repository.get_by_phone(normalized_phone)
         if user is None or not self._verify_password(payload.password, user.password_hash):
-            raise UserAuthError("Неверный номер телефона или пароль.")
+            logger.warning("Login failed. phone=%s", normalized_phone)
+            raise UserAuthError("РќРµРІРµСЂРЅС‹Р№ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅР° РёР»Рё РїР°СЂРѕР»СЊ.")
 
         session_token = token_hex(24)
-        logged_user = await self.repository.update_session_token(user_id=user.id, session_token=session_token)
+        logged_user = await self.repository.update_session_token(
+            user_id=user.id,
+            session_token=session_token,
+            is_admin=is_admin_phone(normalized_phone),
+        )
+        logger.info("Login succeeded. user_id=%s", logged_user.id)
         return UserAuthRead(
             session_token=session_token,
             user=UserRead.model_validate(logged_user),
         )
 
+    async def logout(self, *, session_token: str) -> UserRead:
+        user = await self.repository.get_by_session_token(session_token)
+        if user is None:
+            raise UserNotFoundError(session_token)
+
+        logged_out_user = await self.repository.clear_session_token(user_id=user.id)
+        if logged_out_user is None:
+            raise UserNotFoundError(session_token)
+
+        logger.info("Logout succeeded. user_id=%s", logged_out_user.id)
+        return UserRead.model_validate(logged_out_user)
+
     async def get_user_by_session_token(self, session_token: str) -> UserRead:
         user = await self.repository.get_by_session_token(session_token)
         if user is None:
             raise UserNotFoundError(session_token)
+        return UserRead.model_validate(user)
+
+    async def get_user_by_id(self, user_id: int) -> UserRead:
+        user = await self.repository.get_by_id(user_id)
+        if user is None:
+            raise UserNotFoundError(user_id)
+        env_admin = is_admin_phone(user.phone)
+        if user.is_admin != env_admin:
+            user = await self.repository.update_admin_status(user_id=user.id, is_admin=env_admin)
         return UserRead.model_validate(user)
 
     async def add_bonus(self, *, user_id: int, bonus_delta: int) -> UserRead:
@@ -124,9 +161,13 @@ class UserService:
         normalized_phone = self.normalize_phone(phone)
         existing_user = await self.repository.get_by_phone(normalized_phone)
         if existing_user is not None and existing_user.id != user_id:
-            raise UserConflictError("Этот номер телефона уже используется.")
+            raise UserConflictError("Р­С‚РѕС‚ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅР° СѓР¶Рµ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ.")
 
-        user = await self.repository.update_phone(user_id=user_id, phone=normalized_phone)
+        user = await self.repository.update_phone(
+            user_id=user_id,
+            phone=normalized_phone,
+            is_admin=is_admin_phone(normalized_phone),
+        )
         return UserRead.model_validate(user)
 
     def build_dashboard(

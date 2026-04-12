@@ -26,6 +26,7 @@ class UserRead(BaseModel):
     phone: str
     full_name: Optional[str]
     bonus_balance: int
+    is_admin: bool
     is_verified: bool
     created_at: datetime
     updated_at: datetime

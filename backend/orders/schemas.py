@@ -59,6 +59,9 @@ class OrderRead(BaseModel):
     bonus_spent: int
     total_amount: int
     bonus_awarded: int
+    iiko_order_id: Optional[str] = None
+    iiko_correlation_id: Optional[str] = None
+    iiko_creation_status: Optional[str] = None
     status: str
     created_at: datetime
     updated_at: datetime

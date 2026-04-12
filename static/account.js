@@ -1,5 +1,9 @@
+(() => {
 const SESSION_STORAGE_KEY = "zamzam_session_token";
+const REFRESH_STORAGE_KEY = "zamzam_refresh_token";
+const PENDING_PAYMENT_STORAGE_KEY = "zamzam_pending_payment_id";
 window.zamzamAuthFallbackBound = true;
+window.zamzamAccountCheckoutEnabled = true;
 
 const ACTIVE_ORDER_STATUSES = new Set(["Готовится", "Заказ отправлен", "Готов к выдаче"]);
 
@@ -47,10 +51,58 @@ const checkoutBonusSpent = document.getElementById("checkout-bonus-spent");
 const checkoutBonusBalanceText = document.getElementById("checkout-bonus-balance-text");
 const checkoutPreviewTotal = document.getElementById("checkout-preview-total");
 const checkoutButton = document.getElementById("checkout-button");
+const floatingTools = document.querySelector(".floating-tools");
+const checkoutOfertaConsent = document.getElementById("checkout-oferta-consent");
+const checkoutPolicyConsent = document.getElementById("checkout-policy-consent");
 
 let sessionToken = window.sessionStorage.getItem(SESSION_STORAGE_KEY) || "";
 let authMode = "login";
 let currentBonusBalance = 0;
+let lastAutofilledCheckoutName = "";
+let lastAutofilledCheckoutPhone = "";
+let accountAutoRefreshInFlight = false;
+
+function refreshSessionToken() {
+    sessionToken = window.sessionStorage.getItem(SESSION_STORAGE_KEY) || "";
+    return sessionToken;
+}
+
+function setAuthTokens(payload) {
+    sessionToken = payload?.access_token || "";
+    const refreshToken = payload?.refresh_token || "";
+    if (sessionToken) {
+        window.sessionStorage.setItem(SESSION_STORAGE_KEY, sessionToken);
+    }
+    if (refreshToken) {
+        window.sessionStorage.setItem(REFRESH_STORAGE_KEY, refreshToken);
+    }
+}
+
+function clearAuthTokens() {
+    window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    window.sessionStorage.removeItem(REFRESH_STORAGE_KEY);
+    sessionToken = "";
+}
+
+async function refreshAccessToken() {
+    const refreshToken = window.sessionStorage.getItem(REFRESH_STORAGE_KEY) || "";
+    if (!refreshToken) {
+        return false;
+    }
+
+    const response = await fetch("/api/auth/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload?.access_token) {
+        clearAuthTokens();
+        return false;
+    }
+    setAuthTokens(payload);
+    return true;
+}
 
 function ensurePhonePrefixValue(input) {
     if (typeof window.zamzamEnsurePhonePrefix === "function") {
@@ -89,12 +141,48 @@ function getCheckoutName() {
     return document.getElementById("checkout-name")?.value.trim() || "";
 }
 
+function syncCheckoutProfileFields(user) {
+    if (!user) {
+        return;
+    }
+
+    const checkoutNameInput = document.getElementById("checkout-name");
+    const checkoutPhoneInput = document.getElementById("checkout-phone");
+    const nextName = (user.full_name || "").trim();
+    const nextPhone = (user.phone || "").trim();
+
+    if (checkoutNameInput && nextName) {
+        const currentName = checkoutNameInput.value.trim();
+        if (!currentName || currentName === lastAutofilledCheckoutName) {
+            checkoutNameInput.value = nextName;
+            lastAutofilledCheckoutName = nextName;
+        }
+    }
+
+    if (checkoutPhoneInput && nextPhone) {
+        const currentPhone = checkoutPhoneInput.value.trim();
+        if (!currentPhone || currentPhone === lastAutofilledCheckoutPhone) {
+            checkoutPhoneInput.value = nextPhone;
+            ensurePhonePrefixValue(checkoutPhoneInput);
+            lastAutofilledCheckoutPhone = checkoutPhoneInput.value.trim();
+        }
+    }
+}
+
 function getCartSubtotal() {
     const appApi = getAppApi();
     if (!appApi) {
         return 0;
     }
     return appApi.getCartTotals().totalPriceValue || 0;
+}
+
+function validateCheckoutConsents() {
+    if (!checkoutOfertaConsent?.checked || !checkoutPolicyConsent?.checked) {
+        window.alert("Подтвердите согласие с офертой и политикой конфиденциальности.");
+        return false;
+    }
+    return true;
 }
 
 function getBonusSpentValue() {
@@ -195,6 +283,7 @@ function openAuthModal(mode = "login") {
 }
 
 window.openZamzamAuthModal = async function openZamzamAuthModal(mode = "login") {
+    refreshSessionToken();
     if (sessionToken) {
         await loadAccount();
         if (sessionToken) {
@@ -253,6 +342,7 @@ function openAuthFromRequired(mode) {
 }
 
 function updateLoginButton() {
+    refreshSessionToken();
     if (loginButton) {
         loginButton.textContent = sessionToken ? "Кабинет" : "Войти";
     }
@@ -260,11 +350,23 @@ function updateLoginButton() {
 }
 
 function getSessionHeaders() {
+    refreshSessionToken();
     return {
         "Content-Type": "application/json",
-        "X-Session-Token": sessionToken,
+        Authorization: `Bearer ${sessionToken}`,
     };
 }
+
+const baseUpdateLoginButton = updateLoginButton;
+updateLoginButton = function () {
+    baseUpdateLoginButton();
+    if (loginButton) {
+        loginButton.textContent = sessionToken ? "Выйти" : "Войти";
+    }
+    if (sessionToken) {
+        floatingTools?.classList.remove("is-hidden");
+    }
+};
 
 function formatOrderDate(value) {
     const date = new Date(value);
@@ -273,6 +375,16 @@ function formatOrderDate(value) {
 
 function getCheckoutTypeLabel(checkoutType) {
     return checkoutType === "delivery" ? "Доставка" : "Самовывоз";
+}
+
+function getOrderStatusClass(status) {
+    if (status === "Готовится") {
+        return "account-order-status-preparing";
+    }
+    if (status === "Готов к выдаче") {
+        return "account-order-status-ready";
+    }
+    return "";
 }
 
 function renderCurrentOrder(order) {
@@ -292,7 +404,7 @@ function renderCurrentOrder(order) {
         <article class="account-order-card account-order-card-current">
             <div class="account-order-head">
                 <strong>Заказ №${order.id}</strong>
-                <span class="account-order-status">${order.status}</span>
+                <span class="account-order-status ${getOrderStatusClass(order.status)}">${order.status}</span>
             </div>
             <div class="account-order-meta">Тип: ${getCheckoutTypeLabel(order.checkout_type)} • Создан: ${formatOrderDate(order.created_at)}</div>
             <div class="account-order-meta">Сумма: ${order.total_amount} руб. • Бонусы: +${order.bonus_awarded}</div>
@@ -323,7 +435,7 @@ function renderOrders(orders) {
                 <article class="account-order-card">
                     <div class="account-order-head">
                         <strong>Заказ №${order.id}</strong>
-                        <span class="account-order-status">${order.status}</span>
+                        <span class="account-order-status ${getOrderStatusClass(order.status)}">${order.status}</span>
                     </div>
                     <div class="account-order-meta">Создан: ${formatOrderDate(order.created_at)}</div>
                     <div class="account-order-meta">Сумма: ${order.total_amount} руб. • Бонусы: +${order.bonus_awarded}</div>
@@ -338,9 +450,15 @@ function showAccountSection() {
     openAccountModal();
 }
 
+function isAccountModalOpen() {
+    return Boolean(accountSection && !accountSection.classList.contains("is-hidden"));
+}
+
 async function loadAccount() {
+    refreshSessionToken();
     if (!sessionToken) {
         currentBonusBalance = 0;
+        window.zamzamApp?.setAdminMode?.(false);
         updateLoginButton();
         syncBonusUi();
         closeAccountModal();
@@ -348,15 +466,26 @@ async function loadAccount() {
     }
 
     try {
-        const [dashboardResponse, ordersResponse] = await Promise.all([
-            fetch("/api/user/me", { headers: { "X-Session-Token": sessionToken } }),
-            fetch("/api/orders/my", { headers: { "X-Session-Token": sessionToken } }),
+        let [dashboardResponse, ordersResponse] = await Promise.all([
+            fetch("/api/user/me", { headers: { Authorization: `Bearer ${sessionToken}` } }),
+            fetch("/api/orders/my", { headers: { Authorization: `Bearer ${sessionToken}` } }),
         ]);
 
         if (dashboardResponse.status === 401 || ordersResponse.status === 401) {
-            window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
-            sessionToken = "";
+            const refreshed = await refreshAccessToken();
+            if (refreshed) {
+                refreshSessionToken();
+                [dashboardResponse, ordersResponse] = await Promise.all([
+                    fetch("/api/user/me", { headers: { Authorization: `Bearer ${sessionToken}` } }),
+                    fetch("/api/orders/my", { headers: { Authorization: `Bearer ${sessionToken}` } }),
+                ]);
+            }
+        }
+
+        if (dashboardResponse.status === 401 || ordersResponse.status === 401) {
+            clearAuthTokens();
             currentBonusBalance = 0;
+            window.zamzamApp?.setAdminMode?.(false);
             updateLoginButton();
             syncBonusUi();
             closeAccountModal();
@@ -370,6 +499,7 @@ async function loadAccount() {
         const dashboard = await dashboardResponse.json();
         const ordersPage = await ordersResponse.json();
         currentBonusBalance = dashboard.user.bonus_balance || 0;
+        window.zamzamApp?.setAdminMode?.(Boolean(dashboard.user.is_admin));
 
         if (accountBonusBalance) {
             accountBonusBalance.textContent = `${dashboard.user.bonus_balance}`;
@@ -380,6 +510,7 @@ async function loadAccount() {
         if (accountPhoneInput) {
             accountPhoneInput.value = dashboard.user.phone;
         }
+        syncCheckoutProfileFields(dashboard.user);
         if (accountOrderStatus) {
             accountOrderStatus.textContent = dashboard.latest_order_status || "Заказов пока нет";
         }
@@ -397,9 +528,33 @@ async function loadAccount() {
 
 window.loadZamzamAccount = loadAccount;
 
+async function syncPendingPayment() {
+    refreshSessionToken();
+    const paymentId = window.sessionStorage.getItem(PENDING_PAYMENT_STORAGE_KEY) || "";
+    if (!paymentId || !sessionToken) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/payments/${encodeURIComponent(paymentId)}/sync`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${sessionToken}` },
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (response.ok && payload?.order_id) {
+            window.sessionStorage.removeItem(PENDING_PAYMENT_STORAGE_KEY);
+            await loadAccount();
+            if (typeof window.showZamzamToast === "function") {
+                window.showZamzamToast("Заказ успешно оплачен");
+            }
+        }
+    } catch (error) {
+        console.error(error);
+    }
+}
+
 async function handleAuthSuccess(payload) {
-    sessionToken = payload.session_token;
-    window.sessionStorage.setItem(SESSION_STORAGE_KEY, sessionToken);
+    setAuthTokens(payload);
     updateLoginButton();
     closeAuthModal();
     await loadAccount();
@@ -422,7 +577,7 @@ async function login(event) {
     setHint("");
 
     try {
-        const response = await fetch("/api/user/auth/login", {
+        const response = await fetch("/api/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ phone, password }),
@@ -459,7 +614,7 @@ async function register(event) {
     setHint("");
 
     try {
-        const response = await fetch("/api/user/auth/register", {
+        const response = await fetch("/api/auth/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -577,6 +732,10 @@ async function submitOrderWithSession() {
         return;
     }
 
+    if (!validateCheckoutConsents()) {
+        return;
+    }
+
     syncBonusUi();
     checkoutSubmit.disabled = true;
 
@@ -591,13 +750,31 @@ async function submitOrderWithSession() {
             throw new Error(responsePayload?.detail || "Не удалось оформить заказ.");
         }
 
-        appApi.resetAfterOrder();
+        if (responsePayload?.order_id && !responsePayload?.confirmation_url) {
+            currentBonusBalance = Math.max(
+                0,
+                Number(responsePayload.bonus_balance ?? currentBonusBalance - payload.bonus_spent),
+            );
+            if (checkoutBonusSpent) {
+                checkoutBonusSpent.value = "0";
+            }
+            syncBonusUi();
+            appApi.resetAfterOrder();
+            await loadAccount();
+            return;
+        }
+
+        if (!responsePayload?.confirmation_url) {
+            throw new Error("Не удалось получить ссылку на оплату.");
+        }
+        if (responsePayload.payment_id) {
+            window.sessionStorage.setItem(PENDING_PAYMENT_STORAGE_KEY, responsePayload.payment_id);
+        }
+        window.location.href = responsePayload.confirmation_url;
         currentBonusBalance = Math.max(0, currentBonusBalance - payload.bonus_spent);
         if (checkoutBonusSpent) {
             checkoutBonusSpent.value = "0";
         }
-        await loadAccount();
-        showAccountSection();
     } catch (error) {
         window.alert(error.message || "Не удалось оформить заказ.");
     } finally {
@@ -606,13 +783,15 @@ async function submitOrderWithSession() {
 }
 
 async function submitOrder(event) {
-    const appApi = getAppApi();
-    if (!appApi) {
-        return;
-    }
-
     event.preventDefault();
     event.stopImmediatePropagation();
+    refreshSessionToken();
+
+    const appApi = getAppApi();
+    if (!appApi) {
+        window.alert("Не удалось подготовить заказ. Обновите страницу и попробуйте снова.");
+        return;
+    }
 
     const { entries, customerName, customerPhone } = buildOrderPayload(appApi);
 
@@ -626,6 +805,10 @@ async function submitOrder(event) {
         return;
     }
 
+    if (!validateCheckoutConsents()) {
+        return;
+    }
+
     if (!sessionToken) {
         openAuthRequiredModal();
         return;
@@ -634,14 +817,30 @@ async function submitOrder(event) {
     await submitOrderWithSession();
 }
 
+function logout() {
+    const refreshToken = window.sessionStorage.getItem(REFRESH_STORAGE_KEY) || "";
+    fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+    }).catch(() => null).finally(() => {
+        clearAuthTokens();
+        currentBonusBalance = 0;
+        window.zamzamApp?.setAdminMode?.(false);
+        closeAuthModal();
+        closeAuthRequiredModal();
+        closeAccountModal();
+        updateLoginButton();
+        syncBonusUi();
+    });
+}
+
 async function handleLoginButtonClick(event) {
     event?.preventDefault?.();
+    refreshSessionToken();
     if (sessionToken) {
-        await loadAccount();
-        if (sessionToken) {
-            showAccountSection();
-            return;
-        }
+        logout();
+        return;
     }
     await window.openZamzamAuthModal("login");
 }
@@ -652,6 +851,7 @@ if (loginButton) {
 }
 
 accountFloatingTrigger?.addEventListener("click", async () => {
+    refreshSessionToken();
     await loadAccount();
     if (sessionToken) {
         showAccountSection();
@@ -702,6 +902,7 @@ updateLoginButton();
 syncBonusUi();
 syncAuthMode();
 loadAccount();
+syncPendingPayment();
 
 checkoutBonusSpent?.addEventListener("input", syncBonusUi);
 checkoutButton?.addEventListener("click", () => {
@@ -713,3 +914,18 @@ document.getElementById("cart-checkout-type-pickup")?.addEventListener("click", 
 document.getElementById("cart-checkout-type-delivery")?.addEventListener("click", () => {
     window.setTimeout(syncBonusUi, 0);
 });
+
+window.setInterval(async () => {
+    refreshSessionToken();
+    if (!sessionToken || !isAccountModalOpen() || document.hidden || accountAutoRefreshInFlight) {
+        return;
+    }
+
+    accountAutoRefreshInFlight = true;
+    try {
+        await loadAccount();
+    } finally {
+        accountAutoRefreshInFlight = false;
+    }
+}, 15000);
+})();

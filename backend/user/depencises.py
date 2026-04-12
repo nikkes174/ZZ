@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import Depends, Header
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.user.crud import SqlAlchemyUserRepository
@@ -18,7 +18,3 @@ def get_user_service(
     repository: SqlAlchemyUserRepository = Depends(get_user_repository),
 ) -> UserService:
     return UserService(repository=repository)
-
-
-def get_session_token(x_session_token: str = Header(..., alias="X-Session-Token")) -> str:
-    return x_session_token

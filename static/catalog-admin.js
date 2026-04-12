@@ -7,6 +7,11 @@ const catalogSearchResults = document.getElementById("catalog-search-results");
 const adminBackdropShared = document.getElementById("admin-backdrop");
 let catalogSearchDebounceId = null;
 
+function getAdminHeaders(extraHeaders = {}) {
+    const token = window.sessionStorage.getItem("zamzam_session_token") || "";
+    return token ? { ...extraHeaders, Authorization: `Bearer ${token}` } : { ...extraHeaders };
+}
+
 function openCatalogAdminModal() {
     if (!catalogAdminModal || !adminBackdropShared) {
         return;
@@ -71,7 +76,9 @@ async function searchCatalogItems() {
     catalogSearchSubmit.disabled = true;
 
     try {
-        const response = await fetch(`/api/redactor/menu-items/catalog/search?q=${encodeURIComponent(query)}&limit=30&offset=0`);
+        const response = await fetch(`/api/redactor/menu-items/catalog/search?q=${encodeURIComponent(query)}&limit=30&offset=0`, {
+            headers: getAdminHeaders(),
+        });
         if (!response.ok) {
             const errorBody = await response.json().catch(() => ({}));
             throw new Error(errorBody?.detail || "Не удалось выполнить поиск.");
@@ -89,7 +96,9 @@ async function searchCatalogItems() {
 }
 
 async function openItemFromSearch(itemId) {
-    const response = await fetch(`/api/redactor/menu-items/${itemId}`);
+    const response = await fetch(`/api/redactor/menu-items/${itemId}`, {
+        headers: getAdminHeaders(),
+    });
     if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
         throw new Error(errorBody?.detail || "Не удалось загрузить товар.");

@@ -25,8 +25,8 @@ class MenuItemRepository(Protocol):
         limit: int,
         offset: int,
     ) -> tuple[Sequence[MenuItemModel], int]: ...
-
     async def get(self, item_id: int) -> Optional[MenuItemModel]: ...
+    async def get_many_by_ids(self, item_ids: Sequence[int]) -> Sequence[MenuItemModel]: ...
     async def create(self, payload: MenuItemCreate) -> MenuItemModel: ...
     async def update(self, item_id: int, payload: MenuItemUpdate) -> Optional[MenuItemModel]: ...
     async def hard_delete(self, item_id: int, version: int) -> Optional[MenuItemModel]: ...
@@ -109,6 +109,17 @@ class SqlAlchemyMenuItemRepository:
     async def get(self, item_id: int) -> Optional[MenuItemModel]:
         stmt = select(MenuItemModel).where(MenuItemModel.id == item_id, MenuItemModel.sync_source == "iiko")
         return await self._session.scalar(stmt)
+
+    async def get_many_by_ids(self, item_ids: Sequence[int]) -> Sequence[MenuItemModel]:
+        normalized_ids = [int(item_id) for item_id in item_ids]
+        if not normalized_ids:
+            return []
+
+        stmt = select(MenuItemModel).where(
+            MenuItemModel.id.in_(normalized_ids),
+            MenuItemModel.sync_source == "iiko",
+        )
+        return (await self._session.scalars(stmt)).all()
 
     async def create(self, payload: MenuItemCreate) -> MenuItemModel:
         model = MenuItemModel(**payload.model_dump())
