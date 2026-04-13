@@ -3,6 +3,11 @@ from collections.abc import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
+
+class Base(DeclarativeBase):
+    pass
+
+
 from config import (
     DB_MAX_OVERFLOW,
     DB_POOL_SIZE,
@@ -37,10 +42,6 @@ AsyncSessionLocal = async_sessionmaker(
     autoflush=False,
     expire_on_commit=False,
 )
-
-
-class Base(DeclarativeBase):
-    pass
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
