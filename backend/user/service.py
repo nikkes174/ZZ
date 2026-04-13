@@ -37,13 +37,13 @@ class UserService:
         if len(digits) == 11 and digits.startswith("8"):
             digits = f"7{digits[1:]}"
         if len(digits) != 11 or not digits.startswith("7"):
-            raise UserAuthError("РЈРєР°Р¶РёС‚Рµ РєРѕСЂСЂРµРєС‚РЅС‹Р№ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅР° РІ С„РѕСЂРјР°С‚Рµ +7.")
+            raise UserAuthError("Укажите корректный номер телефона в формате +7.")
         return f"+{digits}"
 
     def _hash_password(self, password: str) -> str:
         normalized = password.strip()
         if len(normalized) < 6:
-            raise UserAuthError("РџР°СЂРѕР»СЊ РґРѕР»Р¶РµРЅ СЃРѕРґРµСЂР¶Р°С‚СЊ РЅРµ РјРµРЅРµРµ 6 СЃРёРјРІРѕР»РѕРІ.")
+            raise UserAuthError("Пароль должен содержать не менее 6 символов.")
 
         salt = token_hex(16)
         digest = hashlib.pbkdf2_hmac(
@@ -80,7 +80,7 @@ class UserService:
 
         user = await self.repository.get_by_phone(normalized_phone)
         if user is not None and user.password_hash:
-            raise UserAuthError("РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ СЃ С‚Р°РєРёРј РЅРѕРјРµСЂРѕРј СѓР¶Рµ Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°РЅ.")
+            raise UserAuthError("Пользователь с таким номером уже зарегистрирован.")
 
         if user is None:
             created_user = await self.repository.create_user(
@@ -110,7 +110,7 @@ class UserService:
         user = await self.repository.get_by_phone(normalized_phone)
         if user is None or not self._verify_password(payload.password, user.password_hash):
             logger.warning("Login failed. phone=%s", normalized_phone)
-            raise UserAuthError("РќРµРІРµСЂРЅС‹Р№ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅР° РёР»Рё РїР°СЂРѕР»СЊ.")
+            raise UserAuthError("Неверный номер телефона или пароль.")
 
         session_token = token_hex(24)
         logged_user = await self.repository.update_session_token(
@@ -161,7 +161,7 @@ class UserService:
         normalized_phone = self.normalize_phone(phone)
         existing_user = await self.repository.get_by_phone(normalized_phone)
         if existing_user is not None and existing_user.id != user_id:
-            raise UserConflictError("Р­С‚РѕС‚ РЅРѕРјРµСЂ С‚РµР»РµС„РѕРЅР° СѓР¶Рµ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ.")
+            raise UserConflictError("Этот номер телефона уже используется.")
 
         user = await self.repository.update_phone(
             user_id=user_id,

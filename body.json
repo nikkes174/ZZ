@@ -1,8 +1,0 @@
-{
-          "id": "76067ea3-356f-eb93-9d14-1fa00d082c4e",
-          "name": "Доставка курьером",
-          "orderServiceType": "DeliveryByCourier",
-          "isDeleted": false,
-          "externalRevision": 0,
-          "isDefault": true
-        },

@@ -1377,6 +1377,11 @@ body.admin-mode .menu-admin-bar {
     line-height: 0.92;
 }
 
+#auth-login-form .auth-copy h3 {
+    white-space: nowrap;
+    font-size: clamp(1.75rem, 9vw, 3.2rem);
+}
+
 .auth-copy p,
 .account-summary-card p,
 .account-order-empty,
@@ -1746,6 +1751,7 @@ body.admin-mode .menu-admin-bar {
 
 .checkout-modal-shell {
     display: block;
+    max-height: inherit;
     overflow: hidden;
     border-radius: 32px;
     background: #ffffff;
@@ -1768,8 +1774,11 @@ body.admin-mode .menu-admin-bar {
     display: grid;
     grid-template-rows: auto 1fr;
     gap: 20px;
+    max-height: inherit;
     padding: 30px;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     background:
         radial-gradient(circle at top right, rgba(217, 163, 95, 0.16), transparent 26%),
         #fffdf9;
@@ -3153,6 +3162,12 @@ body.admin-mode .dish-edit-button {
         top: 104px;
     }
 
+    body.mobile-menu-open .floating-tools {
+        opacity: 0;
+        transform: translateY(-16px);
+        pointer-events: none;
+    }
+
     .floating-tool {
         width: 68px;
         height: 68px;
@@ -3247,10 +3262,32 @@ body.admin-mode .dish-edit-button {
     .checkout-modal {
         width: calc(100% - 16px);
         max-height: calc(100vh - 16px);
+        max-height: calc(100svh - 16px);
+        max-height: calc(100dvh - 16px);
     }
 
     .checkout-modal-form-wrap {
         padding: 18px;
+    }
+
+    #checkout-modal {
+        top: 8px;
+        bottom: 8px;
+        height: calc(100vh - 16px);
+        height: calc(100svh - 16px);
+        height: calc(100dvh - 16px);
+        max-height: none;
+        transform: translateX(-50%);
+    }
+
+    #checkout-modal.is-open {
+        transform: translateX(-50%);
+    }
+
+    #checkout-modal .checkout-modal-shell,
+    #checkout-modal .checkout-modal-form-wrap {
+        height: 100%;
+        max-height: none;
     }
 
     .footer-map-modal-wrap {

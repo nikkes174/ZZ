@@ -74,7 +74,7 @@
                 </div>
             </div>
             <div>
-                <span>того</span>
+                <span>Сумма заказа</span>
                 <strong id="total-price">0 руб.</strong>
             </div>
         </div>
@@ -95,7 +95,7 @@
                 <form class="checkout-form" id="checkout-form">
                     <div class="checkout-grid">
                         <label class="checkout-field">
-                            <span>мя</span>
+                            <span>Имя</span>
                             <input id="checkout-name" type="text" maxlength="120" placeholder="Как к вам обращаться" required>
                         </label>
 
@@ -159,9 +159,7 @@
                         </div>
                     </div>
 
-                    <div class="checkout-note" id="checkout-note">
-                        Самовывоз: заказ будет готов к выдаче после подтверждения оператором.
-                    </div>
+
 
                     <div class="checkout-consents">
                         <label class="checkout-consent">
@@ -196,7 +194,6 @@
 
                 <form class="auth-form" id="auth-login-form">
                     <div class="auth-copy">
-                        <h3>Вход в кабинет</h3>
                         <p>Введите номер телефона и пароль, чтобы посмотреть бонусы и оформить заказ.</p>
                     </div>
 
@@ -213,8 +210,7 @@
 
                 <form class="auth-form is-hidden" id="auth-register-form">
                     <div class="auth-copy">
-                        <h3>Создать кабинет</h3>
-                        <p>Зарегистрируйтесь по номеру телефона и паролю. Без аккаунта оформить заказ нельзя.</p>
+                        <p>Укажите Ваш номер телефона и придумайте парол.</p>
                     </div>
 
                     <label class="auth-field">
@@ -469,7 +465,6 @@
             <div class="nav-links">
                 <a href="#about">О нас</a>
                 <a href="#menu">Меню</a>
-                <a href="#reviews">Отзывы</a>
                 <a href="#contact">Контакты</a>
             </div>
 
@@ -739,6 +734,12 @@
             const topbar = document.querySelector(".topbar");
             const topbarBurger = document.getElementById("topbar-burger");
 
+            function setMobileMenuOpen(isOpen) {
+                topbar?.classList.toggle("is-menu-open", isOpen);
+                document.body.classList.toggle("mobile-menu-open", isOpen);
+                topbarBurger?.setAttribute("aria-expanded", String(Boolean(isOpen)));
+            }
+
             function hidePreloader() {
                 if (preloader) {
                     preloader.classList.add("is-hidden");
@@ -747,14 +748,12 @@
             }
 
             topbarBurger?.addEventListener("click", function () {
-                const isOpen = topbar?.classList.toggle("is-menu-open");
-                topbarBurger.setAttribute("aria-expanded", String(Boolean(isOpen)));
+                setMobileMenuOpen(!topbar?.classList.contains("is-menu-open"));
             });
 
             topbar?.querySelectorAll(".nav-links a, .topbar-controls button").forEach(function (item) {
                 item.addEventListener("click", function () {
-                    topbar?.classList.remove("is-menu-open");
-                    topbarBurger?.setAttribute("aria-expanded", "false");
+                    setMobileMenuOpen(false);
                 });
             });
 

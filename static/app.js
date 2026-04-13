@@ -1241,8 +1241,16 @@ if (checkoutButton) {
 checkoutButton?.addEventListener(
     "click",
     (event) => {
-        const { totalPriceValue } = getCartTotals();
         if (!cart.size) {
+            return;
+        }
+
+        const sessionToken = window.sessionStorage.getItem(SESSION_STORAGE_KEY) || "";
+        if (!sessionToken) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            closeCart();
+            window.openZamzamAuthModal?.("login");
             return;
         }
 
