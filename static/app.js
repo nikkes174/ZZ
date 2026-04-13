@@ -639,7 +639,7 @@ function populateAdminFormFromItem(item) {
         return;
     }
 
-    adminModalTitle.textContent = "Р РµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ РєР°СЂС‚РѕС‡РєРё";
+    adminModalTitle.textContent = "Редактирование карточки";
     adminItemId.value = item.id ? String(item.id) : "";
     adminItemVersion.value = item.version ? String(item.version) : "1";
     adminTitle.value = item.title || "";
