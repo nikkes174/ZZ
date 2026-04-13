@@ -11,13 +11,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}?v=20260412-4">
+    <link rel="stylesheet" href="/static/styles.css?v=20260412-4">
 </head>
 <body class="preloader-active">
     <div class="page-preloader" id="page-preloader" aria-hidden="true">
         <div class="page-preloader-shell">
             <div class="page-preloader-icon-wrap">
-                <img class="page-preloader-icon" src="{{ url_for('static', path='pic/preloader-cloche.svg') }}" alt="">
+                <img class="page-preloader-icon" src="/static/pic/preloader-cloche.svg" alt="">
             </div>
             <strong class="page-preloader-title">Zamzam</strong>
             <span class="page-preloader-copy">Загружаем страницу</span>
@@ -30,7 +30,7 @@
             </svg>
         </button>
         <button class="floating-tool floating-tool-accent" id="cart-toggle" type="button" aria-label="Открыть корзину">
-            <img class="floating-tool-icon" src="{{ url_for('static', path='pic/basket.svg') }}" alt="">
+            <img class="floating-tool-icon" src="/static/pic/basket.svg" alt="">
             <span class="floating-count" id="floating-count">0</span>
         </button>
     </div>
@@ -553,7 +553,7 @@
                     <div class="hero-plate-shadow"></div>
                     <img
                         class="hero-image"
-                        src="{{ url_for('static', path='files/main.jpg') }}"
+                        src="/static/files/main.jpg"
                         alt="Пирог Zamzam"
                     >
 
@@ -628,7 +628,7 @@
                             <div class="dish-visual">
                                 <img
                                     class="dish-image{% if not item.image_path %} is-hidden{% endif %}"
-                                    src="{% if item.image_path %}{{ url_for('static', path=item.image_path) }}{% endif %}"
+                                    src="{% if item.image_path %}/static/{{ item.image_path }}{% endif %}"
                                     alt="{{ item.title }}"
                                 >
                                 <div class="dish-plate{% if item.image_path %} is-hidden{% endif %}">
@@ -723,11 +723,11 @@
         </div>
     </footer>
 
-    <script src="{{ url_for('static', path='app.js') }}?v=20260412-3"></script>
-    <script src="{{ url_for('static', path='catalog-admin.js') }}?v=20260412-1"></script>
-    <script src="{{ url_for('static', path='account.js') }}?v=20260412-3"></script>
-    <script src="{{ url_for('static', path='checkout-bridge.js') }}?v=20260412-3"></script>
-    <script src="{{ url_for('static', path='orders-admin.js') }}?v=20260412-1"></script>
+    <script src="/static/app.js?v=20260412-3"></script>
+    <script src="/static/catalog-admin.js?v=20260412-1"></script>
+    <script src="/static/account.js?v=20260412-3"></script>
+    <script src="/static/checkout-bridge.js?v=20260412-3"></script>
+    <script src="/static/orders-admin.js?v=20260412-1"></script>
     <script>
         (function () {
             const preloader = document.getElementById("page-preloader");
