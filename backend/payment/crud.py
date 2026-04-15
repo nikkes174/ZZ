@@ -61,6 +61,30 @@ class SqlAlchemyPendingPaymentRepository:
         stmt = select(PendingPaymentModel).where(PendingPaymentModel.yookassa_payment_id == payment_id)
         return await self._session.scalar(stmt)
 
+    async def claim_for_order_creation(
+        self,
+        *,
+        pending_payment_id: int,
+    ) -> Optional[PendingPaymentModel]:
+        stmt = (
+            update(PendingPaymentModel)
+            .where(
+                PendingPaymentModel.id == pending_payment_id,
+                PendingPaymentModel.order_id.is_(None),
+                PendingPaymentModel.status != "processing",
+            )
+            .values(status="processing", error_message=None, updated_at=func.now())
+            .returning(PendingPaymentModel)
+        )
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        if model is None:
+            await self._session.rollback()
+            return None
+
+        await self._session.commit()
+        return model
+
     async def mark_order_created(
         self,
         *,

@@ -28,6 +28,10 @@ class UserConflictError(Exception):
     pass
 
 
+class UserBonusError(Exception):
+    pass
+
+
 @dataclass
 class UserService:
     repository: UserRepository
@@ -156,6 +160,20 @@ class UserService:
         if user is None:
             raise UserNotFoundError(user_id)
         return UserRead.model_validate(user)
+
+    async def spend_bonus(self, *, user_id: int, bonus_amount: int) -> UserRead:
+        if bonus_amount <= 0:
+            return await self.get_user_by_id(user_id)
+
+        user = await self.repository.spend_bonus(user_id=user_id, bonus_amount=bonus_amount)
+        if user is None:
+            raise UserBonusError("РќРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ Р±РѕРЅСѓСЃРѕРІ РґР»СЏ СЃРїРёСЃР°РЅРёСЏ.")
+        return UserRead.model_validate(user)
+
+    async def refund_bonus(self, *, user_id: int, bonus_amount: int) -> UserRead:
+        if bonus_amount <= 0:
+            return await self.get_user_by_id(user_id)
+        return await self.add_bonus(user_id=user_id, bonus_delta=bonus_amount)
 
     async def update_phone(self, *, user_id: int, phone: str) -> UserRead:
         normalized_phone = self.normalize_phone(phone)

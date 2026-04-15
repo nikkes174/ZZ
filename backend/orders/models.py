@@ -29,6 +29,7 @@ class OrderModel(Base):
     bonus_spent: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     bonus_awarded: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    idempotency_key: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, unique=True, index=True)
     iiko_order_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     iiko_correlation_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     iiko_creation_status: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)

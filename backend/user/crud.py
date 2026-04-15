@@ -35,6 +35,7 @@ class UserRepository(Protocol):
     async def update_admin_status(self, *, user_id: int, is_admin: bool) -> UserModel: ...
     async def update_phone(self, *, user_id: int, phone: str, is_admin: bool) -> UserModel: ...
     async def add_bonus(self, *, user_id: int, bonus_delta: int) -> Optional[UserModel]: ...
+    async def spend_bonus(self, *, user_id: int, bonus_amount: int) -> Optional[UserModel]: ...
 
 
 class SqlAlchemyUserRepository:
@@ -169,6 +170,25 @@ class SqlAlchemyUserRepository:
             update(UserModel)
             .where(UserModel.id == user_id)
             .values(bonus_balance=UserModel.bonus_balance + bonus_delta)
+            .returning(UserModel)
+        )
+        result = await self._session.execute(stmt)
+        user = result.scalar_one_or_none()
+        if user is None:
+            await self._session.rollback()
+            return None
+
+        await self._session.commit()
+        return user
+
+    async def spend_bonus(self, *, user_id: int, bonus_amount: int) -> Optional[UserModel]:
+        stmt = (
+            update(UserModel)
+            .where(
+                UserModel.id == user_id,
+                UserModel.bonus_balance >= bonus_amount,
+            )
+            .values(bonus_balance=UserModel.bonus_balance - bonus_amount)
             .returning(UserModel)
         )
         result = await self._session.execute(stmt)

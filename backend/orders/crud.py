@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from typing import Optional, Protocol
 
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.orders.models import OrderModel
@@ -22,10 +23,20 @@ class OrderRepository(Protocol):
         bonus_spent: int,
         total_amount: int,
         bonus_awarded: int,
+        idempotency_key: Optional[str] = None,
         iiko_order_id: Optional[str] = None,
         iiko_correlation_id: Optional[str] = None,
         iiko_creation_status: Optional[str] = None,
     ) -> OrderModel: ...
+    async def get_by_idempotency_key(self, idempotency_key: str) -> Optional[OrderModel]: ...
+    async def update_iiko_result(
+        self,
+        *,
+        order_id: int,
+        iiko_order_id: Optional[str],
+        iiko_correlation_id: Optional[str],
+        iiko_creation_status: Optional[str],
+    ) -> Optional[OrderModel]: ...
     async def list_by_user(self, user_id: int) -> Sequence[OrderModel]: ...
     async def get_latest_by_user(self, user_id: int) -> Optional[OrderModel]: ...
     async def get_latest_active_by_user(self, user_id: int) -> Optional[OrderModel]: ...
@@ -52,6 +63,7 @@ class SqlAlchemyOrderRepository:
         bonus_spent: int,
         total_amount: int,
         bonus_awarded: int,
+        idempotency_key: Optional[str] = None,
         iiko_order_id: Optional[str] = None,
         iiko_correlation_id: Optional[str] = None,
         iiko_creation_status: Optional[str] = None,
@@ -72,15 +84,52 @@ class SqlAlchemyOrderRepository:
             bonus_spent=bonus_spent,
             total_amount=total_amount,
             bonus_awarded=bonus_awarded,
+            idempotency_key=idempotency_key,
             iiko_order_id=iiko_order_id,
             iiko_correlation_id=iiko_correlation_id,
             iiko_creation_status=iiko_creation_status,
             status=ORDER_STATUS_PREPARING,
         )
         self._session.add(model)
-        await self._session.commit()
+        try:
+            await self._session.commit()
+        except IntegrityError:
+            await self._session.rollback()
+            raise
         await self._session.refresh(model)
         return model
+
+    async def get_by_idempotency_key(self, idempotency_key: str) -> Optional[OrderModel]:
+        stmt = select(OrderModel).where(OrderModel.idempotency_key == idempotency_key)
+        return await self._session.scalar(stmt)
+
+    async def update_iiko_result(
+        self,
+        *,
+        order_id: int,
+        iiko_order_id: Optional[str],
+        iiko_correlation_id: Optional[str],
+        iiko_creation_status: Optional[str],
+    ) -> Optional[OrderModel]:
+        stmt = (
+            update(OrderModel)
+            .where(OrderModel.id == order_id)
+            .values(
+                iiko_order_id=iiko_order_id,
+                iiko_correlation_id=iiko_correlation_id,
+                iiko_creation_status=iiko_creation_status,
+                updated_at=func.now(),
+            )
+            .returning(OrderModel)
+        )
+        result = await self._session.execute(stmt)
+        order = result.scalar_one_or_none()
+        if order is None:
+            await self._session.rollback()
+            return None
+
+        await self._session.commit()
+        return order
 
     async def list_by_user(self, user_id: int) -> Sequence[OrderModel]:
         stmt = select(OrderModel).where(OrderModel.user_id == user_id).order_by(OrderModel.created_at.desc(), OrderModel.id.desc())

@@ -5,6 +5,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from sqlalchemy.exc import IntegrityError
+
 from backend.iiko_manager.client import IikoApiClient, IikoClientError
 from backend.orders.crud import OrderRepository
 from backend.orders.iiko import IikoOrderError, IikoOrderGateway, IikoOrderItem
@@ -21,6 +23,7 @@ from backend.orders.statuses import (
 from backend.redactor.crud import MenuItemRepository
 from config import API_IIKO
 logger = logging.getLogger(__name__)
+BONUS_AWARD_PERCENT = 5
 
 
 class OrderValidationError(Exception):
@@ -49,6 +52,13 @@ class PreparedOrder:
 class OrderStatusSyncResult:
     checked: int = 0
     updated: int = 0
+
+
+@dataclass(frozen=True)
+class ClaimedOrder:
+    order: OrderRead
+    prepared_order: Optional[PreparedOrder]
+    is_owner: bool
 
 
 @dataclass
@@ -203,6 +213,95 @@ class OrderService:
     menu_item_repository: MenuItemRepository
     iiko_order_gateway: IikoOrderGateway
 
+    def _calculate_bonus_awarded(self, total_amount: int) -> int:
+        return max(0, total_amount * BONUS_AWARD_PERCENT // 100)
+
+    async def claim_order_creation(
+        self,
+        *,
+        user_id: int,
+        payload: OrderCreate,
+        available_bonus_balance: int,
+        idempotency_key: str,
+    ) -> ClaimedOrder:
+        normalized_idempotency_key = idempotency_key.strip()[:128]
+        if not normalized_idempotency_key:
+            raise OrderValidationError("Order idempotency key is required.")
+
+        existing_order = await self.repository.get_by_idempotency_key(normalized_idempotency_key)
+        if existing_order is not None:
+            return ClaimedOrder(
+                order=self._to_read(existing_order),
+                prepared_order=None,
+                is_owner=False,
+            )
+
+        prepared_order = await self.prepare_order(
+            payload=payload,
+            available_bonus_balance=available_bonus_balance,
+        )
+        bonus_awarded = self._calculate_bonus_awarded(prepared_order.total_amount)
+        try:
+            local_order = await self.repository.create(
+                user_id=user_id,
+                payload=prepared_order.payload,
+                subtotal_amount=prepared_order.subtotal_amount,
+                bonus_spent=prepared_order.payload.bonus_spent,
+                total_amount=prepared_order.total_amount,
+                bonus_awarded=bonus_awarded,
+                idempotency_key=normalized_idempotency_key,
+                iiko_creation_status="LocalPending",
+            )
+        except IntegrityError:
+            existing_order = await self.repository.get_by_idempotency_key(normalized_idempotency_key)
+            if existing_order is not None:
+                return ClaimedOrder(
+                    order=self._to_read(existing_order),
+                    prepared_order=None,
+                    is_owner=False,
+                )
+            raise
+
+        return ClaimedOrder(
+            order=self._to_read(local_order),
+            prepared_order=prepared_order,
+            is_owner=True,
+        )
+
+    async def submit_claimed_order(self, *, order_id: int, prepared_order: PreparedOrder) -> OrderRead:
+        try:
+            iiko_result = await self.iiko_order_gateway.submit_order(
+                payload=prepared_order.payload,
+                items=[
+                    IikoOrderItem(
+                        product_id=item.iiko_product_id,
+                        title=item.order_item.title,
+                        price=item.order_item.price,
+                        quantity=item.order_item.quantity,
+                    )
+                    for item in prepared_order.normalized_items
+                ],
+                total_amount=prepared_order.total_amount,
+            )
+        except IikoOrderError as exc:
+            await self.repository.update_iiko_result(
+                order_id=order_id,
+                iiko_order_id=None,
+                iiko_correlation_id=None,
+                iiko_creation_status="Failed",
+            )
+            raise OrderValidationError(str(exc)) from exc
+
+        order = await self.repository.update_iiko_result(
+            order_id=order_id,
+            iiko_order_id=iiko_result.get("iiko_order_id") or None,
+            iiko_correlation_id=iiko_result.get("correlation_id") or None,
+            iiko_creation_status=iiko_result.get("creation_status") or None,
+        )
+        if order is None:
+            raise OrderNotFoundError(order_id)
+        return self._to_read(order)
+
     async def prepare_order(self, *, payload: OrderCreate, available_bonus_balance: int) -> PreparedOrder:
         normalized_items = await self._normalize_order_items(payload)
         subtotal_amount = sum(item.order_item.price * item.order_item.quantity for item in normalized_items)
@@ -224,11 +323,45 @@ class OrderService:
             total_amount=total_amount,
         )
 
-    async def create_order(self, *, user_id: int, payload: OrderCreate, available_bonus_balance: int) -> OrderRead:
+    async def create_order(
+        self,
+        *,
+        user_id: int,
+        payload: OrderCreate,
+        available_bonus_balance: int,
+        idempotency_key: Optional[str] = None,
+    ) -> OrderRead:
+        normalized_idempotency_key = (idempotency_key or "").strip()[:128] or None
+        if normalized_idempotency_key:
+            existing_order = await self.repository.get_by_idempotency_key(normalized_idempotency_key)
+            if existing_order is not None:
+                return self._to_read(existing_order)
+
         prepared_order = await self.prepare_order(
             payload=payload,
             available_bonus_balance=available_bonus_balance,
         )
+
+        bonus_awarded = self._calculate_bonus_awarded(prepared_order.total_amount)
+        local_order = None
+        if normalized_idempotency_key:
+            try:
+                local_order = await self.repository.create(
+                    user_id=user_id,
+                    payload=prepared_order.payload,
+                    subtotal_amount=prepared_order.subtotal_amount,
+                    bonus_spent=prepared_order.payload.bonus_spent,
+                    total_amount=prepared_order.total_amount,
+                    bonus_awarded=bonus_awarded,
+                    idempotency_key=normalized_idempotency_key,
+                    iiko_creation_status="LocalPending",
+                )
+            except IntegrityError:
+                existing_order = await self.repository.get_by_idempotency_key(normalized_idempotency_key)
+                if existing_order is not None:
+                    return self._to_read(existing_order)
+                raise
+
         try:
             iiko_result = await self.iiko_order_gateway.submit_order(
                 payload=prepared_order.payload,
@@ -244,25 +377,49 @@ class OrderService:
                 total_amount=prepared_order.total_amount,
             )
         except IikoOrderError as exc:
+            if local_order is not None:
+                await self.repository.update_iiko_result(
+                    order_id=local_order.id,
+                    iiko_order_id=None,
+                    iiko_correlation_id=None,
+                    iiko_creation_status="Failed",
+                )
             raise OrderValidationError(str(exc)) from exc
 
-        bonus_awarded = max(0, prepared_order.total_amount // 20)
-        order = await self.repository.create(
-            user_id=user_id,
-            payload=prepared_order.payload,
-            subtotal_amount=prepared_order.subtotal_amount,
-            bonus_spent=prepared_order.payload.bonus_spent,
-            total_amount=prepared_order.total_amount,
-            bonus_awarded=bonus_awarded,
-            iiko_order_id=iiko_result.get("iiko_order_id") or None,
-            iiko_correlation_id=iiko_result.get("correlation_id") or None,
-            iiko_creation_status=iiko_result.get("creation_status") or None,
-        )
+        if local_order is not None:
+            order = await self.repository.update_iiko_result(
+                order_id=local_order.id,
+                iiko_order_id=iiko_result.get("iiko_order_id") or None,
+                iiko_correlation_id=iiko_result.get("correlation_id") or None,
+                iiko_creation_status=iiko_result.get("creation_status") or None,
+            )
+            if order is None:
+                raise OrderNotFoundError(local_order.id)
+        else:
+            order = await self.repository.create(
+                user_id=user_id,
+                payload=prepared_order.payload,
+                subtotal_amount=prepared_order.subtotal_amount,
+                bonus_spent=prepared_order.payload.bonus_spent,
+                total_amount=prepared_order.total_amount,
+                bonus_awarded=bonus_awarded,
+                idempotency_key=normalized_idempotency_key,
+                iiko_order_id=iiko_result.get("iiko_order_id") or None,
+                iiko_correlation_id=iiko_result.get("correlation_id") or None,
+                iiko_creation_status=iiko_result.get("creation_status") or None,
+            )
         return self._to_read(order)
 
     async def list_user_orders(self, user_id: int) -> UserOrdersPage:
         orders = await self.repository.list_by_user(user_id)
         return UserOrdersPage(items=[self._to_read(order) for order in orders])
+
+    async def get_by_idempotency_key(self, idempotency_key: str) -> Optional[OrderRead]:
+        normalized_idempotency_key = idempotency_key.strip()[:128]
+        if not normalized_idempotency_key:
+            return None
+        order = await self.repository.get_by_idempotency_key(normalized_idempotency_key)
+        return self._to_read(order) if order is not None else None
 
     async def get_latest_status(self, user_id: int) -> Optional[str]:
         latest_order = await self.repository.get_latest_active_by_user(user_id)

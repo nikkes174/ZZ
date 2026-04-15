@@ -12,7 +12,7 @@ import httpx
 from backend.orders.schemas import OrderCreate
 from backend.payment.crud import SqlAlchemyPendingPaymentRepository
 from backend.payment.schemas import PaymentInitRead
-from config import PAYMENT_TEST_AMOUNT, WEBAPP_URL, YOOKASSA_SECRET_KEY, YOOKASSA_SHOP_ID
+from config import WEBAPP_URL, YOOKASSA_SECRET_KEY, YOOKASSA_SHOP_ID
 
 
 logger = logging.getLogger(__name__)
@@ -31,8 +31,7 @@ class YooKassaPaymentService:
             raise PaymentError("YooKassa credentials are not configured.")
 
     def _resolve_amount(self, amount: int) -> str:
-        payment_amount = PAYMENT_TEST_AMOUNT if PAYMENT_TEST_AMOUNT > 0 else amount
-        value = Decimal(str(payment_amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        value = Decimal(str(amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         return f"{value:.2f}"
 
     def _build_return_url(self) -> str:
