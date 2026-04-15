@@ -76,6 +76,15 @@
         return Math.max(0, Number(checkoutBonusSpent?.value || 0));
     }
 
+    function isValidCheckoutPhone(phone) {
+        const digits = String(phone || "").replace(/\D/g, "");
+        return digits.length === 11 && digits[0] === "7";
+    }
+
+    function getResponseErrorMessage(payload, fallbackMessage) {
+        return typeof payload?.detail === "string" ? payload.detail : fallbackMessage;
+    }
+
     function buildOrderPayload() {
         const appApi = window.zamzamApp || null;
         if (!appApi) {
@@ -153,7 +162,7 @@
             return;
         }
 
-        if (!orderData.customerName || !orderData.customerPhone) {
+        if (!orderData.customerName || !isValidCheckoutPhone(orderData.customerPhone)) {
             window.alert("Заполните имя и телефон.");
             return;
         }
@@ -177,7 +186,7 @@
             });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
-                throw new Error(payload?.detail || "Не удалось оформить заказ.");
+                throw new Error(getResponseErrorMessage(payload, "Не удалось оформить заказ."));
             }
 
             if (payload?.order_id && !payload?.confirmation_url) {

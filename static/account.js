@@ -137,6 +137,15 @@ function getCheckoutPhone() {
     return ensurePhonePrefixValue(input).trim();
 }
 
+function isValidCheckoutPhone(phone) {
+    const digits = String(phone || "").replace(/\D/g, "");
+    return digits.length === 11 && digits[0] === "7";
+}
+
+function getResponseErrorMessage(payload, fallbackMessage) {
+    return typeof payload?.detail === "string" ? payload.detail : fallbackMessage;
+}
+
 function getCheckoutName() {
     return document.getElementById("checkout-name")?.value.trim() || "";
 }
@@ -727,7 +736,7 @@ async function submitOrderWithSession() {
         return;
     }
 
-    if (!customerName || !customerPhone) {
+    if (!customerName || !isValidCheckoutPhone(customerPhone)) {
         window.alert("Заполните имя и телефон.");
         return;
     }
@@ -747,7 +756,7 @@ async function submitOrderWithSession() {
         });
         const responsePayload = await response.json().catch(() => ({}));
         if (!response.ok) {
-            throw new Error(responsePayload?.detail || "Не удалось оформить заказ.");
+            throw new Error(getResponseErrorMessage(responsePayload, "Не удалось оформить заказ."));
         }
 
         if (responsePayload?.order_id && !responsePayload?.confirmation_url) {
@@ -800,7 +809,7 @@ async function submitOrder(event) {
         return;
     }
 
-    if (!customerName || !customerPhone) {
+    if (!customerName || !isValidCheckoutPhone(customerPhone)) {
         window.alert("Заполните имя и телефон.");
         return;
     }
