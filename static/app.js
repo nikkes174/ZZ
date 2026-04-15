@@ -1530,7 +1530,7 @@ if (checkoutForm) {
         const deliveryAddress = checkoutAddress?.value.trim() || "";
 
         if (!customerName || !customerPhone) {
-            window.alert("Заполните имя и телефон.");
+            window.alert("Укажите телефон для связи.");
             return;
         }
 
