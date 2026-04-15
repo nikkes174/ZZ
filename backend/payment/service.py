@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
@@ -12,7 +13,7 @@ import httpx
 from backend.orders.schemas import OrderCreate
 from backend.payment.crud import SqlAlchemyPendingPaymentRepository
 from backend.payment.schemas import PaymentInitRead
-from config import WEBAPP_URL, YOOKASSA_SECRET_KEY, YOOKASSA_SHOP_ID
+from config import WEBAPP_URL, YOOKASSA_SECRET_KEY, YOOKASSA_SHOP_ID, YOOKASSA_VAT_CODE
 
 
 logger = logging.getLogger(__name__)
@@ -34,8 +35,80 @@ class YooKassaPaymentService:
         value = Decimal(str(amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         return f"{value:.2f}"
 
+    def _resolve_amount_from_cents(self, amount_cents: int) -> str:
+        value = (Decimal(amount_cents) / Decimal(100)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        return f"{value:.2f}"
+
     def _build_return_url(self) -> str:
         return (WEBAPP_URL or "http://127.0.0.1:8011").rstrip("/")
+
+    def _build_receipt_phone(self, *phones: str) -> str:
+        for phone in phones:
+            digits = re.sub(r"\D+", "", phone)
+            if len(digits) == 10:
+                digits = f"7{digits}"
+            if len(digits) == 11 and digits.startswith("8"):
+                digits = f"7{digits[1:]}"
+            if 10 <= len(digits) <= 15:
+                return digits
+        return ""
+
+    def _build_receipt_items(self, *, payload: OrderCreate, amount: int) -> list[dict[str, Any]]:
+        subtotal_cents = sum(item.price * item.quantity * 100 for item in payload.items)
+        payment_cents = amount * 100
+        discount_cents = max(0, subtotal_cents - payment_cents)
+        remaining_discount_cents = discount_cents
+        receipt_items: list[dict[str, Any]] = []
+
+        for index, item in enumerate(payload.items):
+            line_total_cents = item.price * item.quantity * 100
+            if index == len(payload.items) - 1:
+                line_discount_cents = remaining_discount_cents
+            elif subtotal_cents > 0:
+                line_discount_cents = discount_cents * line_total_cents // subtotal_cents
+                remaining_discount_cents -= line_discount_cents
+            else:
+                line_discount_cents = 0
+
+            paid_line_cents = max(0, line_total_cents - line_discount_cents)
+            if paid_line_cents <= 0:
+                continue
+
+            unit_cents = paid_line_cents // item.quantity
+            remainder_units = paid_line_cents % item.quantity
+            regular_units = item.quantity - remainder_units
+
+            if regular_units > 0 and unit_cents > 0:
+                receipt_items.append(
+                    self._build_receipt_item(
+                        title=item.title,
+                        quantity=regular_units,
+                        amount_cents=unit_cents,
+                    )
+                )
+            if remainder_units > 0:
+                receipt_items.append(
+                    self._build_receipt_item(
+                        title=item.title,
+                        quantity=remainder_units,
+                        amount_cents=unit_cents + 1,
+                    )
+                )
+
+        return receipt_items
+
+    def _build_receipt_item(self, *, title: str, quantity: int, amount_cents: int) -> dict[str, Any]:
+        return {
+            "description": title[:128],
+            "quantity": f"{quantity:.2f}",
+            "amount": {
+                "value": self._resolve_amount_from_cents(amount_cents),
+                "currency": "RUB",
+            },
+            "vat_code": YOOKASSA_VAT_CODE,
+            "payment_mode": "full_payment",
+            "payment_subject": "commodity",
+        }
 
     async def create_payment(
         self,
@@ -62,6 +135,12 @@ class YooKassaPaymentService:
             },
             "capture": True,
             "description": f"Zamzam заказ #{pending_payment.id}, телефон {user_phone}",
+            "receipt": {
+                "customer": {
+                    "phone": self._build_receipt_phone(payload.customer_phone, user_phone),
+                },
+                "items": self._build_receipt_items(payload=payload, amount=amount),
+            },
             "metadata": {
                 "pending_payment_id": str(pending_payment.id),
                 "user_id": str(user_id),
