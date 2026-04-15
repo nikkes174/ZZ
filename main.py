@@ -283,14 +283,21 @@ app.include_router(payment_router)
 @app.exception_handler(RequestValidationError)
 async def request_validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     body = await request.body()
+    errors = exc.errors()
     logger.warning(
         "Request validation failed. method=%s path=%s errors=%s body=%s",
         request.method,
         request.url.path,
-        exc.errors(),
+        errors,
         body.decode("utf-8", errors="replace")[:2000],
     )
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    if request.url.path == "/api/orders":
+        for error in errors:
+            location = error.get("loc") or ()
+            if "customer_phone" in location:
+                return JSONResponse(status_code=422, content={"detail": "Заполните имя и телефон."})
+        return JSONResponse(status_code=422, content={"detail": "Проверьте данные заказа."})
+    return JSONResponse(status_code=422, content={"detail": errors})
 
 
 @app.get("/", response_class=HTMLResponse)
