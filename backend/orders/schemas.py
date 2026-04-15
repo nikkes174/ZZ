@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -13,6 +13,11 @@ class OrderItemPayload(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     price: int = Field(..., ge=0, le=1_000_000)
     quantity: int = Field(..., ge=1, le=100)
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def normalize_id(cls, value: Any) -> str:
+        return str(value)
 
 
 class OrderCreate(BaseModel):

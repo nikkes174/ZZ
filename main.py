@@ -7,7 +7,8 @@ from pathlib import Path
 
 from app_logging import configure_application_logging
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -277,6 +278,19 @@ app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(orders_router)
 app.include_router(payment_router)
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    body = await request.body()
+    logger.warning(
+        "Request validation failed. method=%s path=%s errors=%s body=%s",
+        request.method,
+        request.url.path,
+        exc.errors(),
+        body.decode("utf-8", errors="replace")[:2000],
+    )
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
 @app.get("/", response_class=HTMLResponse)
