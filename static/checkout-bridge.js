@@ -16,6 +16,7 @@
     const checkoutPolicyConsent = document.getElementById("checkout-policy-consent");
     const checkoutConsents = document.querySelector(".checkout-consents");
     let consentPopupTimeoutId = null;
+    let checkoutWarningTimeoutId = null;
 
     function showConsentPopup() {
         let popup = document.getElementById("checkout-consent-popup");
@@ -38,6 +39,28 @@
         consentPopupTimeoutId = window.setTimeout(() => {
             popup.classList.remove("is-visible");
             checkoutConsents?.classList.remove("is-attention");
+        }, 3200);
+    }
+
+    function showCheckoutWarning(message) {
+        let popup = document.getElementById("checkout-warning-popup");
+        if (!popup) {
+            popup = document.createElement("div");
+            popup.id = "checkout-warning-popup";
+            popup.className = "checkout-consent-popup checkout-warning-popup";
+            popup.setAttribute("role", "alert");
+            document.body.appendChild(popup);
+        }
+
+        popup.textContent = message;
+        popup.classList.add("is-visible");
+
+        if (checkoutWarningTimeoutId) {
+            window.clearTimeout(checkoutWarningTimeoutId);
+        }
+
+        checkoutWarningTimeoutId = window.setTimeout(() => {
+            popup.classList.remove("is-visible");
         }, 3200);
     }
 
@@ -163,7 +186,8 @@
         }
 
         if (!orderData.customerName || !isValidCheckoutPhone(orderData.customerPhone)) {
-            window.alert("Заполните имя и телефон.");
+            showCheckoutWarning("Заполните имя и телефон.");
+            checkoutPhone?.focus();
             return;
         }
 
@@ -209,7 +233,7 @@
                 checkoutBonusSpent.value = "0";
             }
         } catch (error) {
-            window.alert(error.message || "Не удалось оформить заказ.");
+            showCheckoutWarning(error.message || "Не удалось оформить заказ.");
         } finally {
             if (checkoutSubmit) {
                 checkoutSubmit.disabled = false;

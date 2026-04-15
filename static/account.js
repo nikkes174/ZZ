@@ -61,6 +61,7 @@ let currentBonusBalance = 0;
 let lastAutofilledCheckoutName = "";
 let lastAutofilledCheckoutPhone = "";
 let accountAutoRefreshInFlight = false;
+let checkoutWarningTimeoutId = null;
 
 function refreshSessionToken() {
     sessionToken = window.sessionStorage.getItem(SESSION_STORAGE_KEY) || "";
@@ -144,6 +145,28 @@ function isValidCheckoutPhone(phone) {
 
 function getResponseErrorMessage(payload, fallbackMessage) {
     return typeof payload?.detail === "string" ? payload.detail : fallbackMessage;
+}
+
+function showCheckoutWarning(message) {
+    let popup = document.getElementById("checkout-warning-popup");
+    if (!popup) {
+        popup = document.createElement("div");
+        popup.id = "checkout-warning-popup";
+        popup.className = "checkout-consent-popup checkout-warning-popup";
+        popup.setAttribute("role", "alert");
+        document.body.appendChild(popup);
+    }
+
+    popup.textContent = message;
+    popup.classList.add("is-visible");
+
+    if (checkoutWarningTimeoutId) {
+        window.clearTimeout(checkoutWarningTimeoutId);
+    }
+
+    checkoutWarningTimeoutId = window.setTimeout(() => {
+        popup.classList.remove("is-visible");
+    }, 3200);
 }
 
 function getCheckoutName() {
@@ -737,7 +760,8 @@ async function submitOrderWithSession() {
     }
 
     if (!customerName || !isValidCheckoutPhone(customerPhone)) {
-        window.alert("Заполните имя и телефон.");
+        showCheckoutWarning("Заполните имя и телефон.");
+        document.getElementById("checkout-phone")?.focus();
         return;
     }
 
@@ -785,7 +809,7 @@ async function submitOrderWithSession() {
             checkoutBonusSpent.value = "0";
         }
     } catch (error) {
-        window.alert(error.message || "Не удалось оформить заказ.");
+        showCheckoutWarning(error.message || "Не удалось оформить заказ.");
     } finally {
         checkoutSubmit.disabled = false;
     }
@@ -798,7 +822,7 @@ async function submitOrder(event) {
 
     const appApi = getAppApi();
     if (!appApi) {
-        window.alert("Не удалось подготовить заказ. Обновите страницу и попробуйте снова.");
+        showCheckoutWarning("Не удалось подготовить заказ. Обновите страницу и попробуйте снова.");
         return;
     }
 
@@ -810,7 +834,8 @@ async function submitOrder(event) {
     }
 
     if (!customerName || !isValidCheckoutPhone(customerPhone)) {
-        window.alert("Заполните имя и телефон.");
+        showCheckoutWarning("Заполните имя и телефон.");
+        document.getElementById("checkout-phone")?.focus();
         return;
     }
 
