@@ -26,6 +26,7 @@ const cartBackdrop = document.getElementById("cart-backdrop");
 const checkoutBackdrop = document.getElementById("checkout-backdrop");
 const footerMapBackdrop = document.getElementById("footer-map-backdrop");
 const cartToggle = document.getElementById("cart-toggle");
+const menuStartTrigger = document.getElementById("menu-start-trigger");
 const cartOpenInline = document.getElementById("cart-open-inline");
 const cartOpenTopbar = document.getElementById("cart-open-topbar");
 const cartOpenHero = document.getElementById("cart-open-hero");
@@ -94,6 +95,8 @@ const menuCategoriesAdminForm = document.getElementById("menu-categories-admin-f
 const menuCategoriesAdminList = document.getElementById("menu-categories-admin-list");
 const menuCategoriesAdminAdd = document.getElementById("menu-categories-admin-add");
 const menuCategoriesAdminSave = document.getElementById("menu-categories-admin-save");
+const CART_TOUCH_DRAG_THRESHOLD = 6;
+const MENU_START_TRIGGER_OFFSET = 120;
 
 let lastScrollY = window.scrollY;
 let activeAdminCard = null;
@@ -107,6 +110,9 @@ let checkoutPayment = "cash";
 let isDelivery = false;
 let cartToastTimeoutId = null;
 let revealObserver = null;
+let cartLockedScrollY = 0;
+let cartTouchScrollState = null;
+let cartSuppressClickUntil = 0;
 
 if ("scrollRestoration" in window.history) {
     window.history.scrollRestoration = "manual";
@@ -192,6 +198,19 @@ function bindClick(element, handler) {
     }
 }
 
+function setMobileMenuOpenState(isOpen) {
+    if (typeof window.setZamzamMobileMenuOpen !== "function") {
+        return false;
+    }
+
+    window.setZamzamMobileMenuOpen(Boolean(isOpen));
+    return true;
+}
+
+function closeMobileMenu() {
+    setMobileMenuOpenState(false);
+}
+
 function syncCartCheckoutNote() {
     if (cartCheckoutNote) {
         cartCheckoutNote.textContent =
@@ -199,6 +218,239 @@ function syncCartCheckoutNote() {
                 ? "Для доставки минимальный заказ 1000 ₽."
                 : "Самовывоз доступен без минимальной суммы.";
     }
+}
+
+const HERO_PARTICLE_SELECTOR = ".hero-kicker, .hero h1, .hero-address, .hero h2 > span";
+const heroParticleState = {
+    animationFrameId: 0,
+    canvas: null,
+    ctx: null,
+    initialized: false,
+    mouse: {
+        active: false,
+        x: 0,
+        y: 0,
+    },
+    particles: [],
+    viewportHeight: 0,
+    viewportWidth: 0,
+};
+
+function getHeroParticleNodes() {
+    return heroSection ? Array.from(heroSection.querySelectorAll(HERO_PARTICLE_SELECTOR)) : [];
+}
+
+function normalizeHeroParticleSources() {
+    getHeroParticleNodes().forEach((node) => {
+        const sourceText = node.dataset.particleSourceText || node.textContent || "";
+        node.textContent = sourceText;
+        node.dataset.particleSourceText = sourceText;
+        node.classList.add("hero-particle-source");
+    });
+}
+
+function getHeroParticleColor(node) {
+    if (node.matches("h1, .hero-gradient-text")) {
+        return { r: 255, g: 245, b: 228 };
+    }
+
+    if (node.matches(".hero-address")) {
+        return { r: 255, g: 224, b: 168 };
+    }
+
+    return { r: 255, g: 234, b: 194 };
+}
+
+function ensureHeroParticleCanvas() {
+    const heroInner = heroSection?.querySelector(".hero-inner");
+    if (!heroInner) {
+        return null;
+    }
+
+    if (!heroParticleState.canvas) {
+        const canvas = document.createElement("canvas");
+        canvas.className = "hero-particle-canvas";
+        heroInner.appendChild(canvas);
+        heroParticleState.canvas = canvas;
+        heroParticleState.ctx = canvas.getContext("2d");
+    }
+
+    return heroParticleState.canvas;
+}
+
+function buildHeroParticles() {
+    const heroInner = heroSection?.querySelector(".hero-inner");
+    const canvas = ensureHeroParticleCanvas();
+    const ctx = heroParticleState.ctx;
+
+    if (!heroInner || !canvas || !ctx) {
+        return;
+    }
+
+    normalizeHeroParticleSources();
+
+    const nodes = getHeroParticleNodes().filter((node) => (node.dataset.particleSourceText || node.textContent || "").trim());
+    if (!nodes.length) {
+        heroParticleState.particles = [];
+        return;
+    }
+
+    const innerRect = heroInner.getBoundingClientRect();
+    const entries = nodes.map((node) => {
+        const rect = node.getBoundingClientRect();
+        return {
+            color: getHeroParticleColor(node),
+            left: rect.left - innerRect.left,
+            node,
+            text: node.dataset.particleSourceText || node.textContent || "",
+            top: rect.top - innerRect.top,
+            width: rect.width,
+            height: rect.height,
+        };
+    });
+
+    const minLeft = Math.min(...entries.map((entry) => entry.left));
+    const minTop = Math.min(...entries.map((entry) => entry.top));
+    const maxRight = Math.max(...entries.map((entry) => entry.left + entry.width));
+    const maxBottom = Math.max(...entries.map((entry) => entry.top + entry.height));
+    const viewportWidth = Math.max(1, Math.ceil(maxRight - minLeft));
+    const viewportHeight = Math.max(1, Math.ceil(maxBottom - minTop));
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.style.left = `${minLeft}px`;
+    canvas.style.top = `${minTop}px`;
+    canvas.style.width = `${viewportWidth}px`;
+    canvas.style.height = `${viewportHeight}px`;
+    canvas.width = Math.max(1, Math.floor(viewportWidth * dpr));
+    canvas.height = Math.max(1, Math.floor(viewportHeight * dpr));
+
+    heroParticleState.viewportWidth = viewportWidth;
+    heroParticleState.viewportHeight = viewportHeight;
+
+    const offscreenCanvas = document.createElement("canvas");
+    offscreenCanvas.width = canvas.width;
+    offscreenCanvas.height = canvas.height;
+    const offscreenCtx = offscreenCanvas.getContext("2d");
+
+    if (!offscreenCtx) {
+        heroParticleState.particles = [];
+        return;
+    }
+
+    offscreenCtx.setTransform(1, 0, 0, 1, 0, 0);
+    offscreenCtx.scale(dpr, dpr);
+    offscreenCtx.lineJoin = "round";
+    offscreenCtx.lineCap = "round";
+    offscreenCtx.textBaseline = "top";
+    offscreenCtx.clearRect(0, 0, viewportWidth, viewportHeight);
+
+    entries.forEach((entry) => {
+        const style = window.getComputedStyle(entry.node);
+        const fontSize = parseFloat(style.fontSize) || 16;
+        const font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        const x = entry.left - minLeft;
+        const y = entry.top - minTop;
+
+        offscreenCtx.font = font;
+        offscreenCtx.lineWidth = Math.max(1, fontSize * 0.08);
+        offscreenCtx.strokeStyle = "rgba(255,255,255,1)";
+        offscreenCtx.fillStyle = "rgba(255,255,255,1)";
+        offscreenCtx.strokeText(entry.text, x, y);
+        offscreenCtx.fillText(entry.text, x, y);
+    });
+
+    const imageData = offscreenCtx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const particles = [];
+    const step = 3;
+
+    entries.forEach((entry) => {
+        const color = entry.color;
+        const startX = Math.max(0, Math.floor((entry.left - minLeft) * dpr));
+        const startY = Math.max(0, Math.floor((entry.top - minTop) * dpr));
+        const endX = Math.min(canvas.width, Math.ceil((entry.left - minLeft + entry.width) * dpr));
+        const endY = Math.min(canvas.height, Math.ceil((entry.top - minTop + entry.height) * dpr));
+
+        for (let y = startY; y < endY; y += step) {
+            for (let x = startX; x < endX; x += step) {
+                const index = (y * canvas.width + x) * 4;
+                if (imageData[index + 3] <= 0) {
+                    continue;
+                }
+
+                const targetX = x / dpr;
+                const targetY = y / dpr;
+                particles.push({
+                    color,
+                    size: 1.9,
+                    targetX,
+                    targetY,
+                    vx: 0,
+                    vy: 0,
+                    x: targetX,
+                    y: targetY,
+                });
+            }
+        }
+    });
+
+    heroParticleState.particles = particles;
+}
+
+function animateHeroParticles() {
+    const canvas = heroParticleState.canvas;
+    const ctx = heroParticleState.ctx;
+
+    if (!canvas || !ctx) {
+        heroParticleState.animationFrameId = 0;
+        return;
+    }
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+
+    heroParticleState.particles.forEach((particle) => {
+        particle.vx += (particle.targetX - particle.x) * 0.065;
+        particle.vy += (particle.targetY - particle.y) * 0.065;
+
+        if (heroParticleState.mouse.active) {
+            const dx = particle.x - heroParticleState.mouse.x;
+            const dy = particle.y - heroParticleState.mouse.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const repelRadius = 54;
+
+            if (distance > 0 && distance < repelRadius) {
+                const force = (1 - distance / repelRadius) * 0.95;
+                particle.vx += (dx / distance) * force;
+                particle.vy += (dy / distance) * force;
+            }
+        }
+
+        particle.vx *= 0.84;
+        particle.vy *= 0.84;
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+
+        ctx.fillStyle = `rgb(${particle.color.r}, ${particle.color.g}, ${particle.color.b})`;
+        ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
+    });
+
+    heroParticleState.animationFrameId = window.requestAnimationFrame(animateHeroParticles);
+}
+
+function updateHeroParticleMouse(event) {
+    const canvas = heroParticleState.canvas;
+    if (!canvas) {
+        return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    heroParticleState.mouse.x = event.clientX - rect.left;
+    heroParticleState.mouse.y = event.clientY - rect.top;
+}
+
+function initHeroSmokeText() {
+    return;
 }
 
 function getCartEntries() {
@@ -219,6 +471,13 @@ function openCart() {
         return;
     }
 
+    closeMobileMenu();
+    cartLockedScrollY = window.scrollY || window.pageYOffset || 0;
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${cartLockedScrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
     cartDrawer.classList.add("is-open");
     cartBackdrop.classList.add("is-open");
     document.body.classList.add("cart-open");
@@ -228,7 +487,92 @@ function closeCart() {
     cartDrawer?.classList.remove("is-open");
     cartBackdrop?.classList.remove("is-open");
     document.body.classList.remove("cart-open");
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.left = "";
+    document.body.style.right = "";
+    document.body.style.width = "";
+    window.scrollTo(0, cartLockedScrollY);
 }
+
+function bindCartTouchScrollFallback() {
+    if (!cartDrawer) {
+        return;
+    }
+
+    cartDrawer.addEventListener(
+        "touchstart",
+        (event) => {
+            if (!cartDrawer.classList.contains("is-open") || event.touches.length !== 1) {
+                cartTouchScrollState = null;
+                return;
+            }
+
+            const touch = event.touches[0];
+            cartTouchScrollState = {
+                startX: touch.clientX,
+                startY: touch.clientY,
+                startScrollTop: cartDrawer.scrollTop,
+                moved: false,
+            };
+        },
+        { passive: true },
+    );
+
+    cartDrawer.addEventListener(
+        "touchmove",
+        (event) => {
+            if (!cartDrawer.classList.contains("is-open") || !cartTouchScrollState || event.touches.length !== 1) {
+                return;
+            }
+
+            const touch = event.touches[0];
+            const deltaX = touch.clientX - cartTouchScrollState.startX;
+            const deltaY = touch.clientY - cartTouchScrollState.startY;
+
+            if (Math.abs(deltaY) < CART_TOUCH_DRAG_THRESHOLD || Math.abs(deltaY) <= Math.abs(deltaX)) {
+                return;
+            }
+
+            cartTouchScrollState.moved = true;
+            cartDrawer.scrollTop = cartTouchScrollState.startScrollTop - deltaY;
+            event.preventDefault();
+        },
+        { passive: false },
+    );
+
+    const releaseCartTouchScroll = () => {
+        if (cartTouchScrollState?.moved) {
+            cartSuppressClickUntil = Date.now() + 250;
+        }
+
+        cartTouchScrollState = null;
+    };
+
+    cartDrawer.addEventListener("touchend", releaseCartTouchScroll, { passive: true });
+    cartDrawer.addEventListener("touchcancel", releaseCartTouchScroll, { passive: true });
+    cartDrawer.addEventListener(
+        "click",
+        (event) => {
+            if (Date.now() < cartSuppressClickUntil) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        },
+        true,
+    );
+}
+
+window.setZamzamCartDrawerOpen = (isOpen) => {
+    if (isOpen) {
+        openCart();
+        return;
+    }
+
+    closeCart();
+};
+
+bindCartTouchScrollFallback();
 
 function showCartToast(message) {
     cartToast.textContent = message;
@@ -398,15 +742,36 @@ function closeFooterMapModal() {
     footerMapModal.setAttribute("aria-hidden", "true");
 }
 
+function scrollToMenuStart() {
+    if (!menuSection) {
+        return;
+    }
+
+    const topbarHeight = document.querySelector(".topbar-wrap")?.offsetHeight || 0;
+    const targetTop = Math.max(0, window.scrollY + menuSection.getBoundingClientRect().top - topbarHeight - 18);
+    window.scrollTo({
+        top: targetTop,
+        behavior: "smooth",
+    });
+}
+
 function updateFloatingToolsVisibility() {
     if (!floatingTools) {
         return;
     }
 
     const hasCartItems = cart.size > 0;
+    const menuTopPassed =
+        Boolean(menuSection) &&
+        window.scrollY > Math.max(0, menuSection.offsetTop - MENU_START_TRIGGER_OFFSET) &&
+        menuSection.getBoundingClientRect().top <= MENU_START_TRIGGER_OFFSET;
+
+    menuStartTrigger?.classList.toggle("is-hidden", !menuTopPassed);
+
     const hasVisibleAccountTrigger = document.getElementById("account-floating-trigger")?.classList.contains("is-hidden") === false;
+    const hasVisibleMenuStartTrigger = menuStartTrigger?.classList.contains("is-hidden") === false;
     const menuTriggerY = menuSection ? Math.max(0, menuSection.offsetTop - 140) : 0;
-    const shouldShow = hasCartItems || hasVisibleAccountTrigger || window.scrollY >= menuTriggerY;
+    const shouldShow = hasCartItems || hasVisibleAccountTrigger || hasVisibleMenuStartTrigger || window.scrollY >= menuTriggerY;
 
     floatingTools.classList.toggle("is-hidden", !shouldShow);
 }
@@ -837,6 +1202,7 @@ async function loadHeroContent() {
 
         const content = await response.json();
         syncHeroContent(content);
+        initHeroSmokeText();
     } catch (error) {
         window.console.error(error);
     }
@@ -1034,12 +1400,12 @@ function renderCart() {
         .map(
             (item) => `
                 <div class="order-line">
-                    <div>
-                        <strong>${item.title}</strong>
-                        <small>${item.quantity} x ${formatPrice(item.price)}</small>
+                    <div class="order-line-copy">
+                        <strong class="order-line-title">${item.title}</strong>
+                        <small class="order-line-meta">${item.quantity} x ${formatPrice(item.price)}</small>
                     </div>
                     <div class="order-line-actions">
-                        <strong>${formatPrice(item.price * item.quantity)}</strong>
+                        <strong class="order-line-total">${formatPrice(item.price * item.quantity)}</strong>
                         <button class="order-remove-button" type="button" data-remove-id="${item.id}" aria-label="Удалить блюдо">x</button>
                     </div>
                 </div>
@@ -1262,6 +1628,7 @@ checkoutButton?.addEventListener(
 );
 
 bindClick(cartToggle, openCart);
+bindClick(menuStartTrigger, scrollToMenuStart);
 bindClick(cartOpenInline, openCart);
 bindClick(cartClose, closeCart);
 bindClick(cartBackdrop, closeCart);
@@ -1411,6 +1778,7 @@ if (heroAdminForm) {
 
             const content = await response.json();
             syncHeroContent(content);
+            initHeroSmokeText();
             closeHeroAdminModal();
         } catch (error) {
             window.alert(error.message || "Не удалось сохранить hero-секцию.");
@@ -1614,6 +1982,7 @@ applyFilter(activeFilter);
 renderCart();
 updateFloatingToolsVisibility();
 initRevealAnimations();
+initHeroSmokeText();
 
 window.zamzamApp = {
     getCartEntries: () => getCartEntries().map((item) => ({ ...item })),

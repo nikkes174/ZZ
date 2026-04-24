@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/styles.css?v=20260415-2">
+    <link rel="stylesheet" href="/static/styles.css?v=20260424-legal-pages-refresh-19">
 </head>
 <body class="preloader-active">
     <div class="page-preloader" id="page-preloader" aria-hidden="true">
@@ -24,13 +24,24 @@
         </div>
     </div>
     <div class="floating-tools">
+        <button class="floating-tool floating-tool-neutral floating-tool-pill floating-tool-menu-start is-hidden" id="menu-start-trigger" type="button" aria-label="Вернуться к началу меню">
+            <svg class="floating-tool-arrow-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M12 18V6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M7 11L12 6L17 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>К началу</span>
+        </button>
         <button class="floating-tool floating-tool-neutral is-hidden" id="account-floating-trigger" type="button" aria-label="Открыть кабинет">
-            <svg width="18" height="20" viewBox="0 0 18 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M16.75 18.75C16.75 17.3544 16.75 16.6567 16.5778 16.0889C16.19 14.8105 15.1896 13.81 13.9112 13.4222C13.3434 13.25 12.6456 13.25 11.25 13.25H6.25003C4.85447 13.25 4.15668 13.25 3.58889 13.4222C2.31049 13.81 1.31007 14.8105 0.92227 16.0889C0.750031 16.6567 0.750031 17.3544 0.750031 18.75M13.25 5.25C13.25 7.73528 11.2353 9.75 8.75003 9.75C6.26475 9.75 4.25003 7.73528 4.25003 5.25C4.25003 2.76472 6.26475 0.75 8.75003 0.75C11.2353 0.75 13.25 2.76472 13.25 5.25Z" stroke="black" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <svg class="floating-tool-account-icon" width="18" height="20" viewBox="0 0 18 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M16.75 18.75C16.75 17.3544 16.75 16.6567 16.5778 16.0889C16.19 14.8105 15.1896 13.81 13.9112 13.4222C13.3434 13.25 12.6456 13.25 11.25 13.25H6.25003C4.85447 13.25 4.15668 13.25 3.58889 13.4222C2.31049 13.81 1.31007 14.8105 0.92227 16.0889C0.750031 16.6567 0.750031 17.3544 0.750031 18.75M13.25 5.25C13.25 7.73528 11.2353 9.75 8.75003 9.75C6.26475 9.75 4.25003 7.73528 4.25003 5.25C4.25003 2.76472 6.26475 0.75 8.75003 0.75C11.2353 0.75 13.25 2.76472 13.25 5.25Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
         </button>
         <button class="floating-tool floating-tool-accent" id="cart-toggle" type="button" aria-label="Открыть корзину">
-            <img class="floating-tool-icon" src="/static/pic/basket.svg" alt="">
+            <svg class="floating-tool-cart-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M3.5 5.5H5.119C5.713 5.5 6.01 5.5 6.247 5.605C6.456 5.698 6.635 5.857 6.744 6.058C6.867 6.286 6.902 6.58 6.973 7.169L7.275 9.667C7.371 10.461 7.419 10.858 7.61 11.157C7.779 11.422 8.022 11.632 8.308 11.761C8.631 11.907 9.031 11.907 9.832 11.907H16.664C17.421 11.907 17.799 11.907 18.109 11.775C18.383 11.658 18.62 11.468 18.795 11.226C18.992 10.953 19.065 10.582 19.21 9.84L19.678 7.446C19.796 6.841 19.855 6.539 19.774 6.303C19.704 6.097 19.565 5.921 19.38 5.803C19.168 5.667 18.86 5.667 18.245 5.667H7.25" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 17.5C10 18.328 9.328 19 8.5 19C7.672 19 7 18.328 7 17.5C7 16.672 7.672 16 8.5 16C9.328 16 10 16.672 10 17.5Z" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M18 17.5C18 18.328 17.328 19 16.5 19C15.672 19 15 18.328 15 17.5C15 16.672 15.672 16 16.5 16C17.328 16 18 16.672 18 17.5Z" stroke="currentColor" stroke-width="1.6"/>
+            </svg>
             <span class="floating-count" id="floating-count">0</span>
         </button>
     </div>
@@ -41,7 +52,9 @@
     <div class="checkout-backdrop" id="footer-map-backdrop"></div>
     <div class="admin-backdrop" id="admin-backdrop"></div>
     <aside class="cart-drawer" id="order-panel">
+        <div class="cart-drawer-shell">
         <button class="cart-close" id="cart-close" type="button" aria-label="Закрыть корзину">x</button>
+        <span class="section-kicker">Ваш заказ</span>
         <h3>Корзина</h3>
 
         <div class="cart-checkout-mode">
@@ -80,6 +93,7 @@
         </div>
 
         <button class="checkout-button" id="checkout-button">Оформить заказ</button>
+        </div>
     </aside>
     <section class="checkout-modal" id="checkout-modal" aria-hidden="true">
         <div class="checkout-modal-shell">
@@ -94,34 +108,34 @@
 
                 <form class="checkout-form" id="checkout-form">
                     <div class="checkout-grid">
-                        <label class="checkout-field">
+                        <label class="checkout-field checkout-field-floating">
+                            <input id="checkout-name" type="text" maxlength="120" placeholder=" " required>
                             <span>Имя</span>
-                            <input id="checkout-name" type="text" maxlength="120" placeholder="Как к вам обращаться" required>
                         </label>
 
-                        <label class="checkout-field">
+                        <label class="checkout-field checkout-field-floating">
+                            <input id="checkout-phone" type="tel" maxlength="32" placeholder=" " required>
                             <span>Телефон</span>
-                            <input id="checkout-phone" type="tel" maxlength="32" placeholder="+7 (999) 000-00-00" required>
                         </label>
                     </div>
 
                     <div class="checkout-delivery-fields is-hidden" id="checkout-delivery-fields">
                         <div class="checkout-grid">
-                            <label class="checkout-field checkout-field-wide">
+                            <label class="checkout-field checkout-field-wide checkout-field-floating">
+                                <input id="checkout-address" type="text" maxlength="255" placeholder=" ">
                                 <span>Адрес доставки</span>
-                                <input id="checkout-address" type="text" maxlength="255" placeholder="Улица, дом, корпус, квартира">
                             </label>
                         </div>
 
                         <div class="checkout-grid">
-                            <label class="checkout-field">
+                            <label class="checkout-field checkout-field-floating">
+                                <input id="checkout-entrance" type="text" maxlength="64" placeholder=" ">
                                 <span>Подъезд / этаж</span>
-                                <input id="checkout-entrance" type="text" maxlength="64" placeholder="Например: 2 подъезд, 6 этаж">
                             </label>
 
-                            <label class="checkout-field">
+                            <label class="checkout-field checkout-field-floating">
+                                <input id="checkout-comment" type="text" maxlength="255" placeholder=" ">
                                 <span>Комментарий курьеру</span>
-                                <input id="checkout-comment" type="text" maxlength="255" placeholder="Домофон, ориентир, пожелания">
                             </label>
                         </div>
                     </div>
@@ -146,8 +160,9 @@
                             <span class="checkout-label">Списание бонусов</span>
                             <p id="checkout-bonus-balance-text">Доступно бонусов: 0</p>
                         </div>
-                        <label class="checkout-field">
-                            <input id="checkout-bonus-spent" type="number" min="0" max="0" value="0" placeholder="0">
+                        <label class="checkout-field checkout-field-floating">
+                            <input id="checkout-bonus-spent" type="number" min="0" max="0" value="0" placeholder=" ">
+                            <span>Сколько списать</span>
                         </label>
                     </div>
 
@@ -194,15 +209,19 @@
 
                 <form class="auth-form" id="auth-login-form">
                     <div class="auth-copy">
-                        <p>Введите номер телефона и пароль, чтобы посмотреть бонусы и оформить заказ.</p>
+                        <span class="section-kicker">Личный кабинет</span>
+                        <h3>Вход в Zamzam</h3>
+                        <p>Введите номер телефона и пароль, чтобы посмотреть бонусы, историю заказов и быстро оформить доставку.</p>
                     </div>
 
-                    <label class="auth-field">
-                        <input id="auth-phone" type="tel" maxlength="32" placeholder="+7" required>
+                    <label class="auth-field auth-field-floating">
+                        <input id="auth-phone" type="tel" maxlength="32" placeholder=" " required>
+                        <span>Телефон</span>
                     </label>
 
-                    <label class="auth-field">
-                        <input id="auth-password" type="password" maxlength="128" placeholder="Пароль" required>
+                    <label class="auth-field auth-field-floating">
+                        <input id="auth-password" type="password" maxlength="128" placeholder=" " required>
+                        <span>Пароль</span>
                     </label>
 
                     <button class="auth-submit" id="auth-login-submit" type="submit">Войти</button>
@@ -210,19 +229,24 @@
 
                 <form class="auth-form is-hidden" id="auth-register-form">
                     <div class="auth-copy">
-                        <p>Укажите Ваш номер телефона и придумайте парол.</p>
+                        <span class="section-kicker">Создать профиль</span>
+                        <h3>Регистрация</h3>
+                        <p>Укажите имя, номер телефона и придумайте пароль, чтобы сохранить бонусы и получать статус заказов.</p>
                     </div>
 
-                    <label class="auth-field">
-                        <input id="auth-register-name" type="text" maxlength="120" placeholder="Имя">
+                    <label class="auth-field auth-field-floating">
+                        <input id="auth-register-name" type="text" maxlength="120" placeholder=" ">
+                        <span>Ваше имя</span>
                     </label>
 
-                    <label class="auth-field">
-                        <input id="auth-register-phone" type="tel" maxlength="32" placeholder="+7" required>
+                    <label class="auth-field auth-field-floating">
+                        <input id="auth-register-phone" type="tel" maxlength="32" placeholder=" " required>
+                        <span>Телефон</span>
                     </label>
 
-                    <label class="auth-field">
-                        <input id="auth-register-password" type="password" maxlength="128" placeholder="Пароль не менее 6 символов" required>
+                    <label class="auth-field auth-field-floating">
+                        <input id="auth-register-password" type="password" maxlength="128" placeholder=" " required>
+                        <span>Пароль не менее 6 символов</span>
                     </label>
 
                     <button class="auth-submit" id="auth-register-submit" type="submit">Зарегистрироваться</button>
@@ -258,8 +282,21 @@
                 <div class="checkout-modal-head">
                     <div>
                         <span class="section-kicker">Мы находимся</span>
+                        <h3>ул. Малышева, д.28</h3>
                     </div>
-                    <button class="admin-close" id="footer-map-close" type="button" aria-label="Закрыть карту">x</button>
+                </div>
+
+                <div class="footer-map-card">
+                    <div class="footer-map-card-grid">
+                        <div class="footer-map-card-copy">
+                            <span class="footer-map-card-label">Адрес</span>
+                            <strong>Екатеринбург, ул. Малышева, д.28</strong>
+                        </div>
+                        <div class="footer-map-card-copy">
+                            <span class="footer-map-card-label">Режим работы</span>
+                            <strong>Пн - Вс • 10:00 - 23:00</strong>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="footer-map-frame">
@@ -453,7 +490,7 @@
             </div>
         </div>
     </section>
-    <header class="topbar-wrap">
+    <header class="topbar-wrap" id="navbar">
         <nav class="topbar">
             <a class="brand" href="#hero">Zamzam</a>
             <button class="topbar-burger" id="topbar-burger" type="button" aria-label="Открыть меню" aria-expanded="false">
@@ -469,7 +506,7 @@
             </div>
 
             <div class="topbar-controls">
-                <button class="topbar-action topbar-action-button" id="cart-open-topbar" type="button" onclick="(function(){var modal=document.getElementById('auth-modal');var backdrop=document.getElementById('auth-backdrop');var loginForm=document.getElementById('auth-login-form');var registerForm=document.getElementById('auth-register-form');var loginTab=document.getElementById('auth-tab-login');var registerTab=document.getElementById('auth-tab-register');var hint=document.getElementById('auth-hint');if(registerForm){registerForm.classList.add('is-hidden');}if(loginForm){loginForm.classList.remove('is-hidden');}if(loginTab){loginTab.classList.add('is-active');}if(registerTab){registerTab.classList.remove('is-active');}if(hint){hint.textContent='';hint.style.color='';}if(backdrop){backdrop.classList.add('is-open');}if(modal){modal.classList.add('is-open');modal.setAttribute('aria-hidden','false');}document.body.classList.add('admin-open');})();">Войти</button>
+                <button class="topbar-action topbar-action-button button-shiny" id="cart-open-topbar" type="button" onclick="(function(){var modal=document.getElementById('auth-modal');var backdrop=document.getElementById('auth-backdrop');var loginForm=document.getElementById('auth-login-form');var registerForm=document.getElementById('auth-register-form');var loginTab=document.getElementById('auth-tab-login');var registerTab=document.getElementById('auth-tab-register');var hint=document.getElementById('auth-hint');if(registerForm){registerForm.classList.add('is-hidden');}if(loginForm){loginForm.classList.remove('is-hidden');}if(loginTab){loginTab.classList.add('is-active');}if(registerTab){registerTab.classList.remove('is-active');}if(hint){hint.textContent='';hint.style.color='';}if(backdrop){backdrop.classList.add('is-open');}if(modal){modal.classList.add('is-open');modal.setAttribute('aria-hidden','false');}document.body.classList.add('admin-open');})();"><span>Войти</span></button>
             </div>
         </nav>
     </header>
@@ -522,8 +559,9 @@
             <section class="account-profile-card">
                 <span class="account-summary-label">Номер телефона</span>
                 <form class="account-phone-form" id="account-phone-form">
-                    <label class="auth-field">
-                        <input id="account-phone-input" type="tel" maxlength="32" placeholder="+7" required>
+                    <label class="auth-field auth-field-floating">
+                        <input id="account-phone-input" type="tel" maxlength="32" placeholder=" " required>
+                        <span>Телефон</span>
                     </label>
                     <button class="auth-submit" id="account-phone-submit" type="submit">Сохранить номер</button>
                 </form>
@@ -533,63 +571,41 @@
         </section>
 
         <section class="hero" id="hero">
+            <div class="hero-media" aria-hidden="true">
+                <img class="hero-background-image" src="/static/files/A7401565.JPG" alt="">
+            </div>
             <div class="hero-overlay"></div>
 
             <div class="hero-inner">
+                <div class="hero-badge-pill">
+                    <span class="hero-badge-dot" aria-hidden="true"></span>
+                    Ресторан и доставка
+                </div>
+
                 <span class="hero-kicker">Восточная • Кавказская • Авторская кухня</span>
 
-                <h1 class="hero-gradient-text">Zamzam</h1>
+                <h1>Zamzam</h1>
 
                 <p class="hero-address">
                     Доставка по городу, ресторанная подача и быстрый онлайн-заказ
                 </p>
 
                 <h2>
-                    <span class="hero-gradient-text">Яркая восточная кухня с характером,</span>
-                    <span class="hero-gradient-text">Сервис современного уровня</span>
+                    <span>Яркая восточная кухня с характером,</span>
+                    <span>Сервис современного уровня</span>
                 </h2>
-
-                <div class="hero-visual">
-                    <div class="hero-plate-shadow"></div>
-                    <img
-                        class="hero-image"
-                        src="/static/files/main.jpg"
-                        alt="Пирог Zamzam"
-                    >
-
-                    <div class="hero-badge">
-                        <span>4.9</span>
-                        <small>оценка гостей</small>
-                    </div>
-                </div>
 
                 <div class="hero-actions">
                     <a class="hero-button hero-button-primary" href="#menu">Смотреть меню</a>
-                    <a class="hero-button hero-button-secondary" id="cart-open-hero" href="tel:+79827505455">Забронировать стол</a>
+                    <a class="hero-button hero-button-secondary button-shiny" id="cart-open-hero" href="tel:+79827505455"><span>Забронировать стол</span></a>
                 </div>
             </div>
 
-            <div class="hero-wave" aria-hidden="true">
-                <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
-                    <path fill="currentColor" d="M0,160L48,176C96,192,192,224,288,229.3C384,235,480,213,576,186.7C672,160,768,128,864,138.7C960,149,1056,203,1152,213.3C1248,224,1344,192,1392,176L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-                </svg>
-            </div>
+            <a class="hero-scroll-indicator" href="#menu" aria-label="Прокрутить ниже">
+                <span>МЕНЮ</span>
+                <span class="hero-scroll-line" aria-hidden="true"></span>
+            </a>
         </section>
-
-        <section class="marquee">
-            <div class="marquee-track">
-                {% for feature in features %}
-                <span class="marquee-item marquee-item-{{ loop.cycle('green', 'yellow', 'black') }}">{{ feature }}</span>
-                <span class="marquee-dot">•</span>
-                {% endfor %}
-                {% for feature in features %}
-                <span class="marquee-item marquee-item-{{ loop.cycle('green', 'yellow', 'black') }}">{{ feature }}</span>
-                <span class="marquee-dot">•</span>
-                {% endfor %}
-            </div>
-        </section>
-
-
 
 
         <section class="menu-section section-shell" id="menu">
@@ -671,19 +687,28 @@
         </section>
 
         <section class="delivery-section section-shell" id="delivery">
-            <div class="section-head">
+            <div class="section-head delivery-head">
                 <div>
                     <span class="section-kicker">Доставка</span>
                     <h2>Путь к заказу остался простым: выбрать, собрать, получить.</h2>
                 </div>
             </div>
 
-            <div class="steps-grid">
+            <div class="steps-grid delivery-track">
                 {% for step in steps %}
-                <article class="step-card">
-                    <span>0{{ loop.index }}</span>
-                    <h3>{{ step.title }}</h3>
-                    <p>{{ step.text }}</p>
+                <article class="step-card delivery-card">
+                    <div class="delivery-card-quote" aria-hidden="true">”</div>
+                    <div class="delivery-card-rating" aria-hidden="true">
+                        <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
+                    </div>
+                    <p class="delivery-card-text">{{ step.text }}</p>
+                    <div class="delivery-card-meta">
+                        <div class="delivery-card-index">0{{ loop.index }}</div>
+                        <div class="delivery-card-author">
+                            <h3>{{ step.title }}</h3>
+                            <span>Этап доставки</span>
+                        </div>
+                    </div>
                 </article>
                 {% endfor %}
             </div>
@@ -699,33 +724,46 @@
     <footer class="site-footer">
         <div class="site-footer-inner">
             <div class="site-footer-brand">
-                <a class="site-footer-logo" href="#hero">Zamzam</a>
+                <a class="site-footer-logo" href="#hero">Zamzam.</a>
                 <p class="site-footer-copy">Восточная кухня, быстрая доставка и аккуратная ресторанная подача каждый день.</p>
             </div>
 
-            <div class="site-footer-nav">
-
-                <a href="#menu">Меню</a>
-                <a href="/policy">Политика конфиденциальности </a>
-                <a href="/oferta">Оферта</a>
+            <div class="site-footer-column">
+                <h4 class="site-footer-heading">Навигация</h4>
+                <div class="site-footer-links">
+                    <a href="#hero">Главная</a>
+                    <a href="#menu">Меню</a>
+                    <a href="#delivery">Доставка</a>
+                    <a href="#contact">Контакты</a>
+                </div>
             </div>
 
-            <div class="site-footer-meta">
+            <div class="site-footer-column">
+                <h4 class="site-footer-heading">Документы</h4>
+                <div class="site-footer-links">
+                    <a href="/policy">Политика конфиденциальности</a>
+                    <a href="/oferta">Оферта</a>
+                </div>
+            </div>
+
+            <div class="site-footer-column site-footer-meta">
+                <h4 class="site-footer-heading">Контакты</h4>
                 <span class="site-footer-label">Режим работы</span>
                 <strong>Пн - Вс • 10:00 - 23:00</strong>
-<span class="site-footer-label">Контакты</span>
+                <span class="site-footer-label">Адрес</span>
                 <button class="site-footer-map-trigger" id="footer-map-open" type="button">ул. Малышева, д.28</button>
-                <a class="site-footer-phone" href="tel:+79827505455">тел. +7-982-750-54-55</a>
-
-
-
+                <span class="site-footer-label">Телефон</span>
+                <a class="site-footer-phone" href="tel:+79827505455">+7 982 750-54-55</a>
             </div>
         </div>
-        <p class="site-footer-copyright">© 2026 Zamzam. Все права защищены.</p>
-        <p class="site-footer-copyright site-footer-credit">Сайт разработан компанией <a href="https://blackphantom.ru/" target="_blank" rel="noopener noreferrer">BlackPhantom</a>.</p>
+
+        <div class="site-footer-bottom">
+            <p class="site-footer-copyright">© 2026 Zamzam. Все права защищены.</p>
+            <p class="site-footer-copyright site-footer-credit">Сайт разработан компанией <a href="https://blackphantom.ru/" target="_blank" rel="noopener noreferrer">BlackPhantom</a>.</p>
+        </div>
     </footer>
 
-    <script src="/static/app.js?v=20260413-1"></script>
+    <script src="/static/app.js?v=20260424-menu-start-floating-button-6"></script>
     <script src="/static/catalog-admin.js?v=20260412-1"></script>
     <script src="/static/account.js?v=20260415-2"></script>
     <script src="/static/checkout-bridge.js?v=20260415-2"></script>
@@ -733,13 +771,24 @@
     <script>
         (function () {
             const preloader = document.getElementById("page-preloader");
+            const topbarWrap = document.querySelector(".topbar-wrap");
             const topbar = document.querySelector(".topbar");
             const topbarBurger = document.getElementById("topbar-burger");
-
             function setMobileMenuOpen(isOpen) {
                 topbar?.classList.toggle("is-menu-open", isOpen);
+                topbarWrap?.classList.toggle("is-menu-open", isOpen);
                 document.body.classList.toggle("mobile-menu-open", isOpen);
                 topbarBurger?.setAttribute("aria-expanded", String(Boolean(isOpen)));
+
+                if (isOpen) {
+                    window.setZamzamCartDrawerOpen?.(false);
+                }
+            }
+
+            window.setZamzamMobileMenuOpen = setMobileMenuOpen;
+
+            function syncTopbarScrolled() {
+                topbarWrap?.classList.toggle("is-scrolled", window.scrollY > 24);
             }
 
             function hidePreloader() {
@@ -753,6 +802,16 @@
                 setMobileMenuOpen(!topbar?.classList.contains("is-menu-open"));
             });
 
+            topbarWrap?.addEventListener("click", function (event) {
+                if (!topbar?.classList.contains("is-menu-open")) {
+                    return;
+                }
+
+                if (event.target === topbarWrap) {
+                    setMobileMenuOpen(false);
+                }
+            });
+
             topbar?.querySelectorAll(".nav-links a, .topbar-controls button").forEach(function (item) {
                 item.addEventListener("click", function () {
                     setMobileMenuOpen(false);
@@ -760,8 +819,23 @@
             });
 
             window.addEventListener("load", function () {
+                syncTopbarScrolled();
                 window.setTimeout(hidePreloader, 120);
             });
+
+            window.addEventListener("resize", function () {
+                if (window.innerWidth > 820) {
+                    setMobileMenuOpen(false);
+                }
+            });
+
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") {
+                    setMobileMenuOpen(false);
+                }
+            });
+
+            window.addEventListener("scroll", syncTopbarScrolled, { passive: true });
         })();
     </script>
 </body>

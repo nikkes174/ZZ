@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Zamzam | Оферта</title>
-    <meta name="description" content="Лицензионное соглашение и оферта Zamzam">
+    <meta name="description" content="Оферта Zamzam">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/styles.css?v=20260413-1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260424-legal-pages-refresh-19">
 </head>
 <body class="legal-page-body preloader-active">
     <div class="page-preloader" id="page-preloader" aria-hidden="true">
@@ -20,36 +20,86 @@
             <span class="page-preloader-copy">Загружаем страницу</span>
         </div>
     </div>
+
+    <div class="checkout-backdrop" id="footer-map-backdrop"></div>
+
     <header class="legal-page-header">
         <div class="legal-page-header-inner">
-            <a class="legal-page-brand" href="/">Zamzam</a>
-            <a class="legal-page-back" href="/">На главную</a>
+            <a class="legal-page-brand" href="/">Zamzam.</a>
+
+            <a class="legal-page-back button-shiny" href="/"><span>На главную</span></a>
         </div>
     </header>
 
     <main class="legal-page-main">
-        <section class="legal-page-shell">
-            <div class="legal-page-head">
+        <section class="legal-page-hero">
+            <div class="legal-page-hero-shell">
                 <span class="section-kicker">Документы</span>
                 <h1>Оферта</h1>
-                <p>Лицензионное соглашение и приложения к нему.</p>
-            </div>
 
-            <article class="legal-document">
-                <pre class="legal-document-text">{{ oferta_text }}</pre>
-            </article>
+
+
+            </div>
+        </section>
+
+        <section class="legal-page-shell">
+            <div class="legal-page-grid">
+                <aside class="legal-page-aside">
+                    <article class="legal-page-aside-card">
+                        <span class="legal-page-aside-label">Раздел</span>
+                        <strong>Оферта и условия сервиса</strong>
+                        <p>Документ фиксирует правила покупки, доставки, оплаты и оформления заказа через сайт Zamzam.</p>
+                    </article>
+
+                    <article class="legal-page-aside-card">
+                        <span class="legal-page-aside-label">Быстрые ссылки</span>
+                        <div class="legal-page-aside-links">
+                            <a href="/">На главную</a>
+                            <a href="/#menu">Открыть меню</a>
+                            <a href="/policy">Перейти к политике</a>
+                        </div>
+                    </article>
+
+                    <article class="legal-page-aside-card">
+                        <span class="legal-page-aside-label">Контакты</span>
+                        <button class="site-footer-map-trigger legal-page-map-trigger" id="footer-map-open" type="button">Екатеринбург, ул. Малышева, д.28</button>
+                        <a class="site-footer-phone legal-page-phone" href="tel:+79827505455">+7 982 750-54-55</a>
+                    </article>
+                </aside>
+
+                <article class="legal-document">
+                    <div class="legal-document-head">
+                        <span class="legal-page-aside-label">Текст документа</span>
+                        <strong>Актуальная редакция</strong>
+                    </div>
+                    <pre class="legal-document-text">{{ oferta_text }}</pre>
+                </article>
+            </div>
         </section>
     </main>
 
-    <div class="checkout-backdrop" id="footer-map-backdrop"></div>
     <section class="checkout-modal footer-map-modal" id="footer-map-modal" aria-hidden="true">
         <div class="checkout-modal-shell">
             <div class="footer-map-modal-wrap">
                 <div class="checkout-modal-head">
                     <div>
                         <span class="section-kicker">Мы находимся</span>
+                        <h3>ул. Малышева, д.28</h3>
                     </div>
                     <button class="admin-close" id="footer-map-close" type="button" aria-label="Закрыть карту">x</button>
+                </div>
+
+                <div class="footer-map-card">
+                    <div class="footer-map-card-grid">
+                        <div class="footer-map-card-copy">
+                            <span class="footer-map-card-label">Адрес</span>
+                            <strong>Екатеринбург, ул. Малышева, д.28</strong>
+                        </div>
+                        <div class="footer-map-card-copy">
+                            <span class="footer-map-card-label">Режим работы</span>
+                            <strong>Пн - Вс • 10:00 - 23:00</strong>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="footer-map-frame">
@@ -65,30 +115,7 @@
         </div>
     </section>
 
-    <footer class="site-footer">
-        <div class="site-footer-inner">
-            <div class="site-footer-brand">
-                <a class="site-footer-logo" href="/">Zamzam</a>
-                <p class="site-footer-copy">Восточная кухня, быстрая доставка и аккуратная ресторанная подача каждый день.</p>
-            </div>
 
-            <div class="site-footer-nav">
-                <a href="/#menu">Меню</a>
-                <a href="/policy">Политика конфиденциальности </a>
-                <a href="/oferta">Оферта</a>
-            </div>
-
-            <div class="site-footer-meta">
-                <span class="site-footer-label">Режим работы</span>
-                <strong>Пн - Вс • 10:00 - 23:00</strong>
-                <span class="site-footer-label">Контакты</span>
-                <button class="site-footer-map-trigger" id="footer-map-open" type="button">ул. Малышева, д.28</button>
-                <a class="site-footer-phone" href="tel:+79827505455">тел. +7-982-750-54-55</a>
-            </div>
-        </div>
-        <p class="site-footer-copyright">© 2026 Zamzam. Все права защищены.</p>
-        <p class="site-footer-copyright site-footer-credit">Сайт разработан компанией <a href="https://blackphantom.ru/" target="_blank" rel="noopener noreferrer">BlackPhantom</a>.</p>
-    </footer>
 
     <script>
         (function () {
@@ -111,7 +138,7 @@
         (function () {
             const footerMapBackdrop = document.getElementById("footer-map-backdrop");
             const footerMapModal = document.getElementById("footer-map-modal");
-            const footerMapOpen = document.getElementById("footer-map-open");
+            const footerMapTriggers = document.querySelectorAll("#footer-map-open, #footer-map-open-footer");
             const footerMapClose = document.getElementById("footer-map-close");
 
             function closeFooterMapModal() {
@@ -135,7 +162,9 @@
                 document.body.classList.add("admin-open");
             }
 
-            footerMapOpen && footerMapOpen.addEventListener("click", openFooterMapModal);
+            footerMapTriggers.forEach(function (trigger) {
+                trigger.addEventListener("click", openFooterMapModal);
+            });
             footerMapClose && footerMapClose.addEventListener("click", closeFooterMapModal);
             footerMapBackdrop && footerMapBackdrop.addEventListener("click", closeFooterMapModal);
             document.addEventListener("keydown", function (event) {

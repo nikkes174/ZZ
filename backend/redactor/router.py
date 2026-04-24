@@ -56,7 +56,7 @@ DEFAULT_HERO_CONTENT = HeroContentRead(
     kicker="Восточная • Кавказская • Авторская кухня",
     title="Zamzam",
     address="Доставка по городу, ресторанная подача и быстрый онлайн-заказ",
-    subtitle_primary="Яркая восточная кухня с характером,",
+    subtitle_primary="Яркая восточная кухня с характером",
     subtitle_secondary="Сервис современного уровня",
 )
 
