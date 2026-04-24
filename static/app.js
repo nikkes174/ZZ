@@ -777,21 +777,18 @@ function scrollToMenuStart() {
 }
 
 function updateFloatingToolsVisibility() {
+    const hasCartItems = cart.size > 0;
+    const menuTriggerY = menuSection ? Math.max(280, menuSection.offsetTop - MENU_START_TRIGGER_OFFSET) : 280;
+    const menuTopPassed = window.scrollY >= menuTriggerY;
+
+    menuStartTrigger?.classList.toggle("is-hidden", !menuTopPassed);
+
     if (!floatingTools) {
         return;
     }
 
-    const hasCartItems = cart.size > 0;
-    const menuTopPassed =
-        Boolean(menuSection) &&
-        window.scrollY > Math.max(0, menuSection.offsetTop - MENU_START_TRIGGER_OFFSET) &&
-        menuSection.getBoundingClientRect().top <= MENU_START_TRIGGER_OFFSET;
-
-    menuStartTrigger?.classList.toggle("is-hidden", !menuTopPassed);
-
     const hasVisibleAccountTrigger = document.getElementById("account-floating-trigger")?.classList.contains("is-hidden") === false;
     const hasVisibleMenuStartTrigger = menuStartTrigger?.classList.contains("is-hidden") === false;
-    const menuTriggerY = menuSection ? Math.max(0, menuSection.offsetTop - 140) : 0;
     const shouldShow = hasCartItems || hasVisibleAccountTrigger || hasVisibleMenuStartTrigger || window.scrollY >= menuTriggerY;
 
     floatingTools.classList.toggle("is-hidden", !shouldShow);
@@ -1033,6 +1030,9 @@ function populateAdminFormFromItem(item) {
     adminPrice.value = String(Number(item.price || 0));
     syncCategoryOptions(item.category || "");
     adminDelete?.classList.toggle("is-hidden", !item.id);
+    if (adminDelete) {
+        adminDelete.disabled = false;
+    }
 }
 
 function openAdminModalWithItem(item) {
@@ -1080,6 +1080,10 @@ function openAdminModal(mode, card = null) {
     adminDescription.value = descriptionNode?.textContent?.trim() || "";
     adminPrice.value = String(parseInt(priceNode?.textContent || "0", 10) || 0);
     syncCategoryOptions(card.dataset.category || "");
+    adminDelete?.classList.toggle("is-hidden", !card.dataset.itemId);
+    if (adminDelete) {
+        adminDelete.disabled = false;
+    }
 
     adminBackdrop.classList.add("is-open");
     adminModal.classList.add("is-open");

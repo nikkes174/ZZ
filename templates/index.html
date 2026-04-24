@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/styles.css?v=20260424-admin-delete-shiny-21">
+    <link rel="stylesheet" href="/static/styles.css?v=20260424-menu-start-visibility-23">
 </head>
 <body class="preloader-active">
     <div class="page-preloader" id="page-preloader" aria-hidden="true">
@@ -24,13 +24,6 @@
         </div>
     </div>
     <div class="floating-tools">
-        <button class="floating-tool floating-tool-neutral floating-tool-pill floating-tool-menu-start is-hidden" id="menu-start-trigger" type="button" aria-label="Вернуться к началу меню">
-            <svg class="floating-tool-arrow-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M12 18V6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M7 11L12 6L17 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>К началу</span>
-        </button>
         <button class="floating-tool floating-tool-neutral is-hidden" id="account-floating-trigger" type="button" aria-label="Открыть кабинет">
             <svg class="floating-tool-account-icon" width="18" height="20" viewBox="0 0 18 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <path d="M16.75 18.75C16.75 17.3544 16.75 16.6567 16.5778 16.0889C16.19 14.8105 15.1896 13.81 13.9112 13.4222C13.3434 13.25 12.6456 13.25 11.25 13.25H6.25003C4.85447 13.25 4.15668 13.25 3.58889 13.4222C2.31049 13.81 1.31007 14.8105 0.92227 16.0889C0.750031 16.6567 0.750031 17.3544 0.750031 18.75M13.25 5.25C13.25 7.73528 11.2353 9.75 8.75003 9.75C6.26475 9.75 4.25003 7.73528 4.25003 5.25C4.25003 2.76472 6.26475 0.75 8.75003 0.75C11.2353 0.75 13.25 2.76472 13.25 5.25Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -45,6 +38,13 @@
             <span class="floating-count" id="floating-count">0</span>
         </button>
     </div>
+    <button class="floating-tool floating-tool-neutral floating-tool-pill floating-tool-menu-start is-hidden" id="menu-start-trigger" type="button" aria-label="Вернуться к началу меню">
+        <svg class="floating-tool-arrow-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 18V6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M7 11L12 6L17 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>К началу</span>
+    </button>
 
     <div class="cart-backdrop" id="cart-backdrop"></div>
     <div class="checkout-backdrop" id="checkout-backdrop"></div>
@@ -352,6 +352,7 @@
             </label>
 
             <div class="admin-actions admin-actions-end">
+                <button class="admin-delete is-hidden" id="admin-delete" type="button">Удалить с сайта</button>
                 <button class="admin-save" id="admin-save" type="submit">Сохранить</button>
             </div>
         </form>
@@ -763,7 +764,7 @@
         </div>
     </footer>
 
-    <script src="/static/app.js?v=20260424-admin-delete-shiny-7"></script>
+    <script src="/static/app.js?v=20260424-floating-button-visibility-9"></script>
     <script src="/static/catalog-admin.js?v=20260412-1"></script>
     <script src="/static/account.js?v=20260415-2"></script>
     <script src="/static/checkout-bridge.js?v=20260415-2"></script>

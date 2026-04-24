@@ -373,9 +373,12 @@ body.preloader-active {
 
 .floating-tool-menu-start {
     position: fixed;
+    top: auto;
+    left: auto;
     right: 20px;
     bottom: 20px;
     z-index: 66;
+    max-width: calc(100vw - 40px);
     color: #d8b26b;
     border-color: rgba(216, 178, 107, 0.28);
     background:
@@ -384,6 +387,36 @@ body.preloader-active {
     box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.04),
         0 18px 36px rgba(0, 0, 0, 0.24);
+}
+
+#menu-start-trigger {
+    position: fixed;
+    right: 20px;
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    z-index: 120;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 56px;
+    padding: 0 18px;
+    border: 1px solid rgba(216, 178, 107, 0.28);
+    border-radius: 999px;
+    appearance: none;
+    -webkit-appearance: none;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+#menu-start-trigger svg,
+#menu-start-trigger span {
+    position: relative;
+    z-index: 1;
+}
+
+#menu-start-trigger.is-hidden {
+    display: none !important;
 }
 
 .floating-tool-menu-start.button-shiny {
@@ -5606,6 +5639,14 @@ body.admin-mode .dish-edit-button {
     .floating-tool-menu-start {
         right: 12px;
         bottom: 16px;
+    }
+
+    #menu-start-trigger {
+        right: 12px;
+        bottom: calc(16px + env(safe-area-inset-bottom));
+        min-height: 52px;
+        padding: 0 16px;
+        gap: 8px;
     }
 
     .topbar-wrap.is-menu-open {
