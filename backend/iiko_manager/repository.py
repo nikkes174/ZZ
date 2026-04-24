@@ -105,10 +105,50 @@ class IikoCatalogRepository:
 
         stmt: Select[tuple[MenuItemModel]] = select(MenuItemModel).where(
             MenuItemModel.iiko_product_id.in_(ids),
-            MenuItemModel.iiko_terminal_group_id == terminal_group_id,
+            MenuItemModel.sync_source == "iiko",
         )
         rows = (await self._session.scalars(stmt)).all()
-        return {row.iiko_product_id: row for row in rows if row.iiko_product_id}
+        selected: dict[str, MenuItemModel] = {}
+        for row in rows:
+            product_id = row.iiko_product_id
+            if not product_id:
+                continue
+
+            current = selected.get(product_id)
+            if current is None or self._is_better_existing_match(
+                candidate=row,
+                current=current,
+                terminal_group_id=terminal_group_id,
+            ):
+                selected[product_id] = row
+
+        return selected
+
+    def _is_better_existing_match(
+        self,
+        *,
+        candidate: MenuItemModel,
+        current: MenuItemModel,
+        terminal_group_id: str,
+    ) -> bool:
+        candidate_score = self._existing_match_score(candidate, terminal_group_id=terminal_group_id)
+        current_score = self._existing_match_score(current, terminal_group_id=terminal_group_id)
+        if candidate_score != current_score:
+            return candidate_score > current_score
+
+        candidate_updated_at = candidate.updated_at or candidate.created_at
+        current_updated_at = current.updated_at or current.created_at
+        if candidate_updated_at != current_updated_at:
+            return candidate_updated_at > current_updated_at
+
+        return candidate.id > current.id
+
+    def _existing_match_score(self, model: MenuItemModel, *, terminal_group_id: str) -> tuple[int, int, int]:
+        return (
+            int(model.is_published),
+            int(model.iiko_terminal_group_id == terminal_group_id),
+            int(not model.is_deleted_in_iiko),
+        )
 
     async def _deactivate_missing_items(
         self,

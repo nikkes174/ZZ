@@ -4187,6 +4187,273 @@ body.admin-mode .dish-edit-button {
     color: #d8b26b;
 }
 
+/* Admin theme refresh */
+.menu-admin-bar {
+    align-items: center;
+    gap: 12px;
+}
+
+.menu-admin-bar .admin-toggle {
+    min-height: 46px;
+    padding: 0 18px;
+    border: 1px solid rgba(216, 178, 107, 0.18);
+    border-radius: 999px;
+    background:
+        radial-gradient(circle at top right, rgba(216, 178, 107, 0.1), transparent 34%),
+        linear-gradient(180deg, rgba(16, 13, 10, 0.94), rgba(11, 9, 7, 0.98));
+    color: rgba(245, 240, 232, 0.92);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+        0 16px 32px rgba(0, 0, 0, 0.22);
+}
+
+.menu-admin-bar .admin-toggle:hover,
+.menu-admin-bar .admin-toggle.is-active {
+    border-color: rgba(216, 178, 107, 0.32);
+    background:
+        radial-gradient(circle at top right, rgba(216, 178, 107, 0.16), transparent 34%),
+        linear-gradient(180deg, rgba(20, 16, 12, 0.96), rgba(12, 10, 8, 0.98));
+    color: #f8f1e4;
+}
+
+.menu-admin-bar .admin-toggle-accent,
+.menu-admin-bar .admin-toggle-accent:hover {
+    color: #d8b26b;
+}
+
+.admin-modal {
+    position: fixed;
+    border-color: rgba(216, 178, 107, 0.14);
+    background:
+        radial-gradient(circle at top right, rgba(216, 178, 107, 0.12), transparent 28%),
+        radial-gradient(circle at left top, rgba(255, 255, 255, 0.04), transparent 24%),
+        linear-gradient(180deg, #15110f 0%, #0d0d0d 100%);
+    color: #f5f0e8;
+    box-shadow:
+        0 36px 90px rgba(0, 0, 0, 0.42),
+        inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    scrollbar-color: rgba(216, 178, 107, 0.48) rgba(255, 255, 255, 0.04);
+}
+
+.admin-modal .section-kicker {
+    margin: 0 0 10px;
+    color: rgba(216, 178, 107, 0.72);
+}
+
+.admin-modal-head {
+    margin-bottom: 22px;
+}
+
+.admin-modal-head h3 {
+    color: #f5f0e8;
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: clamp(2rem, 4vw, 2.6rem);
+    font-weight: 500;
+    line-height: 0.98;
+    letter-spacing: -0.04em;
+    text-transform: none;
+}
+
+.admin-close {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(245, 240, 232, 0.88);
+    transition: border-color 0.24s ease, color 0.24s ease, background 0.24s ease, transform 0.24s ease;
+}
+
+.admin-close:hover {
+    background: rgba(200, 146, 42, 0.12);
+    border-color: rgba(200, 146, 42, 0.32);
+    color: #f8f1e4;
+    transform: translateY(-1px);
+}
+
+.admin-form {
+    gap: 18px;
+}
+
+.admin-field span {
+    color: rgba(216, 178, 107, 0.72);
+    font-size: 0.74rem;
+}
+
+.admin-field input,
+.admin-field select,
+.admin-field textarea,
+.category-admin-input {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    color: #f5f0e8;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.admin-field input::placeholder,
+.admin-field textarea::placeholder,
+.category-admin-input::placeholder {
+    color: rgba(245, 240, 232, 0.34);
+}
+
+.admin-field input:focus,
+.admin-field select:focus,
+.admin-field textarea:focus,
+.category-admin-input:focus {
+    outline: none;
+    border-color: rgba(216, 178, 107, 0.38);
+    box-shadow: 0 0 0 4px rgba(216, 178, 107, 0.12);
+}
+
+.admin-field select {
+    color-scheme: dark;
+}
+
+.admin-field input[type="file"]::file-selector-button {
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(248, 241, 228, 0.96), rgba(236, 226, 208, 0.92));
+    color: #16120d;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18);
+}
+
+.admin-field input[type="file"]:hover::file-selector-button {
+    background: linear-gradient(180deg, #f8f1e4, #e6d8c0);
+}
+
+.category-admin-row,
+.admin-checkbox {
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.admin-checkbox {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-checkbox input {
+    accent-color: #d8b26b;
+}
+
+.admin-actions {
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.admin-modal .topbar-action,
+.admin-save,
+.admin-delete {
+    min-height: 50px;
+    padding: 0 22px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.admin-modal .topbar-action {
+    border-color: rgba(216, 178, 107, 0.24);
+    color: rgba(245, 240, 232, 0.88);
+}
+
+.admin-modal .topbar-action:hover,
+.admin-modal .topbar-action:focus-visible {
+    border-color: rgba(216, 178, 107, 0.4);
+    background: rgba(216, 178, 107, 0.12);
+    color: #f8f1e4;
+}
+
+.admin-save {
+    background: linear-gradient(180deg, rgba(248, 241, 228, 0.96), rgba(236, 226, 208, 0.92));
+    color: #16120d;
+    box-shadow: 0 14px 26px rgba(0, 0, 0, 0.22);
+}
+
+.admin-save:hover {
+    background: linear-gradient(180deg, #f8f1e4, #e6d8c0);
+    color: #16120d;
+    transform: translateY(-2px);
+}
+
+.admin-save:disabled {
+    background: rgba(245, 240, 232, 0.26);
+    color: rgba(245, 240, 232, 0.46);
+}
+
+.admin-delete {
+    border-color: rgba(232, 84, 36, 0.24);
+    background: rgba(232, 84, 36, 0.08);
+    color: #ffb09a;
+}
+
+.admin-delete:hover {
+    background: #d9411b;
+    color: #ffffff;
+}
+
+#catalog-search-results,
+#orders-admin-results {
+    display: grid;
+    gap: 14px;
+}
+
+#catalog-search-results .order-line,
+#orders-admin-results .order-line,
+.account-orders-list .order-line,
+.account-order-empty {
+    border-radius: 20px;
+    background:
+        radial-gradient(circle at top right, rgba(216, 178, 107, 0.1), transparent 24%),
+        rgba(255, 255, 255, 0.03);
+}
+
+#catalog-search-results .order-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px;
+}
+
+#catalog-search-results .order-line > div {
+    display: grid;
+    gap: 6px;
+}
+
+#catalog-search-results .order-line small {
+    font-family: "JetBrains Mono", monospace;
+}
+
+.admin-search-result-label {
+    color: rgba(216, 178, 107, 0.72);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-family: "Inter", "Segoe UI", Arial, sans-serif;
+}
+
+.admin-search-result-action {
+    flex: 0 0 auto;
+}
+
+.order-admin-meta-card {
+    border-color: rgba(255, 255, 255, 0.08);
+    background:
+        radial-gradient(circle at top right, rgba(216, 178, 107, 0.1), transparent 26%),
+        rgba(255, 255, 255, 0.03);
+}
+
+.order-admin-meta-card span,
+.order-admin-items,
+.order-admin-hint {
+    color: rgba(245, 240, 232, 0.62);
+}
+
+.order-admin-meta-card strong {
+    color: #f5f0e8;
+}
+
+.order-admin-actions {
+    gap: 14px;
+}
+
 .account-order-status-preparing {
     background: rgba(200, 146, 42, 0.16);
     color: #f1cf8a;
