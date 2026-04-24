@@ -386,6 +386,21 @@ body.preloader-active {
         0 18px 36px rgba(0, 0, 0, 0.24);
 }
 
+.floating-tool-menu-start.button-shiny {
+    --button-shiny-bg: rgba(12, 10, 8, 0.92);
+    --button-shiny-bg-soft: rgba(31, 23, 16, 0.92);
+    --button-shiny-fg: #d8b26b;
+    --button-shiny-highlight: #e5c98d;
+    --button-shiny-highlight-soft: #fff8e6;
+    --button-shiny-shadow: rgba(216, 178, 107, 0.18);
+    border-color: transparent;
+}
+
+.floating-tool-menu-start.button-shiny > span {
+    position: relative;
+    z-index: 1;
+}
+
 .floating-tool svg {
     width: 26px;
     height: 26px;

@@ -474,7 +474,18 @@ async def delete_menu_item(
     service: MenuItemService = Depends(get_menu_item_service),
 ) -> MenuItemRead:
     _ = admin_user
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Catalog products are managed by iiko and cannot be deleted manually.",
-    )
+    try:
+        return await service.update_item(
+            item_id,
+            MenuItemUpdate(
+                version=payload.version,
+                is_published=False,
+            ),
+        )
+    except MenuItemNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found") from exc
+    except MenuItemConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Menu item was changed concurrently. Reload and retry.",
+        ) from exc

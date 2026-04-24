@@ -68,6 +68,25 @@ const adminPrice = document.getElementById("admin-price");
 const adminCategory = document.getElementById("admin-category");
 const adminImage = document.getElementById("admin-image");
 const adminSave = document.getElementById("admin-save");
+const adminDelete = (() => {
+    const actions = document.querySelector("#admin-form .admin-actions");
+    if (!actions) {
+        return null;
+    }
+
+    const existing = document.getElementById("admin-delete");
+    if (existing) {
+        return existing;
+    }
+
+    const button = document.createElement("button");
+    button.id = "admin-delete";
+    button.type = "button";
+    button.className = "admin-delete is-hidden";
+    button.textContent = "Удалить с сайта";
+    actions.prepend(button);
+    return button;
+})();
 const heroSection = document.getElementById("hero");
 const heroAdminModal = document.getElementById("hero-admin-modal");
 const heroAdminClose = document.getElementById("hero-admin-close");
@@ -113,6 +132,8 @@ let revealObserver = null;
 let cartLockedScrollY = 0;
 let cartTouchScrollState = null;
 let cartSuppressClickUntil = 0;
+
+menuStartTrigger?.classList.add("button-shiny");
 
 if ("scrollRestoration" in window.history) {
     window.history.scrollRestoration = "manual";
@@ -1011,6 +1032,7 @@ function populateAdminFormFromItem(item) {
     adminDescription.value = item.description || "";
     adminPrice.value = String(Number(item.price || 0));
     syncCategoryOptions(item.category || "");
+    adminDelete?.classList.toggle("is-hidden", !item.id);
 }
 
 function openAdminModalWithItem(item) {
@@ -1077,6 +1099,10 @@ function closeAdminModal() {
     activeAdminCard = null;
     adminMode = "edit";
     adminForm.reset();
+    adminDelete?.classList.add("is-hidden");
+    if (adminDelete) {
+        adminDelete.disabled = false;
+    }
 }
 
 function setAdminMode(enabled) {
@@ -1747,6 +1773,48 @@ if (adminForm) {
         }
     });
 }
+
+bindClick(adminDelete, async () => {
+    if (!adminItemId.value) {
+        return;
+    }
+
+    const confirmed = window.confirm("Удалить блюдо с сайта? Его можно будет вернуть позже через каталог iiko.");
+    if (!confirmed) {
+        return;
+    }
+
+    const previousCategory = activeAdminCard?.dataset.category || "";
+    adminSave.disabled = true;
+    adminDelete.disabled = true;
+
+    try {
+        const response = await fetch(`/api/redactor/menu-items/${adminItemId.value}`, {
+            method: "DELETE",
+            headers: getAdminHeaders({
+                "Content-Type": "application/json",
+            }),
+            body: JSON.stringify({
+                version: Number(adminItemVersion.value || "1"),
+            }),
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({}));
+            throw new Error(errorBody?.detail || "Не удалось удалить блюдо с сайта.");
+        }
+
+        activeAdminCard?.remove();
+        removeEmptyFilterChip(previousCategory);
+        applyFilter(activeFilter);
+        closeAdminModal();
+    } catch (error) {
+        window.alert(error.message || "Не удалось удалить блюдо с сайта.");
+    } finally {
+        adminSave.disabled = false;
+        adminDelete.disabled = false;
+    }
+});
 
 if (heroAdminForm) {
     heroAdminForm.addEventListener("submit", async (event) => {
