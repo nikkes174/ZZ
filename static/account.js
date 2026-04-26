@@ -2,6 +2,7 @@
 const SESSION_STORAGE_KEY = "zamzam_session_token";
 const REFRESH_STORAGE_KEY = "zamzam_refresh_token";
 const PENDING_PAYMENT_STORAGE_KEY = "zamzam_pending_payment_id";
+const MIN_CHECKOUT_AMOUNT = 1000;
 window.zamzamAuthFallbackBound = true;
 window.zamzamAccountCheckoutEnabled = true;
 
@@ -60,6 +61,7 @@ let authMode = "login";
 let currentBonusBalance = 0;
 let lastAutofilledCheckoutName = "";
 let lastAutofilledCheckoutPhone = "";
+let latestCheckoutProfileUser = null;
 let accountAutoRefreshInFlight = false;
 let checkoutWarningTimeoutId = null;
 
@@ -173,15 +175,30 @@ function getCheckoutName() {
     return document.getElementById("checkout-name")?.value.trim() || "";
 }
 
+function isCheckoutPhonePlaceholderValue(value) {
+    const normalized = String(value || "").trim();
+    if (!normalized) {
+        return true;
+    }
+
+    const digits = normalized.replace(/\D/g, "");
+    return digits === "" || digits === "7";
+}
+
 function syncCheckoutProfileFields(user) {
     if (!user) {
         return;
     }
 
+    latestCheckoutProfileUser = {
+        full_name: (user.full_name || "").trim(),
+        phone: (user.phone || "").trim(),
+    };
+
     const checkoutNameInput = document.getElementById("checkout-name");
     const checkoutPhoneInput = document.getElementById("checkout-phone");
-    const nextName = (user.full_name || "").trim();
-    const nextPhone = (user.phone || "").trim();
+    const nextName = latestCheckoutProfileUser.full_name;
+    const nextPhone = latestCheckoutProfileUser.phone;
 
     if (checkoutNameInput && nextName) {
         const currentName = checkoutNameInput.value.trim();
@@ -193,13 +210,24 @@ function syncCheckoutProfileFields(user) {
 
     if (checkoutPhoneInput && nextPhone) {
         const currentPhone = checkoutPhoneInput.value.trim();
-        if (!currentPhone || currentPhone === lastAutofilledCheckoutPhone) {
+        if (isCheckoutPhonePlaceholderValue(currentPhone) || currentPhone === lastAutofilledCheckoutPhone) {
             checkoutPhoneInput.value = nextPhone;
             ensurePhonePrefixValue(checkoutPhoneInput);
             lastAutofilledCheckoutPhone = checkoutPhoneInput.value.trim();
         }
     }
 }
+
+window.zamzamSyncCheckoutProfileFields = (user = null) => {
+    if (user) {
+        syncCheckoutProfileFields(user);
+        return;
+    }
+
+    if (latestCheckoutProfileUser) {
+        syncCheckoutProfileFields(latestCheckoutProfileUser);
+    }
+};
 
 function getCartSubtotal() {
     const appApi = getAppApi();
@@ -490,6 +518,7 @@ async function loadAccount() {
     refreshSessionToken();
     if (!sessionToken) {
         currentBonusBalance = 0;
+        latestCheckoutProfileUser = null;
         window.zamzamApp?.setAdminMode?.(false);
         updateLoginButton();
         syncBonusUi();
@@ -517,6 +546,7 @@ async function loadAccount() {
         if (dashboardResponse.status === 401 || ordersResponse.status === 401) {
             clearAuthTokens();
             currentBonusBalance = 0;
+            latestCheckoutProfileUser = null;
             window.zamzamApp?.setAdminMode?.(false);
             updateLoginButton();
             syncBonusUi();
@@ -576,7 +606,9 @@ async function syncPendingPayment() {
         if (response.ok && payload?.order_id) {
             window.sessionStorage.removeItem(PENDING_PAYMENT_STORAGE_KEY);
             await loadAccount();
-            if (typeof window.showZamzamToast === "function") {
+            if (typeof window.showZamzamOrderSuccessModal === "function") {
+                window.showZamzamOrderSuccessModal("Ваш заказ принят. Скоро с вами свяжется наш оператор.");
+            } else if (typeof window.showZamzamToast === "function") {
                 window.showZamzamToast("Заказ успешно оплачен");
             }
         }
@@ -701,6 +733,10 @@ async function updatePhone(event) {
         if (accountPhoneInput) {
             accountPhoneInput.value = payload.phone;
         }
+        syncCheckoutProfileFields({
+            full_name: latestCheckoutProfileUser?.full_name || "",
+            phone: payload.phone,
+        });
         setAccountPhoneHint("Номер телефона обновлен.");
     } catch (error) {
         setAccountPhoneHint(error.message || "Не удалось обновить номер телефона.", true);
@@ -765,6 +801,11 @@ async function submitOrderWithSession() {
         return;
     }
 
+    if (payload.checkout_type === "delivery" && (appApi.getCartTotals().totalPriceValue || 0) < MIN_CHECKOUT_AMOUNT) {
+        showCheckoutWarning(`Для доставки минимальная сумма заказа ${MIN_CHECKOUT_AMOUNT} ₽.`);
+        return;
+    }
+
     if (!validateCheckoutConsents()) {
         return;
     }
@@ -794,6 +835,7 @@ async function submitOrderWithSession() {
             syncBonusUi();
             appApi.resetAfterOrder();
             await loadAccount();
+            window.showZamzamOrderSuccessModal?.("Ваш заказ принят. Скоро с вами свяжется наш оператор.");
             return;
         }
 
@@ -860,6 +902,7 @@ function logout() {
     }).catch(() => null).finally(() => {
         clearAuthTokens();
         currentBonusBalance = 0;
+        latestCheckoutProfileUser = null;
         window.zamzamApp?.setAdminMode?.(false);
         closeAuthModal();
         closeAuthRequiredModal();

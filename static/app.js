@@ -33,6 +33,7 @@ const cartOpenHero = document.getElementById("cart-open-hero");
 const cartClose = document.getElementById("cart-close");
 const checkoutButton = document.getElementById("checkout-button");
 const checkoutModal = document.getElementById("checkout-modal");
+const checkoutModalFormWrap = document.querySelector("#checkout-modal .checkout-modal-form-wrap");
 const checkoutClose = document.getElementById("checkout-close");
 const footerMapModal = document.getElementById("footer-map-modal");
 const footerMapOpen = document.getElementById("footer-map-open");
@@ -53,6 +54,10 @@ const checkoutNote = document.getElementById("checkout-note");
 const checkoutPreviewItems = document.getElementById("checkout-preview-items");
 const checkoutPreviewCutlery = document.getElementById("checkout-preview-cutlery");
 const checkoutPreviewTotal = document.getElementById("checkout-preview-total");
+const checkoutPreviewLines = document.getElementById("checkout-preview-lines");
+const checkoutBonusSpent = document.getElementById("checkout-bonus-spent");
+const checkoutBonusDecrease = document.getElementById("checkout-bonus-decrease");
+const checkoutBonusIncrease = document.getElementById("checkout-bonus-increase");
 const floatingTools = document.querySelector(".floating-tools");
 const adminToggle = document.getElementById("admin-toggle");
 const adminModal = document.getElementById("admin-modal");
@@ -125,13 +130,13 @@ let heroEditControlsBound = false;
 let activeSectionEditor = null;
 let cutleryItemsCount = 0;
 let checkoutType = "pickup";
-let checkoutPayment = "cash";
+let checkoutPayment = "card";
 let isDelivery = false;
 let cartToastTimeoutId = null;
 let revealObserver = null;
 let cartLockedScrollY = 0;
-let cartTouchScrollState = null;
-let cartSuppressClickUntil = 0;
+let checkoutLockedScrollY = 0;
+let orderSuccessScrollY = 0;
 
 menuStartTrigger?.classList.add("button-shiny");
 
@@ -199,12 +204,12 @@ function bindClick(element, handler) {
     }
     if (cartCheckoutNote) {
         cartCheckoutNote.textContent = isDelivery
-            ? "Для доставки минимальный заказ 1000 ₽."
+            ? "Минимальная сумма заказа для доставки 1000 ₽."
             : "Самовывоз доступен без минимальной суммы.";
     }
     if (cartCheckoutNote) {
         cartCheckoutNote.textContent = isDelivery
-            ? "Для доставки минимальный заказ 1000 ₽."
+            ? "Минимальная сумма заказа для доставки 1000 ₽."
             : "Самовывоз доступен без минимальной суммы.";
     }
 }
@@ -236,9 +241,13 @@ function syncCartCheckoutNote() {
     if (cartCheckoutNote) {
         cartCheckoutNote.textContent =
             checkoutType === "delivery"
-                ? "Для доставки минимальный заказ 1000 ₽."
+                ? "Минимальная сумма заказа для доставки 1000 ₽."
                 : "Самовывоз доступен без минимальной суммы.";
     }
+}
+
+function canCheckoutWithCurrentType(totalPriceValue) {
+    return checkoutType !== "delivery" || totalPriceValue >= MIN_CHECKOUT_AMOUNT;
 }
 
 const HERO_PARTICLE_SELECTOR = ".hero-kicker, .hero h1, .hero-address, .hero h2 > span";
@@ -516,66 +525,69 @@ function closeCart() {
     window.scrollTo(0, cartLockedScrollY);
 }
 
-function bindCartTouchScrollFallback() {
-    if (!cartDrawer) {
+function bindTouchScrollFallback(container, isActive) {
+    if (!container) {
         return;
     }
 
-    cartDrawer.addEventListener(
+    let touchScrollState = null;
+    let suppressClickUntil = 0;
+
+    container.addEventListener(
         "touchstart",
         (event) => {
-            if (!cartDrawer.classList.contains("is-open") || event.touches.length !== 1) {
-                cartTouchScrollState = null;
+            if (!isActive() || event.touches.length !== 1) {
+                touchScrollState = null;
                 return;
             }
 
             const touch = event.touches[0];
-            cartTouchScrollState = {
+            touchScrollState = {
                 startX: touch.clientX,
                 startY: touch.clientY,
-                startScrollTop: cartDrawer.scrollTop,
+                startScrollTop: container.scrollTop,
                 moved: false,
             };
         },
         { passive: true },
     );
 
-    cartDrawer.addEventListener(
+    container.addEventListener(
         "touchmove",
         (event) => {
-            if (!cartDrawer.classList.contains("is-open") || !cartTouchScrollState || event.touches.length !== 1) {
+            if (!isActive() || !touchScrollState || event.touches.length !== 1) {
                 return;
             }
 
             const touch = event.touches[0];
-            const deltaX = touch.clientX - cartTouchScrollState.startX;
-            const deltaY = touch.clientY - cartTouchScrollState.startY;
+            const deltaX = touch.clientX - touchScrollState.startX;
+            const deltaY = touch.clientY - touchScrollState.startY;
 
             if (Math.abs(deltaY) < CART_TOUCH_DRAG_THRESHOLD || Math.abs(deltaY) <= Math.abs(deltaX)) {
                 return;
             }
 
-            cartTouchScrollState.moved = true;
-            cartDrawer.scrollTop = cartTouchScrollState.startScrollTop - deltaY;
+            touchScrollState.moved = true;
+            container.scrollTop = touchScrollState.startScrollTop - deltaY;
             event.preventDefault();
         },
         { passive: false },
     );
 
-    const releaseCartTouchScroll = () => {
-        if (cartTouchScrollState?.moved) {
-            cartSuppressClickUntil = Date.now() + 250;
+    const releaseTouchScroll = () => {
+        if (touchScrollState?.moved) {
+            suppressClickUntil = Date.now() + 250;
         }
 
-        cartTouchScrollState = null;
+        touchScrollState = null;
     };
 
-    cartDrawer.addEventListener("touchend", releaseCartTouchScroll, { passive: true });
-    cartDrawer.addEventListener("touchcancel", releaseCartTouchScroll, { passive: true });
-    cartDrawer.addEventListener(
+    container.addEventListener("touchend", releaseTouchScroll, { passive: true });
+    container.addEventListener("touchcancel", releaseTouchScroll, { passive: true });
+    container.addEventListener(
         "click",
         (event) => {
-            if (Date.now() < cartSuppressClickUntil) {
+            if (Date.now() < suppressClickUntil) {
                 event.preventDefault();
                 event.stopPropagation();
             }
@@ -593,7 +605,8 @@ window.setZamzamCartDrawerOpen = (isOpen) => {
     closeCart();
 };
 
-bindCartTouchScrollFallback();
+bindTouchScrollFallback(cartDrawer, () => cartDrawer.classList.contains("is-open"));
+bindTouchScrollFallback(checkoutModalFormWrap, () => checkoutModal?.classList.contains("is-open") ?? false);
 
 function showCartToast(message) {
     cartToast.textContent = message;
@@ -609,6 +622,79 @@ function showCartToast(message) {
 }
 
 window.showZamzamToast = showCartToast;
+
+function ensureOrderSuccessModal() {
+    let backdrop = document.getElementById("order-success-backdrop");
+    let modal = document.getElementById("order-success-modal");
+
+    if (backdrop && modal) {
+        return { backdrop, modal };
+    }
+
+    backdrop = document.createElement("div");
+    backdrop.id = "order-success-backdrop";
+    backdrop.className = "order-success-backdrop";
+
+    modal = document.createElement("section");
+    modal.id = "order-success-modal";
+    modal.className = "order-success-modal";
+    modal.setAttribute("aria-hidden", "true");
+    modal.innerHTML = `
+        <div class="order-success-shell">
+            <button class="order-success-close" id="order-success-close" type="button" aria-label="Закрыть">x</button>
+            <div class="order-success-badge">Заказ принят</div>
+            <h3>Спасибо за заказ</h3>
+            <p id="order-success-message">Ваш заказ принят. Скоро с вами свяжется наш оператор.</p>
+            <div class="order-success-actions">
+                <button class="order-success-button button-shiny" id="order-success-button" type="button"><span>Понятно</span></button>
+            </div>
+        </div>
+    `;
+
+    document.body.append(backdrop, modal);
+
+    const closeOrderSuccessModal = () => {
+        backdrop.classList.remove("is-open");
+        modal.classList.remove("is-open");
+        modal.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("order-success-open");
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.left = "";
+        document.body.style.right = "";
+        document.body.style.width = "";
+        window.scrollTo(0, orderSuccessScrollY);
+    };
+
+    backdrop.addEventListener("click", closeOrderSuccessModal);
+    modal.querySelector("#order-success-close")?.addEventListener("click", closeOrderSuccessModal);
+    modal.querySelector("#order-success-button")?.addEventListener("click", closeOrderSuccessModal);
+    window.closeZamzamOrderSuccessModal = closeOrderSuccessModal;
+
+    return { backdrop, modal };
+}
+
+function showOrderSuccessModal(message = "Ваш заказ принят. Скоро с вами свяжется наш оператор.") {
+    const { backdrop, modal } = ensureOrderSuccessModal();
+    const messageNode = modal.querySelector("#order-success-message");
+
+    if (messageNode) {
+        messageNode.textContent = message;
+    }
+
+    orderSuccessScrollY = window.scrollY || window.pageYOffset || 0;
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${orderSuccessScrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+    document.body.classList.add("order-success-open");
+    backdrop.classList.add("is-open");
+    modal.classList.add("is-open");
+    modal.setAttribute("aria-hidden", "false");
+}
+
+window.showZamzamOrderSuccessModal = showOrderSuccessModal;
 
 function ensureRevealObserver() {
     if (revealObserver || !("IntersectionObserver" in window)) {
@@ -671,7 +757,7 @@ function initRevealAnimations() {
 }
 
 function syncCheckoutPreview() {
-    const { totalItems, totalPriceValue } = getCartTotals();
+    const { entries, totalItems, totalPriceValue } = getCartTotals();
 
     if (checkoutPreviewItems) {
         checkoutPreviewItems.textContent = `${totalItems}`;
@@ -682,6 +768,86 @@ function syncCheckoutPreview() {
     if (checkoutPreviewTotal) {
         checkoutPreviewTotal.textContent = formatPrice(totalPriceValue);
     }
+    if (checkoutPreviewLines) {
+        if (!entries.length) {
+            checkoutPreviewLines.innerHTML = `
+                <div class="order-empty">
+                    <strong>Пока пусто</strong>
+                    <p>Добавьте блюда из каталога, и они появятся перед подтверждением заказа.</p>
+                </div>
+            `;
+            return;
+        }
+
+        checkoutPreviewLines.innerHTML = entries.map((item) => renderCartLine(item, "checkout")).join("");
+    }
+}
+
+function setCartItemQuantity(id, nextQuantity) {
+    if (!id || !cart.has(id)) {
+        return false;
+    }
+
+    const safeNextQuantity = Math.max(0, Number(nextQuantity) || 0);
+    if (safeNextQuantity <= 0) {
+        cart.delete(id);
+    } else {
+        cart.get(id).quantity = safeNextQuantity;
+    }
+
+    renderCart();
+    return true;
+}
+
+function changeCartItemQuantity(id, delta) {
+    if (!id || !cart.has(id)) {
+        return false;
+    }
+
+    const currentQuantity = Number(cart.get(id).quantity || 0);
+    return setCartItemQuantity(id, currentQuantity + delta);
+}
+
+function renderCartLine(item, variant = "cart") {
+    const lineVariantClass = variant === "checkout" ? " order-line-checkout" : "";
+    return `
+        <div class="order-line${lineVariantClass}">
+            <div class="order-line-copy">
+                <strong class="order-line-title">${item.title}</strong>
+                <small class="order-line-meta">${formatPrice(item.price)} за порцию</small>
+            </div>
+            <div class="order-line-actions">
+                <div class="qty-picker qty-picker-ghost order-line-qty" data-cart-line-id="${item.id}">
+                    <button class="qty-button" type="button" data-cart-qty-action="decrease" data-cart-item-id="${item.id}" aria-label="Уменьшить количество">-</button>
+                    <span class="qty-value">${item.quantity}</span>
+                    <button class="qty-button" type="button" data-cart-qty-action="increase" data-cart-item-id="${item.id}" aria-label="Увеличить количество">+</button>
+                </div>
+                <strong class="order-line-total">${formatPrice(item.price * item.quantity)}</strong>
+                <button class="order-remove-button" type="button" data-remove-id="${item.id}" aria-label="Удалить блюдо">x</button>
+            </div>
+        </div>
+    `;
+}
+
+function normalizeCheckoutBonusSpentValue(nextValue) {
+    if (!checkoutBonusSpent) {
+        return 0;
+    }
+
+    const min = Math.max(0, Number(checkoutBonusSpent.min || "0") || 0);
+    const rawMax = Number(checkoutBonusSpent.max || "0");
+    const max = Number.isFinite(rawMax) && rawMax >= min ? rawMax : min;
+    const normalized = Math.min(max, Math.max(min, Math.floor(Number(nextValue) || 0)));
+    checkoutBonusSpent.value = String(normalized);
+    return normalized;
+}
+
+function changeCheckoutBonusSpent(delta) {
+    if (!checkoutBonusSpent) {
+        return;
+    }
+
+    normalizeCheckoutBonusSpentValue(Number(checkoutBonusSpent.value || "0") + delta);
 }
 
 function syncCheckoutType() {
@@ -704,18 +870,10 @@ function syncCheckoutType() {
             : "Самовывоз: заказ будет готов к выдаче после подтверждения оператором.";
     }
 
-    if (checkoutPaymentCash) {
-        checkoutPaymentCash.disabled = !isDelivery;
-        checkoutPaymentCash.classList.toggle("is-disabled", !isDelivery);
-        checkoutPaymentCash.setAttribute("aria-disabled", String(!isDelivery));
-    }
 }
 
 function syncCheckoutPayment() {
-    if (checkoutType !== "delivery") {
-        checkoutPayment = "card";
-    }
-    checkoutPaymentCash?.classList.toggle("is-active", checkoutPayment === "cash");
+    checkoutPayment = "card";
     checkoutPaymentCard?.classList.toggle("is-active", checkoutPayment === "card");
 }
 
@@ -724,7 +882,20 @@ function openCheckoutModal() {
         return;
     }
 
+    const { entries, totalPriceValue } = getCartTotals();
+    if (!entries.length || !canCheckoutWithCurrentType(totalPriceValue)) {
+        return;
+    }
+
     closeCart();
+    checkoutLockedScrollY = window.scrollY || window.pageYOffset || 0;
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${checkoutLockedScrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+    document.body.classList.add("checkout-open");
+    window.zamzamSyncCheckoutProfileFields?.();
     syncCheckoutPreview();
     syncCheckoutType();
     syncCheckoutPayment();
@@ -741,6 +912,13 @@ function closeCheckoutModal() {
     checkoutBackdrop.classList.remove("is-open");
     checkoutModal.classList.remove("is-open");
     checkoutModal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("checkout-open");
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.left = "";
+    document.body.style.right = "";
+    document.body.style.width = "";
+    window.scrollTo(0, checkoutLockedScrollY);
 }
 
 function openFooterMapModal() {
@@ -1399,7 +1577,7 @@ async function loadSectionContent(url, sectionHead) {
 function renderCart() {
     const { entries, totalItems, totalPriceValue } = getCartTotals();
     const hasEntries = entries.length > 0;
-    const canCheckout = hasEntries;
+    const canCheckout = hasEntries && canCheckoutWithCurrentType(totalPriceValue);
 
     if (cutleryCount) {
         cutleryCount.textContent = `${cutleryItemsCount}`;
@@ -1426,22 +1604,7 @@ function renderCart() {
         return;
     }
 
-    orderItems.innerHTML = entries
-        .map(
-            (item) => `
-                <div class="order-line">
-                    <div class="order-line-copy">
-                        <strong class="order-line-title">${item.title}</strong>
-                        <small class="order-line-meta">${item.quantity} x ${formatPrice(item.price)}</small>
-                    </div>
-                    <div class="order-line-actions">
-                        <strong class="order-line-total">${formatPrice(item.price * item.quantity)}</strong>
-                        <button class="order-remove-button" type="button" data-remove-id="${item.id}" aria-label="Удалить блюдо">x</button>
-                    </div>
-                </div>
-            `,
-        )
-        .join("");
+    orderItems.innerHTML = entries.map((item) => renderCartLine(item, "cart")).join("");
 
     totalPrice.textContent = formatPrice(totalPriceValue);
     itemsCount.textContent = `${totalItems}`;
@@ -1530,18 +1693,55 @@ if (menuGrid) {
 
 if (orderItems) {
     orderItems.addEventListener("click", (event) => {
+        const qtyButton = event.target.closest("[data-cart-qty-action]");
+        if (qtyButton) {
+            const id = qtyButton.dataset.cartItemId;
+            if (!id) {
+                return;
+            }
+
+            changeCartItemQuantity(id, qtyButton.dataset.cartQtyAction === "increase" ? 1 : -1);
+            return;
+        }
+
         const removeButton = event.target.closest("[data-remove-id]");
         if (!removeButton) {
             return;
         }
 
         const id = removeButton.dataset.removeId;
-        if (!id || !cart.has(id)) {
+        if (!id) {
             return;
         }
 
-        cart.delete(id);
-        renderCart();
+        setCartItemQuantity(id, 0);
+    });
+}
+
+if (checkoutPreviewLines) {
+    checkoutPreviewLines.addEventListener("click", (event) => {
+        const qtyButton = event.target.closest("[data-cart-qty-action]");
+        if (qtyButton) {
+            const id = qtyButton.dataset.cartItemId;
+            if (!id) {
+                return;
+            }
+
+            changeCartItemQuantity(id, qtyButton.dataset.cartQtyAction === "increase" ? 1 : -1);
+            return;
+        }
+
+        const removeButton = event.target.closest("[data-remove-id]");
+        if (!removeButton) {
+            return;
+        }
+
+        const id = removeButton.dataset.removeId;
+        if (!id) {
+            return;
+        }
+
+        setCartItemQuantity(id, 0);
     });
 }
 
@@ -1679,18 +1879,15 @@ bindClick(checkoutTypeDelivery, () => {
     syncCartCheckoutNote();
     renderCart();
 });
-bindClick(checkoutPaymentCash, () => {
-    if (checkoutType !== "delivery") {
-        checkoutPayment = "card";
-        syncCheckoutPayment();
-        return;
-    }
-    checkoutPayment = "cash";
-    syncCheckoutPayment();
-});
 bindClick(checkoutPaymentCard, () => {
     checkoutPayment = "card";
     syncCheckoutPayment();
+});
+bindClick(checkoutBonusDecrease, () => {
+    changeCheckoutBonusSpent(-1);
+});
+bindClick(checkoutBonusIncrease, () => {
+    changeCheckoutBonusSpent(1);
 });
 bindClick(adminToggle, () => {
     setAdminMode(!document.body.classList.contains("admin-mode"));
@@ -1965,6 +2162,11 @@ if (checkoutForm) {
             return;
         }
 
+        if (!canCheckoutWithCurrentType(totalPriceValue)) {
+            window.alert(`Для доставки минимальная сумма заказа ${MIN_CHECKOUT_AMOUNT} ₽.`);
+            return;
+        }
+
         const customerName = checkoutName?.value.trim() || "";
         const customerPhone = ensurePhonePrefixValue(checkoutPhone).trim();
         const deliveryAddress = checkoutAddress?.value.trim() || "";
@@ -1984,7 +2186,7 @@ if (checkoutForm) {
         }
 
         const orderModeLabel = checkoutType === "delivery" ? "доставку" : "самовывоз";
-        const paymentLabel = checkoutPayment === "cash" ? "наличными" : "безналично";
+        const paymentLabel = "безналично";
         const orderedCutleryCount = cutleryItemsCount;
 
         window.setTimeout(() => {
@@ -2004,17 +2206,20 @@ if (checkoutForm) {
             renderCart();
             closeCheckoutModal();
             closeCart();
-            window.alert(
-                `Заказ на ${orderModeLabel} принят. Блюд: ${totalItems}, приборов: ${orderedCutleryCount}, к оплате: ${formatPrice(totalPriceValue)}. Оплата: ${paymentLabel}.`,
-            );
+            showOrderSuccessModal("Ваш заказ принят. Скоро с вами свяжется наш оператор.");
         }, 350);
     });
 }
+
+checkoutBonusSpent?.addEventListener("input", () => {
+    normalizeCheckoutBonusSpentValue(checkoutBonusSpent.value);
+});
 
 document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
         closeCart();
         closeCheckoutModal();
+        window.closeZamzamOrderSuccessModal?.();
         closeFooterMapModal();
         closeAdminModal();
         closeHeroAdminModal();

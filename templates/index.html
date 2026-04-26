@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/styles.css?v=20260424-menu-start-visibility-23">
+    <link rel="stylesheet" href="/static/styles.css?v=20260426-order-success-fix-32">
 </head>
 <body class="preloader-active">
     <div class="page-preloader" id="page-preloader" aria-hidden="true">
@@ -155,24 +155,29 @@
                         </div>
                     </div>
 
+                    <div class="checkout-order-list" id="checkout-preview-lines">
+                        <div class="order-empty">
+                            <strong>Пока пусто</strong>
+                            <p>Добавьте блюда из каталога, и они появятся перед подтверждением заказа.</p>
+                        </div>
+                    </div>
+
                     <div class="checkout-bonus-box">
                         <div class="checkout-bonus-copy">
                             <span class="checkout-label">Списание бонусов</span>
                             <p id="checkout-bonus-balance-text">Доступно бонусов: 0</p>
                         </div>
-                        <label class="checkout-field checkout-field-floating">
-                            <input id="checkout-bonus-spent" type="number" min="0" max="0" value="0" placeholder=" ">
+                        <label class="checkout-field checkout-bonus-field">
                             <span>Сколько списать</span>
+                            <div class="checkout-bonus-stepper">
+                                <button class="checkout-bonus-button" id="checkout-bonus-decrease" type="button" aria-label="Уменьшить списание бонусов">-</button>
+                                <input id="checkout-bonus-spent" type="number" min="0" max="0" value="0" inputmode="numeric">
+                                <button class="checkout-bonus-button" id="checkout-bonus-increase" type="button" aria-label="Увеличить списание бонусов">+</button>
+                            </div>
                         </label>
                     </div>
 
-                    <div class="checkout-payment">
-                        <span class="checkout-label">Способ оплаты</span>
-                        <div class="checkout-switcher" role="tablist" aria-label="Способ оплаты">
-                            <button class="checkout-switch is-active" id="checkout-payment-cash" type="button" data-checkout-payment="cash">Наличные</button>
-                            <button class="checkout-switch" id="checkout-payment-card" type="button" data-checkout-payment="card">Безналичные</button>
-                        </div>
-                    </div>
+
 
 
 
@@ -188,7 +193,7 @@
                     </div>
 
                     <div class="checkout-actions">
-                        <button class="checkout-submit" id="checkout-submit" type="submit">Подтвердить заказ</button>
+                        <button class="checkout-submit" id="checkout-submit" type="submit">Подтвердить и оплатить заказ</button>
                     </div>
                 </form>
             </div>
@@ -558,7 +563,6 @@
             </div>
 
             <section class="account-profile-card">
-                <span class="account-summary-label">Номер телефона</span>
                 <form class="account-phone-form" id="account-phone-form">
                     <label class="auth-field auth-field-floating">
                         <input id="account-phone-input" type="tel" maxlength="32" placeholder=" " required>
@@ -592,7 +596,7 @@
                 </p>
 
                 <h2>
-                    <span>Яркая восточная кухня с характером,</span>
+                    <span>Яркая восточная кухня с характером</span>
                     <span>Сервис современного уровня</span>
                 </h2>
 
@@ -764,10 +768,10 @@
         </div>
     </footer>
 
-    <script src="/static/app.js?v=20260424-floating-button-visibility-9"></script>
+    <script src="/static/app.js?v=20260426-order-success-fix-17"></script>
     <script src="/static/catalog-admin.js?v=20260412-1"></script>
-    <script src="/static/account.js?v=20260415-2"></script>
-    <script src="/static/checkout-bridge.js?v=20260415-2"></script>
+    <script src="/static/account.js?v=20260426-order-success-fix-6"></script>
+    <script src="/static/checkout-bridge.js?v=20260426-order-success-fix-3"></script>
     <script src="/static/orders-admin.js?v=20260412-1"></script>
     <script>
         (function () {
