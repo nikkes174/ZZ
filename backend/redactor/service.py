@@ -69,6 +69,10 @@ class MenuItemService:
             offset=safe_offset,
         )
 
+    async def list_storefront_items(self) -> list[MenuItemRead]:
+        items = await self.repository.list_storefront()
+        return [self._to_read_model(item) for item in items]
+
     async def search_catalog_items(
         self,
         *,

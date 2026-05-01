@@ -18,6 +18,7 @@ class MenuItemRepository(Protocol):
         offset: int,
         include_inactive: bool,
     ) -> tuple[Sequence[MenuItemModel], int]: ...
+    async def list_storefront(self) -> Sequence[MenuItemModel]: ...
     async def search_catalog(
         self,
         *,
@@ -64,6 +65,18 @@ class SqlAlchemyMenuItemRepository:
         total = int(await self._session.scalar(total_stmt) or 0)
         items = (await self._session.scalars(items_stmt)).all()
         return items, total
+
+    async def list_storefront(self) -> Sequence[MenuItemModel]:
+        stmt = (
+            select(MenuItemModel)
+            .where(
+                MenuItemModel.sync_source == "iiko",
+                MenuItemModel.is_published.is_(True),
+                MenuItemModel.is_active.is_(True),
+            )
+            .order_by(MenuItemModel.sort_order.asc(), MenuItemModel.id.asc())
+        )
+        return (await self._session.scalars(stmt)).all()
 
     async def search_catalog(
         self,

@@ -145,11 +145,11 @@ REVIEWS = [
 async def _load_menu_items() -> list[dict[str, object]]:
     async with AsyncSessionLocal() as session:
         service = MenuItemService(repository=SqlAlchemyMenuItemRepository(session))
-        page = await service.list_items(limit=100, offset=0, include_inactive=False)
-        logger.info("Loaded %s active iiko menu items for storefront.", len(page.items))
-        if not page.items:
+        items = await service.list_storefront_items()
+        logger.info("Loaded %s active iiko menu items for storefront.", len(items))
+        if not items:
             logger.warning("Storefront has zero active iiko menu items.")
-        return [item.model_dump(mode="json") for item in page.items]
+        return [item.model_dump(mode="json") for item in items]
 
 
 async def _sync_iiko_catalog() -> None:

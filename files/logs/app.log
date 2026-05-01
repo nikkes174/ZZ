@@ -6153,3 +6153,123 @@ httpx.ReadTimeout
 2026-04-26 12:12:09,610 | INFO | backend.auth.router | HTTP login request received.
 2026-04-26 12:12:09,611 | INFO | backend.user.service | Login attempt. phone=+79935100807
 2026-04-26 12:12:09,678 | INFO | backend.user.service | Login succeeded. user_id=4
+2026-04-29 05:39:57,567 | INFO | main | Application startup initiated.
+2026-04-29 05:39:57,768 | INFO | main | Database metadata initialized.
+2026-04-29 05:39:57,804 | INFO | main | Order migrations ensured.
+2026-04-29 05:39:57,817 | INFO | main | Menu item iiko migrations ensured.
+2026-04-29 05:39:57,820 | INFO | main | User auth migrations ensured.
+2026-04-29 05:39:57,830 | INFO | main | Admin users synchronized from environment.
+2026-04-29 05:39:57,830 | INFO | main | Starting iiko catalog sync.
+2026-04-29 05:39:57,830 | INFO | backend.iiko_manager.service | Catalog sync started. terminal_group_id=7bb70c1d-4e12-4a7f-9750-c2aaed6ddabc
+2026-04-29 05:39:57,831 | INFO | backend.iiko_manager.client | Requesting iiko access token.
+2026-04-29 05:39:58,373 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/access_token "HTTP/1.1 200 OK"
+2026-04-29 05:39:58,378 | INFO | backend.iiko_manager.client | iiko access token received successfully.
+2026-04-29 05:39:58,378 | INFO | backend.iiko_manager.service | Using configured iiko organization id=5b44b114-347a-4c95-a7c0-c146a6bfbde2
+2026-04-29 05:39:58,378 | INFO | backend.iiko_manager.client | Requesting iiko nomenclature. organization_id=5b44b114-347a-4c95-a7c0-c146a6bfbde2
+2026-04-29 05:39:58,935 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/nomenclature "HTTP/1.1 200 OK"
+2026-04-29 05:39:59,178 | INFO | backend.iiko_manager.client | iiko nomenclature received. groups=56 products=457
+2026-04-29 05:39:59,187 | INFO | backend.iiko_manager.service | Normalized iiko products. total=457 without_price=0 deleted=269 active=188
+2026-04-29 05:39:59,187 | INFO | backend.iiko_manager.service | Price extraction summary. matched_by_currentPrice=457
+2026-04-29 05:39:59,187 | INFO | backend.iiko_manager.service | Prepared 457 normalized iiko items for sync.
+2026-04-29 05:39:59,188 | INFO | backend.iiko_manager.repository | Repository sync started. terminal_group_id=7bb70c1d-4e12-4a7f-9750-c2aaed6ddabc items=457 synced_at=2026-04-29T02:39:59.187175+00:00
+2026-04-29 05:39:59,228 | INFO | backend.iiko_manager.repository | Loaded existing iiko menu items from database. count=457
+2026-04-29 05:39:59,249 | INFO | backend.iiko_manager.repository | Repository sync committed. created=0 updated=0 deactivated=0
+2026-04-29 05:39:59,249 | INFO | backend.iiko_manager.service | Catalog sync persisted successfully. created=0 updated=0 deactivated=0
+2026-04-29 05:39:59,250 | INFO | main | Finished iiko catalog sync. created=0 updated=0 deactivated=0
+2026-04-29 05:39:59,251 | INFO | main | Application startup completed.
+2026-04-29 05:39:59,251 | INFO | main | Started background iiko sync loop. interval_seconds=300
+2026-04-29 05:39:59,251 | INFO | main | Started background iiko order status sync loop. interval_seconds=30
+2026-04-29 05:44:55,683 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-04-29 05:44:59,268 | INFO | main | Running scheduled iiko catalog sync.
+2026-04-29 05:44:59,269 | INFO | main | Starting iiko catalog sync.
+2026-04-29 05:44:59,269 | INFO | backend.iiko_manager.service | Catalog sync started. terminal_group_id=7bb70c1d-4e12-4a7f-9750-c2aaed6ddabc
+2026-04-29 05:44:59,270 | INFO | backend.iiko_manager.client | Requesting iiko access token.
+2026-04-29 05:44:59,792 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/access_token "HTTP/1.1 200 OK"
+2026-04-29 05:44:59,798 | INFO | backend.iiko_manager.client | iiko access token received successfully.
+2026-04-29 05:44:59,799 | INFO | backend.iiko_manager.service | Using configured iiko organization id=5b44b114-347a-4c95-a7c0-c146a6bfbde2
+2026-04-29 05:44:59,799 | INFO | backend.iiko_manager.client | Requesting iiko nomenclature. organization_id=5b44b114-347a-4c95-a7c0-c146a6bfbde2
+2026-04-29 05:45:00,367 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/nomenclature "HTTP/1.1 200 OK"
+2026-04-29 05:45:00,653 | INFO | backend.iiko_manager.client | iiko nomenclature received. groups=56 products=457
+2026-04-29 05:45:00,663 | INFO | backend.iiko_manager.service | Normalized iiko products. total=457 without_price=0 deleted=269 active=188
+2026-04-29 05:45:00,664 | INFO | backend.iiko_manager.service | Price extraction summary. matched_by_currentPrice=457
+2026-04-29 05:45:00,664 | INFO | backend.iiko_manager.service | Prepared 457 normalized iiko items for sync.
+2026-04-29 05:45:00,664 | INFO | backend.iiko_manager.repository | Repository sync started. terminal_group_id=7bb70c1d-4e12-4a7f-9750-c2aaed6ddabc items=457 synced_at=2026-04-29T02:45:00.664529+00:00
+2026-04-29 05:45:00,687 | INFO | backend.iiko_manager.repository | Loaded existing iiko menu items from database. count=457
+2026-04-29 05:45:00,706 | INFO | backend.iiko_manager.repository | Repository sync committed. created=0 updated=0 deactivated=0
+2026-04-29 05:45:00,708 | INFO | backend.iiko_manager.service | Catalog sync persisted successfully. created=0 updated=0 deactivated=0
+2026-04-29 05:45:00,709 | INFO | main | Finished iiko catalog sync. created=0 updated=0 deactivated=0
+2026-04-29 05:45:51,056 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-04-29 05:46:20,108 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-04-29 05:47:02,197 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-04-29 05:47:20,391 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-04-29 05:47:35,890 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-04-29 05:48:25,099 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-04-29 05:48:45,851 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-04-29 05:50:00,156 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-04-29 05:50:00,705 | INFO | main | Running scheduled iiko catalog sync.
+2026-04-29 05:50:00,705 | INFO | main | Starting iiko catalog sync.
+2026-04-29 05:50:00,705 | INFO | backend.iiko_manager.service | Catalog sync started. terminal_group_id=7bb70c1d-4e12-4a7f-9750-c2aaed6ddabc
+2026-04-29 05:50:00,705 | INFO | backend.iiko_manager.client | Requesting iiko access token.
+2026-04-29 05:50:01,351 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/access_token "HTTP/1.1 200 OK"
+2026-04-29 05:50:01,357 | INFO | backend.iiko_manager.client | iiko access token received successfully.
+2026-04-29 05:50:01,358 | INFO | backend.iiko_manager.service | Using configured iiko organization id=5b44b114-347a-4c95-a7c0-c146a6bfbde2
+2026-04-29 05:50:01,358 | INFO | backend.iiko_manager.client | Requesting iiko nomenclature. organization_id=5b44b114-347a-4c95-a7c0-c146a6bfbde2
+2026-04-29 05:50:01,844 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/nomenclature "HTTP/1.1 200 OK"
+2026-04-29 05:50:02,005 | INFO | backend.iiko_manager.client | iiko nomenclature received. groups=56 products=457
+2026-04-29 05:50:02,015 | INFO | backend.iiko_manager.service | Normalized iiko products. total=457 without_price=0 deleted=269 active=188
+2026-04-29 05:50:02,016 | INFO | backend.iiko_manager.service | Price extraction summary. matched_by_currentPrice=457
+2026-04-29 05:50:02,016 | INFO | backend.iiko_manager.service | Prepared 457 normalized iiko items for sync.
+2026-04-29 05:50:02,016 | INFO | backend.iiko_manager.repository | Repository sync started. terminal_group_id=7bb70c1d-4e12-4a7f-9750-c2aaed6ddabc items=457 synced_at=2026-04-29T02:50:02.016318+00:00
+2026-04-29 05:50:02,031 | INFO | backend.iiko_manager.repository | Loaded existing iiko menu items from database. count=457
+2026-04-29 05:50:02,050 | INFO | backend.iiko_manager.repository | Repository sync committed. created=0 updated=0 deactivated=0
+2026-04-29 05:50:02,051 | INFO | backend.iiko_manager.service | Catalog sync persisted successfully. created=0 updated=0 deactivated=0
+2026-04-29 05:50:02,052 | INFO | main | Finished iiko catalog sync. created=0 updated=0 deactivated=0
+2026-04-29 05:50:34,744 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-04-29 05:51:49,609 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-04-29 05:52:08,549 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-04-29 05:53:44,998 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-04-29 05:55:02,080 | INFO | main | Running scheduled iiko catalog sync.
+2026-04-29 05:55:02,080 | INFO | main | Starting iiko catalog sync.
+2026-04-29 05:55:02,080 | INFO | backend.iiko_manager.service | Catalog sync started. terminal_group_id=7bb70c1d-4e12-4a7f-9750-c2aaed6ddabc
+2026-04-29 05:55:02,080 | INFO | backend.iiko_manager.client | Requesting iiko access token.
+2026-04-29 05:55:02,605 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/access_token "HTTP/1.1 200 OK"
+2026-04-29 05:55:02,610 | INFO | backend.iiko_manager.client | iiko access token received successfully.
+2026-04-29 05:55:02,611 | INFO | backend.iiko_manager.service | Using configured iiko organization id=5b44b114-347a-4c95-a7c0-c146a6bfbde2
+2026-04-29 05:55:02,611 | INFO | backend.iiko_manager.client | Requesting iiko nomenclature. organization_id=5b44b114-347a-4c95-a7c0-c146a6bfbde2
+2026-04-29 05:55:03,148 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/nomenclature "HTTP/1.1 200 OK"
+2026-04-29 05:55:03,318 | INFO | backend.iiko_manager.client | iiko nomenclature received. groups=56 products=457
+2026-04-29 05:55:03,326 | INFO | backend.iiko_manager.service | Normalized iiko products. total=457 without_price=0 deleted=269 active=188
+2026-04-29 05:55:03,327 | INFO | backend.iiko_manager.service | Price extraction summary. matched_by_currentPrice=457
+2026-04-29 05:55:03,327 | INFO | backend.iiko_manager.service | Prepared 457 normalized iiko items for sync.
+2026-04-29 05:55:03,327 | INFO | backend.iiko_manager.repository | Repository sync started. terminal_group_id=7bb70c1d-4e12-4a7f-9750-c2aaed6ddabc items=457 synced_at=2026-04-29T02:55:03.327060+00:00
+2026-04-29 05:55:03,341 | INFO | backend.iiko_manager.repository | Loaded existing iiko menu items from database. count=457
+2026-04-29 05:55:03,358 | INFO | backend.iiko_manager.repository | Repository sync committed. created=0 updated=0 deactivated=0
+2026-04-29 05:55:03,359 | INFO | backend.iiko_manager.service | Catalog sync persisted successfully. created=0 updated=0 deactivated=0
+2026-04-29 05:55:03,360 | INFO | main | Finished iiko catalog sync. created=0 updated=0 deactivated=0
+2026-05-01 06:15:58,654 | INFO | main | Application startup initiated.
+2026-05-01 06:15:58,835 | INFO | main | Database metadata initialized.
+2026-05-01 06:15:58,870 | INFO | main | Order migrations ensured.
+2026-05-01 06:15:58,882 | INFO | main | Menu item iiko migrations ensured.
+2026-05-01 06:15:58,886 | INFO | main | User auth migrations ensured.
+2026-05-01 06:15:58,896 | INFO | main | Admin users synchronized from environment.
+2026-05-01 06:15:58,896 | INFO | main | Starting iiko catalog sync.
+2026-05-01 06:15:58,896 | INFO | backend.iiko_manager.service | Catalog sync started. terminal_group_id=7bb70c1d-4e12-4a7f-9750-c2aaed6ddabc
+2026-05-01 06:15:58,896 | INFO | backend.iiko_manager.client | Requesting iiko access token.
+2026-05-01 06:15:59,397 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/access_token "HTTP/1.1 200 OK"
+2026-05-01 06:15:59,403 | INFO | backend.iiko_manager.client | iiko access token received successfully.
+2026-05-01 06:15:59,403 | INFO | backend.iiko_manager.service | Using configured iiko organization id=5b44b114-347a-4c95-a7c0-c146a6bfbde2
+2026-05-01 06:15:59,403 | INFO | backend.iiko_manager.client | Requesting iiko nomenclature. organization_id=5b44b114-347a-4c95-a7c0-c146a6bfbde2
+2026-05-01 06:15:59,886 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/nomenclature "HTTP/1.1 200 OK"
+2026-05-01 06:16:00,068 | INFO | backend.iiko_manager.client | iiko nomenclature received. groups=56 products=457
+2026-05-01 06:16:00,077 | INFO | backend.iiko_manager.service | Normalized iiko products. total=457 without_price=0 deleted=269 active=188
+2026-05-01 06:16:00,077 | INFO | backend.iiko_manager.service | Price extraction summary. matched_by_currentPrice=457
+2026-05-01 06:16:00,078 | INFO | backend.iiko_manager.service | Prepared 457 normalized iiko items for sync.
+2026-05-01 06:16:00,078 | INFO | backend.iiko_manager.repository | Repository sync started. terminal_group_id=7bb70c1d-4e12-4a7f-9750-c2aaed6ddabc items=457 synced_at=2026-05-01T03:16:00.077295+00:00
+2026-05-01 06:16:01,179 | INFO | backend.iiko_manager.repository | Loaded existing iiko menu items from database. count=457
+2026-05-01 06:16:01,210 | INFO | backend.iiko_manager.repository | Repository sync committed. created=0 updated=0 deactivated=0
+2026-05-01 06:16:01,211 | INFO | backend.iiko_manager.service | Catalog sync persisted successfully. created=0 updated=0 deactivated=0
+2026-05-01 06:16:01,211 | INFO | main | Finished iiko catalog sync. created=0 updated=0 deactivated=0
+2026-05-01 06:16:01,230 | INFO | main | Application startup completed.
+2026-05-01 06:16:01,230 | INFO | main | Started background iiko sync loop. interval_seconds=300
+2026-05-01 06:16:01,230 | INFO | main | Started background iiko order status sync loop. interval_seconds=30
+2026-05-01 06:16:12,626 | INFO | main | Loaded 7 active iiko menu items for storefront.
