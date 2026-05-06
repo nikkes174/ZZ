@@ -12,7 +12,7 @@ services:
       - "${APP_PORT:-8011}:8011"
     volumes:
       - app_files:/app/files
-      - app_static_files:/app/static/files
+      - ./static/files:/app/static/files
     depends_on:
       postgres:
         condition: service_healthy
@@ -35,4 +35,3 @@ services:
 volumes:
   postgres_data:
   app_files:
-  app_static_files:
