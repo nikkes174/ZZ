@@ -2248,18 +2248,21 @@ syncCheckoutType();
 syncCheckoutPayment();
 syncCartCheckoutNote();
 ensureHeroEditControls();
-loadHeroContent();
 ensureSectionEditControls(menuSectionHead, "menuSectionEdit", "Редактировать блок меню");
 ensureSectionEditControls(deliverySectionHead, "deliverySectionEdit", "Редактировать блок доставки");
 ensureSectionEditControls(contactSectionHead, "contactSectionEdit", "Редактировать блок контактов");
-loadSectionContent("/api/redactor/menu-items/menu-section-content", menuSectionHead);
-loadSectionContent("/api/redactor/menu-items/delivery-section-content", deliverySectionHead);
-loadSectionContent("/api/redactor/menu-items/contact-section-content", contactSectionHead);
 applyFilter(activeFilter);
 renderCart();
 updateFloatingToolsVisibility();
 initRevealAnimations();
 initHeroSmokeText();
+
+window.setTimeout(() => {
+    loadHeroContent();
+    loadSectionContent("/api/redactor/menu-items/menu-section-content", menuSectionHead);
+    loadSectionContent("/api/redactor/menu-items/delivery-section-content", deliverySectionHead);
+    loadSectionContent("/api/redactor/menu-items/contact-section-content", contactSectionHead);
+}, 0);
 
 window.zamzamApp = {
     getCartEntries: () => getCartEntries().map((item) => ({ ...item })),

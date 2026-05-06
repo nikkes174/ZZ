@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/styles.css?v=20260426-order-success-fix-32">
+    <link rel="stylesheet" href="/static/styles.css?v=20260506-mobile-video-quality-1">
 </head>
 <body class="preloader-active">
     <div class="page-preloader" id="page-preloader" aria-hidden="true">
@@ -577,7 +577,16 @@
 
         <section class="hero" id="hero">
             <div class="hero-media" aria-hidden="true">
-                <img class="hero-background-image" src="/static/pic/A7401565.JPG" alt="">
+                <video
+                    class="hero-background-image"
+                    data-desktop-src="/static/files/screen_1778050798162.mp4"
+                    data-mobile-src="/static/files/IMG_2455 (online-video-cutter.com).mp4"
+                    autoplay
+                    muted
+                    loop
+                    playsinline
+                    preload="auto"
+                ></video>
             </div>
             <div class="hero-overlay"></div>
 
@@ -651,6 +660,8 @@
                                     class="dish-image{% if not item.image_path %} is-hidden{% endif %}"
                                     src="{% if item.image_path %}/static/{{ item.image_path }}{% endif %}"
                                     alt="{{ item.title }}"
+                                    loading="lazy"
+                                    decoding="async"
                                 >
                                 <div class="dish-plate{% if item.image_path %} is-hidden{% endif %}">
                                     <div class="dish-center"></div>
@@ -768,17 +779,18 @@
         </div>
     </footer>
 
-    <script src="/static/app.js?v=20260426-order-success-fix-17"></script>
-    <script src="/static/catalog-admin.js?v=20260412-1"></script>
-    <script src="/static/account.js?v=20260426-order-success-fix-6"></script>
-    <script src="/static/checkout-bridge.js?v=20260426-order-success-fix-3"></script>
-    <script src="/static/orders-admin.js?v=20260412-1"></script>
+    <script defer src="/static/app.js?v=20260506-hero-mobile-fix-2"></script>
+    <script defer src="/static/catalog-admin.js?v=20260506-hero-mobile-fix-2"></script>
+    <script defer src="/static/account.js?v=20260506-hero-mobile-fix-2"></script>
+    <script defer src="/static/checkout-bridge.js?v=20260506-hero-mobile-fix-2"></script>
+    <script defer src="/static/orders-admin.js?v=20260506-hero-mobile-fix-2"></script>
     <script>
         (function () {
             const preloader = document.getElementById("page-preloader");
             const topbarWrap = document.querySelector(".topbar-wrap");
             const topbar = document.querySelector(".topbar");
             const topbarBurger = document.getElementById("topbar-burger");
+            const heroVideo = document.querySelector(".hero-background-image");
             function setMobileMenuOpen(isOpen) {
                 topbar?.classList.toggle("is-menu-open", isOpen);
                 topbarWrap?.classList.toggle("is-menu-open", isOpen);
@@ -803,6 +815,31 @@
                 document.body.classList.remove("preloader-active");
             }
 
+            function playHeroVideo() {
+                if (!heroVideo || typeof heroVideo.play !== "function") {
+                    return;
+                }
+
+                heroVideo.muted = true;
+                heroVideo.play().catch(function () {});
+            }
+
+            function syncHeroVideoSource() {
+                if (!heroVideo) {
+                    return;
+                }
+
+                const mobileSource = heroVideo.dataset.mobileSrc || "";
+                const desktopSource = heroVideo.dataset.desktopSrc || heroVideo.getAttribute("src") || "";
+                const nextSource = window.matchMedia("(max-width: 820px)").matches ? mobileSource : desktopSource;
+
+                if (nextSource && heroVideo.getAttribute("src") !== nextSource) {
+                    heroVideo.setAttribute("src", nextSource);
+                    heroVideo.load();
+                    playHeroVideo();
+                }
+            }
+
             topbarBurger?.addEventListener("click", function () {
                 setMobileMenuOpen(!topbar?.classList.contains("is-menu-open"));
             });
@@ -823,12 +860,21 @@
                 });
             });
 
-            window.addEventListener("load", function () {
+            document.addEventListener("DOMContentLoaded", function () {
                 syncTopbarScrolled();
+                syncHeroVideoSource();
+                playHeroVideo();
+                window.setTimeout(hidePreloader, 120);
+            });
+
+            window.addEventListener("load", function () {
                 window.setTimeout(hidePreloader, 120);
             });
 
             window.addEventListener("resize", function () {
+                syncHeroVideoSource();
+                playHeroVideo();
+
                 if (window.innerWidth > 820) {
                     setMobileMenuOpen(false);
                 }

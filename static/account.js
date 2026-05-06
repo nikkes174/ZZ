@@ -978,8 +978,11 @@ document.addEventListener("keydown", (event) => {
 updateLoginButton();
 syncBonusUi();
 syncAuthMode();
-loadAccount();
-syncPendingPayment();
+
+if (sessionToken) {
+    loadAccount();
+    syncPendingPayment();
+}
 
 checkoutBonusSpent?.addEventListener("input", syncBonusUi);
 checkoutButton?.addEventListener("click", () => {

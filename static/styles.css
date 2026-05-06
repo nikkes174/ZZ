@@ -181,6 +181,26 @@ body.preloader-active {
     }
 }
 
+@keyframes heroTextReveal {
+    0% {
+        opacity: 0;
+        filter: blur(10px);
+        transform: translateY(42px);
+    }
+
+    55% {
+        opacity: 0.55;
+        filter: blur(5px);
+        transform: translateY(-4px);
+    }
+
+    100% {
+        opacity: 1;
+        filter: blur(0);
+        transform: translateY(0);
+    }
+}
+
 @keyframes heroBackgroundPulse {
     0% {
         transform: scale(1.04);
@@ -301,6 +321,13 @@ body.preloader-active {
 @media (prefers-reduced-motion: reduce) {
     .reveal-on-scroll,
     .reveal-on-scroll.is-visible,
+    .hero-badge-pill,
+    .hero-kicker,
+    .hero h1,
+    .hero-address,
+    .hero h2 > span,
+    .hero-actions,
+    .hero-scroll-indicator span:first-child,
     .hero::before,
     .hero::after,
     .menu-section::before,
@@ -1037,8 +1064,9 @@ body.preloader-active {
     position: absolute;
     inset: 0;
     background:
-        linear-gradient(180deg, rgba(0, 0, 0, 0.78) 0%, rgba(0, 0, 0, 0.54) 38%, rgba(10, 10, 10, 0.76) 100%),
-        radial-gradient(circle at center, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.42) 72%);
+        linear-gradient(180deg, rgba(0, 0, 0, 0.32) 0%, rgba(0, 0, 0, 0.14) 42%, rgba(10, 10, 10, 0.36) 100%),
+        radial-gradient(circle at center, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.18) 74%);
+    backdrop-filter: blur(0.35px);
     z-index: 2;
 }
 
@@ -1050,11 +1078,17 @@ body.preloader-active {
 }
 
 .hero-background-image {
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100vw;
+    height: 100vh;
+    min-width: 100%;
+    min-height: 100%;
     object-fit: cover;
-    transform: scale(1.06);
-    animation: heroBackgroundPulse 20s ease-in-out infinite alternate;
+    object-position: center;
+    transform: translate(-50%, -50%) scale(1.025);
+    filter: brightness(1.08) contrast(1.06) saturate(1.18) blur(1.15px);
 }
 
 .hero-inner {
@@ -1070,6 +1104,74 @@ body.preloader-active {
     min-height: 100vh;
     padding: 136px 24px 124px;
     text-align: center;
+}
+
+.hero-badge-pill,
+.hero-kicker,
+.hero h1,
+.hero-address,
+.hero h2 > span,
+.hero-actions,
+.hero-scroll-indicator span:first-child {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(42px);
+    animation: heroTextReveal 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    will-change: opacity, filter, transform;
+}
+
+.hero-badge-pill {
+    animation-delay: 0.08s;
+}
+
+.hero-kicker {
+    animation-delay: 0.18s;
+}
+
+.hero h1 {
+    animation-delay: 0.28s;
+}
+
+.hero-address {
+    animation-delay: 0.38s;
+}
+
+.hero h2 > span:first-child {
+    animation-delay: 0.48s;
+}
+
+.hero h2 > span:last-child {
+    animation-delay: 0.58s;
+}
+
+.hero-actions {
+    animation-delay: 0.68s;
+}
+
+.hero-scroll-indicator span:first-child {
+    animation-delay: 0.8s;
+}
+
+.hero-gradient-text,
+.hero-kicker,
+.hero h1,
+.hero-address,
+.hero h2 > span,
+.hero-button > span,
+.hero-scroll-indicator span:first-child {
+    color: transparent !important;
+    background-image: linear-gradient(90deg, #fff7df, #d8b26b, #ffefd0, #ffffff, #d8b26b);
+    background-size: 300% 100%;
+    background-position: 0% 50%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation-name: heroTextReveal, heroGradientShift;
+    animation-duration: 0.9s, 8s;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1), ease-in-out;
+    animation-fill-mode: forwards, none;
+    animation-iteration-count: 1, infinite;
+    animation-direction: normal, alternate;
 }
 
 .hero-badge-pill {
@@ -1141,7 +1243,8 @@ body.preloader-active {
 
 .hero h2 {
     margin: 28px 0 0;
-    max-width: 940px;
+    width: min(100%, 1100px);
+    max-width: calc(100vw - 36px);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1157,11 +1260,12 @@ body.preloader-active {
 
 .hero h2 > span {
     display: block;
-    width: fit-content;
+    width: 100%;
     max-width: 100%;
     margin-inline: auto;
     text-align: center;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .hero h2 > span:last-child {
@@ -1171,7 +1275,7 @@ body.preloader-active {
 }
 
 .hero h2 > span:first-child {
-    transform: translateX(-18px);
+    transform: none;
 }
 
 .hero-copy-row {
@@ -5800,6 +5904,11 @@ body.admin-mode .dish-edit-button {
         padding: 9px 15px;
         font-size: 0.68rem;
         letter-spacing: 0.14em;
+    }
+
+    .hero-background-image {
+        transform: translate(-50%, -50%) scale(1.005);
+        filter: brightness(1.02) contrast(1.02) saturate(1.06);
     }
 
     .hero-kicker {

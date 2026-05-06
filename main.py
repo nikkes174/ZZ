@@ -273,6 +273,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+app.mount("/files", StaticFiles(directory="files"), name="files")
 app.include_router(redactor_router)
 app.include_router(auth_router)
 app.include_router(user_router)
