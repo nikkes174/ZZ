@@ -201,6 +201,20 @@ body.preloader-active {
     }
 }
 
+@keyframes heroBadgeReveal {
+    0% {
+        opacity: 0;
+        filter: blur(8px);
+        transform: translateY(18px);
+    }
+
+    100% {
+        opacity: 1;
+        filter: blur(0);
+        transform: translateY(0);
+    }
+}
+
 @keyframes heroBackgroundPulse {
     0% {
         transform: scale(1.04);
@@ -297,6 +311,56 @@ body.preloader-active {
     }
 }
 
+@keyframes menuBackgroundDrift {
+    0% {
+        background-position: 50% 0%, 18% 26%, 86% 22%, 36% 74%, 74% 82%, 0% 0%, 0% 0%;
+    }
+
+    50% {
+        background-position: 46% 8%, 58% 18%, 64% 62%, 16% 58%, 88% 38%, 100% 42%, 0% 0%;
+    }
+
+    100% {
+        background-position: 54% 0%, 82% 36%, 28% 28%, 62% 86%, 20% 44%, 0% 100%, 0% 0%;
+    }
+}
+
+@keyframes menuGlowFloat {
+    0% {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+
+    28% {
+        transform: translate3d(-180px, 46px, 0) scale(1.08);
+    }
+
+    62% {
+        transform: translate3d(-82vw, 210px, 0) scale(1.18);
+    }
+
+    100% {
+        transform: translate3d(-18vw, 360px, 0) scale(1.04);
+    }
+}
+
+@keyframes menuGlowFloatReverse {
+    0% {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+
+    30% {
+        transform: translate3d(180px, -120px, 0) scale(1.1);
+    }
+
+    66% {
+        transform: translate3d(78vw, -260px, 0) scale(1.16);
+    }
+
+    100% {
+        transform: translate3d(26vw, -380px, 0) scale(1.05);
+    }
+}
+
 @keyframes preloaderSpin {
     from {
         transform: rotate(0deg);
@@ -328,6 +392,7 @@ body.preloader-active {
     .hero h2 > span,
     .hero-actions,
     .hero-scroll-indicator span:first-child,
+    .menu-section,
     .hero::before,
     .hero::after,
     .menu-section::before,
@@ -1121,7 +1186,11 @@ body.preloader-active {
 }
 
 .hero-badge-pill {
-    animation-delay: 0.08s;
+    animation-name: heroBadgeReveal;
+    animation-duration: 1.15s;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    animation-fill-mode: forwards;
+    animation-delay: 0.12s;
 }
 
 .hero-kicker {
@@ -1723,7 +1792,7 @@ body.admin-mode .section-edit-button {
     background:
         radial-gradient(circle at 50% 50%, rgba(232, 84, 36, 0.14), rgba(232, 84, 36, 0.06) 42%, transparent 70%);
     filter: blur(12px);
-    animation: ambientPulse 14s ease-in-out infinite;
+    animation: menuGlowFloat 28s ease-in-out infinite alternate;
 }
 
 .menu-section::after {
@@ -1736,7 +1805,7 @@ body.admin-mode .section-edit-button {
         radial-gradient(circle at 44% 44%, rgba(243, 216, 109, 0.2), rgba(243, 216, 109, 0.08) 46%, transparent 72%);
     filter: blur(8px);
     opacity: 0.8;
-    animation: ambientFloatReverse 17s ease-in-out infinite;
+    animation: menuGlowFloatReverse 30s ease-in-out infinite alternate;
 }
 
 .menu-section {
@@ -1746,8 +1815,15 @@ body.admin-mode .section-edit-button {
     margin-right: calc(50% - 50vw);
     scroll-margin-top: 110px;
     background:
-        radial-gradient(circle at top center, rgba(200, 146, 42, 0.06), transparent 24%),
+        radial-gradient(circle at top center, rgba(200, 146, 42, 0.09), transparent 25%),
+        radial-gradient(circle at 18% 26%, rgba(216, 178, 107, 0.12), transparent 10%),
+        radial-gradient(circle at 86% 22%, rgba(232, 84, 36, 0.1), transparent 11%),
+        radial-gradient(circle at 36% 74%, rgba(243, 216, 109, 0.09), transparent 12%),
+        radial-gradient(circle at 74% 82%, rgba(216, 178, 107, 0.08), transparent 9%),
+        linear-gradient(120deg, transparent 0%, rgba(216, 178, 107, 0.08) 28%, rgba(232, 84, 36, 0.06) 48%, transparent 72%),
         linear-gradient(180deg, #0d0d0d 0%, #120a07 100%);
+    background-size: 120% 120%, 140% 140%, 150% 150%, 130% 130%, 145% 145%, 220% 220%, 100% 100%;
+    animation: menuBackgroundDrift 24s ease-in-out infinite alternate;
     border-radius: 0;
     padding: 84px max(32px, calc((100vw - 1240px) / 2 + 32px)) 40px;
     border: 1px solid rgba(255, 255, 255, 0.05);
@@ -1949,7 +2025,14 @@ body.admin-mode .section-edit-button {
 }
 
 .menu-section .section-head h2 {
-    color: #ffffff;
+    color: transparent;
+    background-image: linear-gradient(90deg, #fff7df, #d8b26b, #ffefd0, #ffffff, #d8b26b);
+    background-size: 300% 100%;
+    background-position: 0% 50%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: heroGradientShift 8s ease-in-out infinite alternate;
     font-family: "Playfair Display", Georgia, serif;
     font-size: clamp(2.2rem, 4.6vw, 4rem);
     line-height: 1.04;
