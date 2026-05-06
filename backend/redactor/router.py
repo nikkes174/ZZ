@@ -57,12 +57,12 @@ DEFAULT_HERO_CONTENT = HeroContentRead(
     title="Zamzam",
     address="Доставка по городу, ресторанная подача и быстрый онлайн-заказ",
     subtitle_primary="Яркая восточная кухня с характером",
-    subtitle_secondary="Сервис современного уровня",
+    subtitle_secondary="Полностью халяльное производство",
 )
 
 DEFAULT_MENU_SECTION_CONTENT = MenuSectionContentRead(
     kicker="Наше меню",
-    title="Соберите заказ в визуале из эталонного шаблона, но с нашей продуктовой логикой.",
+    title="Наша кухня - это богатое сочетание традиций, ароматов и вкусов, которые передаются из поколения в поколение.",
 )
 DEFAULT_DELIVERY_SECTION_CONTENT = MenuSectionContentRead(
     kicker="Доставка",
