@@ -19,6 +19,26 @@
     let consentPopupTimeoutId = null;
     let checkoutWarningTimeoutId = null;
 
+    function readPersistentStorage(key) {
+        try {
+            return window.localStorage.getItem(key) || window.sessionStorage.getItem(key) || "";
+        } catch (error) {
+            return window.sessionStorage.getItem(key) || "";
+        }
+    }
+
+    function writePersistentStorage(key, value) {
+        if (!value) {
+            return;
+        }
+        try {
+            window.localStorage.setItem(key, value);
+        } catch (error) {
+            // Keep checkout working in restricted mobile browser storage modes.
+        }
+        window.sessionStorage.setItem(key, value);
+    }
+
     function showConsentPopup() {
         let popup = document.getElementById("checkout-consent-popup");
         if (!popup) {
@@ -70,7 +90,7 @@
     }
 
     function getSessionToken() {
-        return window.sessionStorage.getItem(SESSION_STORAGE_KEY) || "";
+        return readPersistentStorage(SESSION_STORAGE_KEY);
     }
 
     function ensurePhonePrefixValue(input) {
@@ -236,7 +256,7 @@
                 throw new Error("Не удалось получить ссылку на оплату.");
             }
             if (payload.payment_id) {
-                window.sessionStorage.setItem(PENDING_PAYMENT_STORAGE_KEY, payload.payment_id);
+                writePersistentStorage(PENDING_PAYMENT_STORAGE_KEY, payload.payment_id);
             }
             window.location.href = payload.confirmation_url;
             if (checkoutBonusSpent) {

@@ -6,6 +6,35 @@ const MIN_CHECKOUT_AMOUNT = 1000;
 window.zamzamAuthFallbackBound = true;
 window.zamzamAccountCheckoutEnabled = true;
 
+function readPersistentStorage(key) {
+    try {
+        return window.localStorage.getItem(key) || window.sessionStorage.getItem(key) || "";
+    } catch (error) {
+        return window.sessionStorage.getItem(key) || "";
+    }
+}
+
+function writePersistentStorage(key, value) {
+    if (!value) {
+        return;
+    }
+    try {
+        window.localStorage.setItem(key, value);
+    } catch (error) {
+        // Keep checkout working in restricted mobile browser storage modes.
+    }
+    window.sessionStorage.setItem(key, value);
+}
+
+function removePersistentStorage(key) {
+    try {
+        window.localStorage.removeItem(key);
+    } catch (error) {
+        // Keep logout working even when persistent storage is unavailable.
+    }
+    window.sessionStorage.removeItem(key);
+}
+
 const ACTIVE_ORDER_STATUSES = new Set(["Готовится", "Заказ отправлен", "Готов к выдаче"]);
 
 const authModal = document.getElementById("auth-modal");
@@ -56,7 +85,7 @@ const floatingTools = document.querySelector(".floating-tools");
 const checkoutOfertaConsent = document.getElementById("checkout-oferta-consent");
 const checkoutPolicyConsent = document.getElementById("checkout-policy-consent");
 
-let sessionToken = window.sessionStorage.getItem(SESSION_STORAGE_KEY) || "";
+let sessionToken = readPersistentStorage(SESSION_STORAGE_KEY);
 let authMode = "login";
 let currentBonusBalance = 0;
 let lastAutofilledCheckoutName = "";
@@ -66,7 +95,7 @@ let accountAutoRefreshInFlight = false;
 let checkoutWarningTimeoutId = null;
 
 function refreshSessionToken() {
-    sessionToken = window.sessionStorage.getItem(SESSION_STORAGE_KEY) || "";
+    sessionToken = readPersistentStorage(SESSION_STORAGE_KEY);
     return sessionToken;
 }
 
@@ -74,21 +103,21 @@ function setAuthTokens(payload) {
     sessionToken = payload?.access_token || "";
     const refreshToken = payload?.refresh_token || "";
     if (sessionToken) {
-        window.sessionStorage.setItem(SESSION_STORAGE_KEY, sessionToken);
+        writePersistentStorage(SESSION_STORAGE_KEY, sessionToken);
     }
     if (refreshToken) {
-        window.sessionStorage.setItem(REFRESH_STORAGE_KEY, refreshToken);
+        writePersistentStorage(REFRESH_STORAGE_KEY, refreshToken);
     }
 }
 
 function clearAuthTokens() {
-    window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
-    window.sessionStorage.removeItem(REFRESH_STORAGE_KEY);
+    removePersistentStorage(SESSION_STORAGE_KEY);
+    removePersistentStorage(REFRESH_STORAGE_KEY);
     sessionToken = "";
 }
 
 async function refreshAccessToken() {
-    const refreshToken = window.sessionStorage.getItem(REFRESH_STORAGE_KEY) || "";
+    const refreshToken = readPersistentStorage(REFRESH_STORAGE_KEY);
     if (!refreshToken) {
         return false;
     }
@@ -592,7 +621,7 @@ window.loadZamzamAccount = loadAccount;
 
 async function syncPendingPayment() {
     refreshSessionToken();
-    const paymentId = window.sessionStorage.getItem(PENDING_PAYMENT_STORAGE_KEY) || "";
+    const paymentId = readPersistentStorage(PENDING_PAYMENT_STORAGE_KEY);
     if (!paymentId || !sessionToken) {
         return;
     }
@@ -604,7 +633,7 @@ async function syncPendingPayment() {
         });
         const payload = await response.json().catch(() => ({}));
         if (response.ok && payload?.order_id) {
-            window.sessionStorage.removeItem(PENDING_PAYMENT_STORAGE_KEY);
+            removePersistentStorage(PENDING_PAYMENT_STORAGE_KEY);
             await loadAccount();
             if (typeof window.showZamzamOrderSuccessModal === "function") {
                 window.showZamzamOrderSuccessModal("Ваш заказ принят. Скоро с вами свяжется наш оператор.");
@@ -843,7 +872,7 @@ async function submitOrderWithSession() {
             throw new Error("Не удалось получить ссылку на оплату.");
         }
         if (responsePayload.payment_id) {
-            window.sessionStorage.setItem(PENDING_PAYMENT_STORAGE_KEY, responsePayload.payment_id);
+            writePersistentStorage(PENDING_PAYMENT_STORAGE_KEY, responsePayload.payment_id);
         }
         window.location.href = responsePayload.confirmation_url;
         currentBonusBalance = Math.max(0, currentBonusBalance - payload.bonus_spent);
@@ -894,7 +923,7 @@ async function submitOrder(event) {
 }
 
 function logout() {
-    const refreshToken = window.sessionStorage.getItem(REFRESH_STORAGE_KEY) || "";
+    const refreshToken = readPersistentStorage(REFRESH_STORAGE_KEY);
     fetch("/api/auth/logout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -2,10 +2,18 @@ const cart = new Map();
 const MIN_CHECKOUT_AMOUNT = 1000;
 const SESSION_STORAGE_KEY = "zamzam_session_token";
 
+function readPersistentStorage(key) {
+    try {
+        return window.localStorage.getItem(key) || window.sessionStorage.getItem(key) || "";
+    } catch (error) {
+        return window.sessionStorage.getItem(key) || "";
+    }
+}
+
 const formatPrice = (value) => `${value.toLocaleString("ru-RU")} руб.`;
 
 function getAdminHeaders(extraHeaders = {}) {
-    const token = window.sessionStorage.getItem(SESSION_STORAGE_KEY) || "";
+    const token = readPersistentStorage(SESSION_STORAGE_KEY);
     return token ? { ...extraHeaders, Authorization: `Bearer ${token}` } : { ...extraHeaders };
 }
 
@@ -1841,7 +1849,7 @@ checkoutButton?.addEventListener(
             return;
         }
 
-        const sessionToken = window.sessionStorage.getItem(SESSION_STORAGE_KEY) || "";
+        const sessionToken = readPersistentStorage(SESSION_STORAGE_KEY);
         if (!sessionToken) {
             event.preventDefault();
             event.stopImmediatePropagation();
