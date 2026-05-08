@@ -14,6 +14,9 @@
     const authRegisterPassword = document.getElementById("auth-register-password");
     const authLoginSubmit = document.getElementById("auth-login-submit");
     const authRegisterSubmit = document.getElementById("auth-register-submit");
+    const authRegisterOfertaConsent = document.getElementById("auth-register-oferta-consent");
+    const authRegisterPolicyConsent = document.getElementById("auth-register-policy-consent");
+    const authRegisterConsents = document.getElementById("auth-register-consents");
     const loginButton = document.getElementById("cart-open-topbar");
     const accountFloatingTrigger = document.getElementById("account-floating-trigger");
     const floatingTools = document.querySelector(".floating-tools");
@@ -50,6 +53,20 @@
         }
         authHint.textContent = message || "";
         authHint.style.color = isError ? "#9f2d0f" : "";
+    }
+
+    function hasRegisterConsents() {
+        return Boolean(authRegisterOfertaConsent?.checked && authRegisterPolicyConsent?.checked);
+    }
+
+    function showRegisterConsentWarning() {
+        authRegisterConsents?.classList.add("is-attention");
+        setHint("Подтвердите согласие с офертой и политикой конфиденциальности.", true);
+
+        const missingConsent = !authRegisterOfertaConsent?.checked
+            ? authRegisterOfertaConsent
+            : authRegisterPolicyConsent;
+        missingConsent?.focus();
     }
 
     function ensurePhonePrefixValue(input) {
@@ -175,6 +192,11 @@
             return;
         }
 
+        if (!hasRegisterConsents()) {
+            showRegisterConsentWarning();
+            return;
+        }
+
         if (authRegisterSubmit) {
             authRegisterSubmit.disabled = true;
         }
@@ -232,6 +254,31 @@
 
     authLoginForm?.addEventListener("submit", submitLogin, true);
     authRegisterForm?.addEventListener("submit", submitRegister, true);
+    authRegisterSubmit?.addEventListener(
+        "click",
+        (event) => {
+            if (hasRegisterConsents()) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            showRegisterConsentWarning();
+        },
+        true,
+    );
+    [authRegisterOfertaConsent, authRegisterPolicyConsent].forEach((consent) => {
+        consent?.addEventListener("invalid", (event) => {
+            event.preventDefault();
+            showRegisterConsentWarning();
+        });
+        consent?.addEventListener("change", () => {
+            if (hasRegisterConsents()) {
+                authRegisterConsents?.classList.remove("is-attention");
+                setHint("", false);
+            }
+        });
+    });
     loginButton?.addEventListener("click", (event) => {
         if (!getSessionToken()) {
             return;

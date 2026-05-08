@@ -53,6 +53,9 @@ const authRegisterPhone = document.getElementById("auth-register-phone");
 const authRegisterPassword = document.getElementById("auth-register-password");
 const authLoginSubmit = document.getElementById("auth-login-submit");
 const authRegisterSubmit = document.getElementById("auth-register-submit");
+const authRegisterOfertaConsent = document.getElementById("auth-register-oferta-consent");
+const authRegisterPolicyConsent = document.getElementById("auth-register-policy-consent");
+const authRegisterConsents = document.getElementById("auth-register-consents");
 
 const authRequiredModal = document.getElementById("auth-required-modal");
 const authRequiredClose = document.getElementById("auth-required-close");
@@ -311,6 +314,20 @@ function setHint(message, isError = false) {
 
     authHint.textContent = message;
     authHint.style.color = isError ? "#9f2d0f" : "";
+}
+
+function hasRegisterConsents() {
+    return Boolean(authRegisterOfertaConsent?.checked && authRegisterPolicyConsent?.checked);
+}
+
+function showRegisterConsentWarning() {
+    authRegisterConsents?.classList.add("is-attention");
+    setHint("Подтвердите согласие с офертой и политикой конфиденциальности.", true);
+
+    const missingConsent = !authRegisterOfertaConsent?.checked
+        ? authRegisterOfertaConsent
+        : authRegisterPolicyConsent;
+    missingConsent?.focus();
 }
 
 function setAccountPhoneHint(message, isError = false) {
@@ -701,6 +718,11 @@ async function register(event) {
         return;
     }
 
+    if (!hasRegisterConsents()) {
+        showRegisterConsentWarning();
+        return;
+    }
+
     if (authRegisterSubmit) {
         authRegisterSubmit.disabled = true;
     }
@@ -991,6 +1013,31 @@ authRequiredRegister?.addEventListener("click", () => {
 });
 authLoginForm?.addEventListener("submit", login);
 authRegisterForm?.addEventListener("submit", register);
+authRegisterSubmit?.addEventListener(
+    "click",
+    (event) => {
+        if (hasRegisterConsents()) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        showRegisterConsentWarning();
+    },
+    true,
+);
+[authRegisterOfertaConsent, authRegisterPolicyConsent].forEach((consent) => {
+    consent?.addEventListener("invalid", (event) => {
+        event.preventDefault();
+        showRegisterConsentWarning();
+    });
+    consent?.addEventListener("change", () => {
+        if (hasRegisterConsents()) {
+            authRegisterConsents?.classList.remove("is-attention");
+            setHint("");
+        }
+    });
+});
 accountCurrentRefresh?.addEventListener("click", loadAccount);
 accountHistoryRefresh?.addEventListener("click", loadAccount);
 accountPhoneForm?.addEventListener("submit", updatePhone);

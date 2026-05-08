@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/styles.css?v=20260506-hero-mobile-center-1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260508-auth-consents-1">
 </head>
 <body class="preloader-active">
     <div class="page-preloader" id="page-preloader" aria-hidden="true">
@@ -253,6 +253,17 @@
                         <input id="auth-register-password" type="password" maxlength="128" placeholder=" " required>
                         <span>Пароль не менее 6 символов</span>
                     </label>
+
+                    <div class="auth-consents" id="auth-register-consents">
+                        <label class="auth-consent">
+                            <input id="auth-register-oferta-consent" type="checkbox" required>
+                            <span>Ознакомлен и соглашаюсь с <a href="/oferta" target="_blank" rel="noopener">офертой</a></span>
+                        </label>
+                        <label class="auth-consent">
+                            <input id="auth-register-policy-consent" type="checkbox" required>
+                            <span>Ознакомлен и соглашаюсь с <a href="/policy" target="_blank" rel="noopener">политикой конфиденциальности</a></span>
+                        </label>
+                    </div>
 
                     <button class="auth-submit" id="auth-register-submit" type="submit">Зарегистрироваться</button>
                 </form>
@@ -781,7 +792,7 @@
 
     <script defer src="/static/app.js?v=20260506-mobile-auth-storage-fix-1"></script>
     <script defer src="/static/catalog-admin.js?v=20260506-hero-mobile-fix-2"></script>
-    <script defer src="/static/account.js?v=20260506-mobile-auth-storage-fix-1"></script>
+    <script defer src="/static/account.js?v=20260508-auth-consents-1"></script>
     <script defer src="/static/checkout-bridge.js?v=20260506-mobile-auth-storage-fix-1"></script>
     <script defer src="/static/orders-admin.js?v=20260506-hero-mobile-fix-2"></script>
     <script>
