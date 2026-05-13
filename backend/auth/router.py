@@ -17,6 +17,7 @@ from backend.user.schemas import UserLoginRequest, UserRegisterRequest
 from backend.user.service import UserAuthError, UserService
 from config import (
     SMTP_FROM,
+    SMTP_FORCE_IPV4,
     SMTP_HOST,
     SMTP_PASSWORD,
     SMTP_PORT,
@@ -46,6 +47,7 @@ def get_password_recovery_service(session: AsyncSession = Depends(get_db)) -> Pa
             use_tls=SMTP_USE_TLS,
             use_ssl=SMTP_USE_SSL,
             timeout_seconds=SMTP_TIMEOUT_SECONDS,
+            force_ipv4=SMTP_FORCE_IPV4,
         ),
     )
 
