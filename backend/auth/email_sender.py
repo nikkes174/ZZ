@@ -18,6 +18,8 @@ class SMTPEmailSender:
     password: str
     from_email: str
     use_tls: bool = True
+    use_ssl: bool = False
+    timeout_seconds: int = 10
 
     async def send(self, *, email: str, subject: str, text: str) -> None:
         if not self.host or not self.port or not self.username or not self.password or not self.from_email:
@@ -35,8 +37,9 @@ class SMTPEmailSender:
             raise EmailDeliveryError("Failed to send email") from exc
 
     def _send_sync(self, message: EmailMessage) -> None:
-        with smtplib.SMTP(self.host, self.port, timeout=10) as smtp:
-            if self.use_tls:
+        smtp_class = smtplib.SMTP_SSL if self.use_ssl else smtplib.SMTP
+        with smtp_class(self.host, self.port, timeout=self.timeout_seconds) as smtp:
+            if self.use_tls and not self.use_ssl:
                 smtp.starttls()
             smtp.login(self.username, self.password)
             smtp.send_message(message)

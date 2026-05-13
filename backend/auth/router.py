@@ -15,7 +15,16 @@ from backend.user.crud import SqlAlchemyUserRepository
 from backend.user.depencises import get_user_service
 from backend.user.schemas import UserLoginRequest, UserRegisterRequest
 from backend.user.service import UserAuthError, UserService
-from config import SMTP_FROM, SMTP_HOST, SMTP_PASSWORD, SMTP_PORT, SMTP_USE_TLS, SMTP_USER
+from config import (
+    SMTP_FROM,
+    SMTP_HOST,
+    SMTP_PASSWORD,
+    SMTP_PORT,
+    SMTP_TIMEOUT_SECONDS,
+    SMTP_USE_SSL,
+    SMTP_USE_TLS,
+    SMTP_USER,
+)
 from db import get_db
 
 
@@ -35,6 +44,8 @@ def get_password_recovery_service(session: AsyncSession = Depends(get_db)) -> Pa
             password=SMTP_PASSWORD,
             from_email=SMTP_FROM,
             use_tls=SMTP_USE_TLS,
+            use_ssl=SMTP_USE_SSL,
+            timeout_seconds=SMTP_TIMEOUT_SECONDS,
         ),
     )
 

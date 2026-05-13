@@ -53,3 +53,5 @@ SMTP_USER = os.getenv("SMTP_USER", "Zamzam.ekb@gmail.com")
 SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER)
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").strip().lower() not in {"0", "false", "no", "off"}
+SMTP_USE_SSL = os.getenv("SMTP_USE_SSL", "false").strip().lower() in {"1", "true", "yes", "on"}
+SMTP_TIMEOUT_SECONDS = _get_int("SMTP_TIMEOUT_SECONDS", 10)
