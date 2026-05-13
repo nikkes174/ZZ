@@ -9,6 +9,15 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(..., min_length=1)
 
 
+class PasswordRecoveryRequest(BaseModel):
+    email: str = Field(..., min_length=3, max_length=255)
+
+
+class PasswordResetRequest(BaseModel):
+    token: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+    password: str = Field(..., min_length=6, max_length=128)
+
+
 class AuthTokenRead(BaseModel):
     access_token: str
     refresh_token: str

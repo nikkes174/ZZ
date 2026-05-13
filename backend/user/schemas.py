@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 class UserRegisterRequest(BaseModel):
     phone: str = Field(..., min_length=6, max_length=32)
+    email: str = Field(..., min_length=3, max_length=255)
     password: str = Field(..., min_length=6, max_length=128)
     full_name: Optional[str] = Field(default=None, max_length=120)
 
@@ -24,6 +25,7 @@ class UserProfileUpdateRequest(BaseModel):
 class UserRead(BaseModel):
     id: int
     phone: str
+    email: Optional[str]
     full_name: Optional[str]
     bonus_balance: int
     is_admin: bool

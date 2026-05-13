@@ -229,6 +229,7 @@
                         <span>Пароль</span>
                     </label>
 
+                    <button class="auth-link-button" id="auth-forgot-password" type="button">Забыли пароль?</button>
                     <button class="auth-submit" id="auth-login-submit" type="submit">Войти</button>
                 </form>
 
@@ -250,6 +251,11 @@
                     </label>
 
                     <label class="auth-field auth-field-floating">
+                        <input id="auth-register-email" type="email" maxlength="255" placeholder=" " required>
+                        <span>Email</span>
+                    </label>
+
+                    <label class="auth-field auth-field-floating">
                         <input id="auth-register-password" type="password" maxlength="128" placeholder=" " required>
                         <span>Пароль не менее 6 символов</span>
                     </label>
@@ -266,6 +272,34 @@
                     </div>
 
                     <button class="auth-submit" id="auth-register-submit" type="submit">Зарегистрироваться</button>
+                </form>
+
+                <form class="auth-form is-hidden" id="auth-recovery-form">
+                    <div class="auth-copy">
+                        <span class="section-kicker">Восстановление доступа</span>
+                        <h3>Сброс пароля</h3>
+                        <p>Укажите email, который был добавлен при регистрации. Мы отправим код восстановления.</p>
+                    </div>
+
+                    <label class="auth-field auth-field-floating">
+                        <input id="auth-recovery-email" type="email" maxlength="255" placeholder=" " required>
+                        <span>Email</span>
+                    </label>
+
+                    <label class="auth-field auth-field-floating is-hidden" id="auth-recovery-token-field">
+                        <input id="auth-recovery-token" type="text" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" placeholder=" ">
+                        <span>Код из письма</span>
+                    </label>
+
+                    <label class="auth-field auth-field-floating is-hidden" id="auth-recovery-password-field">
+                        <input id="auth-recovery-password" type="password" maxlength="128" placeholder=" ">
+                        <span>Новый пароль</span>
+                    </label>
+
+                    <div class="auth-recovery-actions">
+                        <button class="auth-submit" id="auth-recovery-submit" type="submit">Отправить код</button>
+                        <button class="auth-submit auth-submit-secondary is-hidden" id="auth-reset-submit" type="button">Сменить пароль</button>
+                    </div>
                 </form>
 
                 <div class="auth-hint" id="auth-hint"></div>

@@ -44,7 +44,13 @@ class UserService:
             raise UserAuthError("Укажите корректный номер телефона в формате +7.")
         return f"+{digits}"
 
-    def _hash_password(self, password: str) -> str:
+    def normalize_email(self, email: str) -> str:
+        normalized = email.strip().lower()
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", normalized):
+            raise UserAuthError("Укажите корректный email.")
+        return normalized
+
+    def hash_password(self, password: str) -> str:
         normalized = password.strip()
         if len(normalized) < 6:
             raise UserAuthError("Пароль должен содержать не менее 6 символов.")
@@ -76,8 +82,9 @@ class UserService:
 
     async def register(self, payload: UserRegisterRequest) -> UserAuthRead:
         normalized_phone = self.normalize_phone(payload.phone)
+        normalized_email = self.normalize_email(payload.email)
         full_name = (payload.full_name or "").strip() or None
-        password_hash = self._hash_password(payload.password)
+        password_hash = self.hash_password(payload.password)
         session_token = token_hex(24)
         is_admin = is_admin_phone(normalized_phone)
         logger.info("Registering user. phone=%s", normalized_phone)
@@ -86,9 +93,14 @@ class UserService:
         if user is not None and user.password_hash:
             raise UserAuthError("Пользователь с таким номером уже зарегистрирован.")
 
+        email_user = await self.repository.get_by_email(normalized_email)
+        if email_user is not None and (user is None or email_user.id != user.id):
+            raise UserAuthError("Пользователь с таким email уже зарегистрирован.")
+
         if user is None:
             created_user = await self.repository.create_user(
                 phone=normalized_phone,
+                email=normalized_email,
                 password_hash=password_hash,
                 full_name=full_name,
                 session_token=session_token,
@@ -98,6 +110,7 @@ class UserService:
             created_user = await self.repository.activate_existing_user(
                 user_id=user.id,
                 password_hash=password_hash,
+                email=normalized_email,
                 full_name=full_name,
                 session_token=session_token,
                 is_admin=is_admin,
@@ -186,6 +199,13 @@ class UserService:
             phone=normalized_phone,
             is_admin=is_admin_phone(normalized_phone),
         )
+        return UserRead.model_validate(user)
+
+    async def reset_password(self, *, user_id: int, password: str) -> UserRead:
+        password_hash = self.hash_password(password)
+        user = await self.repository.update_password(user_id=user_id, password_hash=password_hash)
+        if user is None:
+            raise UserNotFoundError(user_id)
         return UserRead.model_validate(user)
 
     def build_dashboard(

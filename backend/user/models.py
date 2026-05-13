@@ -14,6 +14,7 @@ class UserModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     phone: Mapped[str] = mapped_column(String(32), nullable=False, unique=True, index=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, unique=True, index=True)
     full_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     bonus_balance: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

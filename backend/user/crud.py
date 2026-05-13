@@ -11,11 +11,13 @@ from backend.user.models import UserModel
 class UserRepository(Protocol):
     async def get_by_id(self, user_id: int) -> Optional[UserModel]: ...
     async def get_by_phone(self, phone: str) -> Optional[UserModel]: ...
+    async def get_by_email(self, email: str) -> Optional[UserModel]: ...
     async def get_by_session_token(self, session_token: str) -> Optional[UserModel]: ...
     async def create_user(
         self,
         *,
         phone: str,
+        email: str,
         password_hash: str,
         full_name: Optional[str],
         session_token: str,
@@ -26,6 +28,7 @@ class UserRepository(Protocol):
         *,
         user_id: int,
         password_hash: str,
+        email: str,
         full_name: Optional[str],
         session_token: str,
         is_admin: bool,
@@ -34,6 +37,7 @@ class UserRepository(Protocol):
     async def clear_session_token(self, *, user_id: int) -> Optional[UserModel]: ...
     async def update_admin_status(self, *, user_id: int, is_admin: bool) -> UserModel: ...
     async def update_phone(self, *, user_id: int, phone: str, is_admin: bool) -> UserModel: ...
+    async def update_password(self, *, user_id: int, password_hash: str) -> Optional[UserModel]: ...
     async def add_bonus(self, *, user_id: int, bonus_delta: int) -> Optional[UserModel]: ...
     async def spend_bonus(self, *, user_id: int, bonus_amount: int) -> Optional[UserModel]: ...
 
@@ -50,6 +54,10 @@ class SqlAlchemyUserRepository:
         stmt = select(UserModel).where(UserModel.phone == phone)
         return await self._session.scalar(stmt)
 
+    async def get_by_email(self, email: str) -> Optional[UserModel]:
+        stmt = select(UserModel).where(UserModel.email == email)
+        return await self._session.scalar(stmt)
+
     async def get_by_session_token(self, session_token: str) -> Optional[UserModel]:
         stmt = select(UserModel).where(UserModel.session_token == session_token)
         return await self._session.scalar(stmt)
@@ -58,6 +66,7 @@ class SqlAlchemyUserRepository:
         self,
         *,
         phone: str,
+        email: str,
         password_hash: str,
         full_name: Optional[str],
         session_token: str,
@@ -65,6 +74,7 @@ class SqlAlchemyUserRepository:
     ) -> UserModel:
         user = UserModel(
             phone=phone,
+            email=email,
             full_name=full_name,
             password_hash=password_hash,
             is_admin=is_admin,
@@ -83,12 +93,14 @@ class SqlAlchemyUserRepository:
         *,
         user_id: int,
         password_hash: str,
+        email: str,
         full_name: Optional[str],
         session_token: str,
         is_admin: bool,
     ) -> UserModel:
         values: dict[str, object] = {
             "password_hash": password_hash,
+            "email": email,
             "is_admin": is_admin,
             "is_verified": True,
             "session_token": session_token,
@@ -162,6 +174,22 @@ class SqlAlchemyUserRepository:
         )
         result = await self._session.execute(stmt)
         user = result.scalar_one()
+        await self._session.commit()
+        return user
+
+    async def update_password(self, *, user_id: int, password_hash: str) -> Optional[UserModel]:
+        stmt = (
+            update(UserModel)
+            .where(UserModel.id == user_id)
+            .values(password_hash=password_hash)
+            .returning(UserModel)
+        )
+        result = await self._session.execute(stmt)
+        user = result.scalar_one_or_none()
+        if user is None:
+            await self._session.rollback()
+            return None
+
         await self._session.commit()
         return user
 

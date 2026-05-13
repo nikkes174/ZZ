@@ -32,7 +32,23 @@ def is_admin_phone(phone: str) -> bool:
 async def ensure_user_auth_columns() -> None:
     statements = [
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255)",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email)",
+        """
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            token VARCHAR(6) NOT NULL UNIQUE,
+            expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            used BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_password_reset_tokens_user_id ON password_reset_tokens (user_id)",
+        "CREATE INDEX IF NOT EXISTS ix_password_reset_tokens_token ON password_reset_tokens (token)",
+        "CREATE INDEX IF NOT EXISTS ix_password_reset_tokens_expires_at ON password_reset_tokens (expires_at)",
+        "CREATE INDEX IF NOT EXISTS ix_password_reset_tokens_used ON password_reset_tokens (used)",
     ]
 
     async with engine.begin() as conn:

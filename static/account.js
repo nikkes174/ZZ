@@ -50,7 +50,17 @@ const authPhone = document.getElementById("auth-phone");
 const authPassword = document.getElementById("auth-password");
 const authRegisterName = document.getElementById("auth-register-name");
 const authRegisterPhone = document.getElementById("auth-register-phone");
+const authRegisterEmail = document.getElementById("auth-register-email");
 const authRegisterPassword = document.getElementById("auth-register-password");
+const authRecoveryForm = document.getElementById("auth-recovery-form");
+const authRecoveryEmail = document.getElementById("auth-recovery-email");
+const authRecoveryTokenField = document.getElementById("auth-recovery-token-field");
+const authRecoveryToken = document.getElementById("auth-recovery-token");
+const authRecoveryPasswordField = document.getElementById("auth-recovery-password-field");
+const authRecoveryPassword = document.getElementById("auth-recovery-password");
+const authForgotPassword = document.getElementById("auth-forgot-password");
+const authRecoverySubmit = document.getElementById("auth-recovery-submit");
+const authResetSubmit = document.getElementById("auth-reset-submit");
 const authLoginSubmit = document.getElementById("auth-login-submit");
 const authRegisterSubmit = document.getElementById("auth-register-submit");
 const authRegisterOfertaConsent = document.getElementById("auth-register-oferta-consent");
@@ -90,6 +100,7 @@ const checkoutPolicyConsent = document.getElementById("checkout-policy-consent")
 
 let sessionToken = readPersistentStorage(SESSION_STORAGE_KEY);
 let authMode = "login";
+let recoveryCodeSent = false;
 let currentBonusBalance = 0;
 let lastAutofilledCheckoutName = "";
 let lastAutofilledCheckoutPhone = "";
@@ -330,6 +341,20 @@ function showRegisterConsentWarning() {
     missingConsent?.focus();
 }
 
+function syncRecoveryStep() {
+    authRecoveryTokenField?.classList.toggle("is-hidden", !recoveryCodeSent);
+    authRecoveryPasswordField?.classList.toggle("is-hidden", !recoveryCodeSent);
+    authResetSubmit?.classList.toggle("is-hidden", !recoveryCodeSent);
+    authRecoverySubmit?.classList.toggle("is-hidden", recoveryCodeSent);
+
+    if (authRecoveryToken) {
+        authRecoveryToken.required = recoveryCodeSent;
+    }
+    if (authRecoveryPassword) {
+        authRecoveryPassword.required = recoveryCodeSent;
+    }
+}
+
 function setAccountPhoneHint(message, isError = false) {
     if (!accountPhoneHint) {
         return;
@@ -342,21 +367,39 @@ function setAccountPhoneHint(message, isError = false) {
 function syncAuthMode() {
     authLoginForm?.classList.toggle("is-hidden", authMode !== "login");
     authRegisterForm?.classList.toggle("is-hidden", authMode !== "register");
+    authRecoveryForm?.classList.toggle("is-hidden", authMode !== "recovery");
     authTabLogin?.classList.toggle("is-active", authMode === "login");
     authTabRegister?.classList.toggle("is-active", authMode === "register");
     if (authBack) {
-        authBack.style.visibility = "hidden";
+        authBack.style.visibility = authMode === "recovery" ? "visible" : "hidden";
     }
 }
 
 function setAuthMode(mode = "login") {
-    authMode = mode === "register" ? "register" : "login";
+    authMode = ["login", "register", "recovery"].includes(mode) ? mode : "login";
+    if (authMode === "recovery") {
+        recoveryCodeSent = false;
+    }
     syncAuthMode();
+    syncRecoveryStep();
     setHint("");
 
     if (authMode === "login") {
         if (authPhone && !authPhone.value.trim()) {
             authPhone.value = getCheckoutPhone();
+        }
+        return;
+    }
+
+    if (authMode === "recovery") {
+        if (authRecoveryEmail && authRegisterEmail?.value.trim() && !authRecoveryEmail.value.trim()) {
+            authRecoveryEmail.value = authRegisterEmail.value.trim();
+        }
+        if (authRecoveryToken) {
+            authRecoveryToken.value = "";
+        }
+        if (authRecoveryPassword) {
+            authRecoveryPassword.value = "";
         }
         return;
     }
@@ -711,10 +754,11 @@ async function register(event) {
     event.preventDefault();
 
     const phone = ensurePhonePrefixValue(authRegisterPhone).trim();
+    const email = authRegisterEmail?.value.trim() || "";
     const password = authRegisterPassword?.value.trim() || "";
     const fullName = authRegisterName?.value.trim() || getCheckoutName() || null;
-    if (!phone || !password) {
-        setHint("Введите номер телефона и пароль.", true);
+    if (!phone || !email || !password) {
+        setHint("Введите номер телефона, email и пароль.", true);
         return;
     }
 
@@ -734,6 +778,7 @@ async function register(event) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 phone,
+                email,
                 password,
                 full_name: fullName,
             }),
@@ -749,6 +794,85 @@ async function register(event) {
     } finally {
         if (authRegisterSubmit) {
             authRegisterSubmit.disabled = false;
+        }
+    }
+}
+
+async function requestPasswordRecovery(event) {
+    event.preventDefault();
+
+    const email = authRecoveryEmail?.value.trim() || "";
+    if (!email) {
+        setHint("Введите email для восстановления пароля.", true);
+        return;
+    }
+
+    if (authRecoverySubmit) {
+        authRecoverySubmit.disabled = true;
+    }
+    setHint("");
+
+    try {
+        const response = await fetch("/api/auth/password/recovery", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(payload?.detail || "Не удалось отправить письмо.");
+        }
+
+        recoveryCodeSent = true;
+        syncRecoveryStep();
+        setHint("Если email зарегистрирован, код восстановления отправлен.", false);
+        authRecoveryToken?.focus();
+    } catch (error) {
+        setHint(error.message || "Не удалось отправить письмо.", true);
+    } finally {
+        if (authRecoverySubmit) {
+            authRecoverySubmit.disabled = false;
+        }
+    }
+}
+
+async function resetPassword(event) {
+    event.preventDefault();
+
+    const token = authRecoveryToken?.value.trim() || "";
+    const password = authRecoveryPassword?.value.trim() || "";
+    if (!token || !password) {
+        setHint("Введите код из письма и новый пароль.", true);
+        return;
+    }
+
+    if (authResetSubmit) {
+        authResetSubmit.disabled = true;
+    }
+    setHint("");
+
+    try {
+        const response = await fetch("/api/auth/password/reset", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token, password }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(payload?.detail || "Не удалось сменить пароль.");
+        }
+
+        setHint("Пароль успешно изменен. Теперь можно войти.", false);
+        setAuthMode("login");
+        if (authPassword) {
+            authPassword.value = "";
+            authPassword.focus();
+        }
+    } catch (error) {
+        setHint(error.message || "Не удалось сменить пароль.", true);
+    } finally {
+        if (authResetSubmit) {
+            authResetSubmit.disabled = false;
         }
     }
 }
@@ -994,6 +1118,9 @@ authTabLogin?.addEventListener("click", () => {
 authTabRegister?.addEventListener("click", () => {
     setAuthMode("register");
 });
+authForgotPassword?.addEventListener("click", () => {
+    setAuthMode("recovery");
+});
 authBack?.addEventListener("click", () => {
     setAuthMode("login");
 });
@@ -1013,6 +1140,8 @@ authRequiredRegister?.addEventListener("click", () => {
 });
 authLoginForm?.addEventListener("submit", login);
 authRegisterForm?.addEventListener("submit", register);
+authRecoveryForm?.addEventListener("submit", requestPasswordRecovery);
+authResetSubmit?.addEventListener("click", resetPassword);
 authRegisterSubmit?.addEventListener(
     "click",
     (event) => {

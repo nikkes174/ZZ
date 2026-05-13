@@ -11,6 +11,7 @@
     const authPassword = document.getElementById("auth-password");
     const authRegisterName = document.getElementById("auth-register-name");
     const authRegisterPhone = document.getElementById("auth-register-phone");
+    const authRegisterEmail = document.getElementById("auth-register-email");
     const authRegisterPassword = document.getElementById("auth-register-password");
     const authLoginSubmit = document.getElementById("auth-login-submit");
     const authRegisterSubmit = document.getElementById("auth-register-submit");
@@ -185,10 +186,11 @@
         event.stopImmediatePropagation();
 
         const phone = ensurePhonePrefixValue(authRegisterPhone).trim();
+        const email = authRegisterEmail?.value.trim() || "";
         const password = authRegisterPassword?.value.trim() || "";
         const fullName = authRegisterName?.value.trim() || checkoutName?.value.trim() || null;
-        if (!phone || !password) {
-            setHint("Введите номер телефона и пароль.", true);
+        if (!phone || !email || !password) {
+            setHint("Введите номер телефона, email и пароль.", true);
             return;
         }
 
@@ -208,6 +210,7 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     phone,
+                    email,
                     password,
                     full_name: fullName,
                 }),

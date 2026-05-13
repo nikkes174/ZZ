@@ -2247,6 +2247,22 @@ body.admin-mode .menu-admin-bar {
     display: none;
 }
 
+.auth-link-button {
+    width: fit-content;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #d8b26b;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.auth-link-button:hover {
+    color: #f5f0e8;
+}
+
 .auth-copy {
     display: grid;
     gap: 10px;
@@ -2354,6 +2370,11 @@ body.admin-mode .menu-admin-bar {
     position: relative;
 }
 
+.auth-field.is-hidden,
+.auth-submit.is-hidden {
+    display: none;
+}
+
 .auth-field input {
     width: 100%;
     min-height: 54px;
@@ -2433,6 +2454,11 @@ body.admin-mode .menu-admin-bar {
     opacity: 0.7;
     cursor: wait;
     transform: none;
+}
+
+.auth-recovery-actions {
+    display: grid;
+    gap: 12px;
 }
 
 .auth-hint {
