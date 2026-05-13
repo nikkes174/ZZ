@@ -15,7 +15,7 @@ from backend.user.crud import SqlAlchemyUserRepository
 from backend.user.depencises import get_user_service
 from backend.user.schemas import UserLoginRequest, UserRegisterRequest
 from backend.user.service import UserAuthError, UserService
-from config import SMTP_FROM, SMTP_HOST, SMTP_PASSWORD, SMTP_PORT, SMTP_USER
+from config import SMTP_FROM, SMTP_HOST, SMTP_PASSWORD, SMTP_PORT, SMTP_USE_TLS, SMTP_USER
 from db import get_db
 
 
@@ -32,8 +32,9 @@ def get_password_recovery_service(session: AsyncSession = Depends(get_db)) -> Pa
             host=SMTP_HOST,
             port=SMTP_PORT,
             username=SMTP_USER,
-            password=SMTP_PASSWORD or "",
+            password=SMTP_PASSWORD,
             from_email=SMTP_FROM,
+            use_tls=SMTP_USE_TLS,
         ),
     )
 
@@ -99,7 +100,11 @@ async def request_password_recovery(
     except UserAuthError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except EmailDeliveryError as exc:
-        logger.warning("Password recovery email delivery failed: %s", type(exc.__cause__).__name__)
+        logger.warning(
+            "Password recovery email delivery failed. reason=%s detail=%s",
+            type(exc.__cause__).__name__ if exc.__cause__ else type(exc).__name__,
+            str(exc.__cause__ or exc),
+        )
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Не удалось отправить письмо.") from exc
     return {"ok": True}
 

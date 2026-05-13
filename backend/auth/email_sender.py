@@ -21,7 +21,7 @@ class SMTPEmailSender:
 
     async def send(self, *, email: str, subject: str, text: str) -> None:
         if not self.host or not self.port or not self.username or not self.password or not self.from_email:
-            raise EmailDeliveryError("SMTP is not configured")
+            raise EmailDeliveryError("SMTP is not configured: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD and SMTP_FROM are required")
 
         message = EmailMessage()
         message["From"] = self.from_email
