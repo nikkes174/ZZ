@@ -5,10 +5,15 @@ import socket
 import smtplib
 from dataclasses import dataclass
 from email.message import EmailMessage
+from typing import Protocol
 
 
 class EmailDeliveryError(Exception):
     pass
+
+
+class EmailSender(Protocol):
+    async def send(self, *, email: str, subject: str, text: str) -> None: ...
 
 
 def _create_ipv4_connection(
@@ -58,18 +63,11 @@ class SMTPEmailSender:
     timeout_seconds: int = 10
     force_ipv4: bool = True
 
-    def _resolve_login(self) -> str:
-        # Some SMTP providers require the full mailbox address for auth even if
-        # the configured username is a short alias/login.
-        if "@" in self.username:
-            return self.username
-        if "@" in self.from_email:
-            return self.from_email
-        return self.username
-
     async def send(self, *, email: str, subject: str, text: str) -> None:
         if not self.host or not self.port or not self.username or not self.password or not self.from_email:
-            raise EmailDeliveryError("SMTP is not configured: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD and SMTP_FROM are required")
+            raise EmailDeliveryError(
+                "SMTP is not configured: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD and SMTP_FROM are required"
+            )
 
         message = EmailMessage()
         message["From"] = self.from_email
@@ -83,7 +81,6 @@ class SMTPEmailSender:
             raise EmailDeliveryError("Failed to send email") from exc
 
     def _send_sync(self, message: EmailMessage) -> None:
-        login = self._resolve_login()
         if self.use_ssl:
             smtp_class = IPv4SMTPSSL if self.force_ipv4 else smtplib.SMTP_SSL
         else:
@@ -91,5 +88,5 @@ class SMTPEmailSender:
         with smtp_class(self.host, self.port, timeout=self.timeout_seconds) as smtp:
             if self.use_tls and not self.use_ssl:
                 smtp.starttls()
-            smtp.login(login, self.password)
+            smtp.login(self.username.strip(), self.password)
             smtp.send_message(message)

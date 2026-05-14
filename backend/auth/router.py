@@ -16,8 +16,8 @@ from backend.user.depencises import get_user_service
 from backend.user.schemas import UserLoginRequest, UserRegisterRequest
 from backend.user.service import UserAuthError, UserService
 from config import (
-    SMTP_FROM,
     SMTP_FORCE_IPV4,
+    SMTP_FROM,
     SMTP_HOST,
     SMTP_PASSWORD,
     SMTP_PORT,
@@ -116,7 +116,7 @@ async def request_password_recovery(
         logger.warning(
             "Password recovery email delivery failed. reason=%s detail=%s",
             type(exc.__cause__).__name__ if exc.__cause__ else type(exc).__name__,
-            str(exc.__cause__ or exc),
+            str(exc),
         )
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Не удалось отправить письмо.") from exc
     return {"ok": True}
