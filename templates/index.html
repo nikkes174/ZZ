@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/styles.css?v=20260508-auth-consents-1">
+    <link rel="stylesheet" href="/static/styles.css?v=20260519-delivery-info-modal-1">
 </head>
 <body class="preloader-active">
     <div class="page-preloader" id="page-preloader" aria-hidden="true">
@@ -50,6 +50,7 @@
     <div class="checkout-backdrop" id="checkout-backdrop"></div>
     <div class="checkout-backdrop" id="auth-backdrop"></div>
     <div class="checkout-backdrop" id="footer-map-backdrop"></div>
+    <div class="checkout-backdrop" id="delivery-info-backdrop"></div>
     <div class="admin-backdrop" id="admin-backdrop"></div>
     <aside class="cart-drawer" id="order-panel">
         <div class="cart-drawer-shell">
@@ -361,6 +362,30 @@
             </div>
         </div>
     </section>
+    <section class="checkout-modal footer-map-modal delivery-info-modal" id="delivery-info-modal" aria-hidden="true">
+        <div class="checkout-modal-shell">
+            <div class="footer-map-modal-wrap delivery-info-modal-wrap">
+                <div class="checkout-modal-head">
+                    <div>
+                        <span class="section-kicker">Доставка</span>
+                        <h3>Условия доставки</h3>
+
+                    </div>
+                    <button class="admin-close" id="delivery-info-close" type="button" aria-label="Закрыть условия доставки">x</button>
+                </div>
+
+                <div class="delivery-info-list">
+                    <div class="delivery-info-item">
+                        <span>Минимальная сумма заказа для доставки</span>
+                        <strong>1 000 руб.</strong>
+                        <span>Бесплатная доставка при заказе от</span>
+                        <strong>5 000 руб.</strong>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </section>
     <section class="admin-modal" id="admin-modal" aria-hidden="true">
         <div class="admin-modal-head">
             <div>
@@ -553,6 +578,7 @@
             <div class="nav-links">
                 <a href="#about">О нас</a>
                 <a href="#menu">Меню</a>
+                <a href="#delivery-info" data-delivery-info-open>Доставка</a>
                 <a href="#footer">Контакты</a>
             </div>
 
@@ -794,7 +820,7 @@
                 <div class="site-footer-links">
                     <a href="#hero">Главная</a>
                     <a href="#menu">Меню</a>
-                    <a href="О нас">Доставка</a>
+                    <a href="#delivery-info" data-delivery-info-open>Доставка</a>
 
                 </div>
             </div>
@@ -824,7 +850,7 @@
         </div>
     </footer>
 
-    <script defer src="/static/app.js?v=20260506-mobile-auth-storage-fix-1"></script>
+    <script defer src="/static/app.js?v=20260519-free-delivery-counter-1"></script>
     <script defer src="/static/catalog-admin.js?v=20260506-hero-mobile-fix-2"></script>
     <script defer src="/static/account.js?v=20260508-auth-consents-1"></script>
     <script defer src="/static/checkout-bridge.js?v=20260506-mobile-auth-storage-fix-1"></script>
@@ -836,6 +862,26 @@
             const topbar = document.querySelector(".topbar");
             const topbarBurger = document.getElementById("topbar-burger");
             const heroVideo = document.querySelector(".hero-background-image");
+            const deliveryInfoModal = document.getElementById("delivery-info-modal");
+            const deliveryInfoBackdrop = document.getElementById("delivery-info-backdrop");
+            const deliveryInfoClose = document.getElementById("delivery-info-close");
+
+            function openDeliveryInfoModal(event) {
+                event?.preventDefault();
+                setMobileMenuOpen(false);
+                deliveryInfoBackdrop?.classList.add("is-open");
+                deliveryInfoModal?.classList.add("is-open");
+                deliveryInfoModal?.setAttribute("aria-hidden", "false");
+                document.body.classList.add("admin-open");
+            }
+
+            function closeDeliveryInfoModal() {
+                deliveryInfoBackdrop?.classList.remove("is-open");
+                deliveryInfoModal?.classList.remove("is-open");
+                deliveryInfoModal?.setAttribute("aria-hidden", "true");
+                document.body.classList.remove("admin-open");
+            }
+
             function setMobileMenuOpen(isOpen) {
                 topbar?.classList.toggle("is-menu-open", isOpen);
                 topbarWrap?.classList.toggle("is-menu-open", isOpen);
@@ -889,6 +935,13 @@
                 setMobileMenuOpen(!topbar?.classList.contains("is-menu-open"));
             });
 
+            document.querySelectorAll("[data-delivery-info-open]").forEach(function (item) {
+                item.addEventListener("click", openDeliveryInfoModal);
+            });
+
+            deliveryInfoClose?.addEventListener("click", closeDeliveryInfoModal);
+            deliveryInfoBackdrop?.addEventListener("click", closeDeliveryInfoModal);
+
             topbarWrap?.addEventListener("click", function (event) {
                 if (!topbar?.classList.contains("is-menu-open")) {
                     return;
@@ -928,6 +981,7 @@
             document.addEventListener("keydown", function (event) {
                 if (event.key === "Escape") {
                     setMobileMenuOpen(false);
+                    closeDeliveryInfoModal();
                 }
             });
 

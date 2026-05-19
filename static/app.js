@@ -1,5 +1,6 @@
 const cart = new Map();
 const MIN_CHECKOUT_AMOUNT = 1000;
+const FREE_DELIVERY_AMOUNT = 5000;
 const SESSION_STORAGE_KEY = "zamzam_session_token";
 
 function readPersistentStorage(key) {
@@ -247,10 +248,16 @@ function closeMobileMenu() {
 
 function syncCartCheckoutNote() {
     if (cartCheckoutNote) {
-        cartCheckoutNote.textContent =
-            checkoutType === "delivery"
-                ? "Минимальная сумма заказа для доставки 1000 ₽."
-                : "Самовывоз доступен без минимальной суммы.";
+        if (checkoutType !== "delivery") {
+            cartCheckoutNote.textContent = "Самовывоз доступен без минимальной суммы.";
+            return;
+        }
+
+        const { totalPriceValue } = getCartTotals();
+        const remainingToFreeDelivery = Math.max(0, FREE_DELIVERY_AMOUNT - totalPriceValue);
+        cartCheckoutNote.innerHTML = remainingToFreeDelivery > 0
+            ? `Минимальная сумма заказа для доставки ${formatPrice(MIN_CHECKOUT_AMOUNT)}<br>Сумма заказа для бесплатной доставки от ${formatPrice(FREE_DELIVERY_AMOUNT)}<br>До бесплатной доставки осталось ${formatPrice(remainingToFreeDelivery)}`
+            : "Доставка будет бесплатной.";
     }
 }
 
@@ -1586,6 +1593,8 @@ function renderCart() {
     const { entries, totalItems, totalPriceValue } = getCartTotals();
     const hasEntries = entries.length > 0;
     const canCheckout = hasEntries && canCheckoutWithCurrentType(totalPriceValue);
+
+    syncCartCheckoutNote();
 
     if (cutleryCount) {
         cutleryCount.textContent = `${cutleryItemsCount}`;
