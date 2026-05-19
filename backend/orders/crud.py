@@ -4,7 +4,7 @@ import json
 from collections.abc import Sequence
 from typing import Optional, Protocol
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -194,6 +194,7 @@ class SqlAlchemyOrderRepository:
             .where(
                 OrderModel.status.in_(self.ACTIVE_STATUSES),
                 OrderModel.iiko_order_id.is_not(None),
+                or_(OrderModel.iiko_creation_status.is_(None), OrderModel.iiko_creation_status != "Failed"),
             )
             .order_by(OrderModel.created_at.asc(), OrderModel.id.asc())
             .limit(limit)

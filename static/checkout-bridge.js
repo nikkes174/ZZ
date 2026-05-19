@@ -153,7 +153,7 @@
                 customer_name: customerName,
                 customer_phone: customerPhone,
                 checkout_type: checkoutState.checkoutType,
-                payment_type: checkoutState.checkoutPayment,
+                payment_type: "card",
                 delivery_address: deliveryAddress || null,
                 entrance: entrance || null,
                 comment: comment || null,

@@ -101,6 +101,21 @@ class IikoOrderStatusSyncService:
                 continue
 
             iiko_status = self._extract_iiko_status(iiko_order)
+            if (iiko_status or "").strip().lower() == "error":
+                logger.warning(
+                    "iiko order is in Error status. order_id=%s iiko_order_id=%s payload=%s",
+                    local_order.id,
+                    iiko_order_id,
+                    json.dumps(iiko_order, ensure_ascii=False, default=str)[:4000],
+                )
+                await self.repository.update_iiko_result(
+                    order_id=local_order.id,
+                    iiko_order_id=local_order.iiko_order_id,
+                    iiko_correlation_id=local_order.iiko_correlation_id,
+                    iiko_creation_status="Failed",
+                )
+                updated += 1
+                continue
             next_status = self._map_iiko_status(iiko_status=iiko_status, checkout_type=local_order.checkout_type)
             if not next_status or next_status == local_order.status:
                 continue

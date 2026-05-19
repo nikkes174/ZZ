@@ -42,7 +42,7 @@ class OrderCreate(BaseModel):
     @field_validator("payment_type")
     @classmethod
     def validate_payment_type(cls, value: str) -> str:
-        if value not in {"cash", "card"}:
+        if value != "card":
             raise ValueError("Некорректный способ оплаты.")
         return value
 

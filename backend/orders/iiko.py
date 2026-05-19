@@ -38,6 +38,8 @@ class IikoOrderGateway:
     organization_id: Optional[str]
     terminal_group_id: Optional[str]
     source_key: str = "zamzam-site"
+    online_payment_type_id: Optional[str] = None
+    online_payment_type_kind: str = "Card"
 
     async def submit_order(
         self,
@@ -175,7 +177,21 @@ class IikoOrderGateway:
         total_amount: int,
     ) -> list[dict[str, object]]:
         if payment_type != "cash":
-            return []
+            if not self.online_payment_type_id:
+                logger.warning("Online iiko payment type is not configured. order will be sent without payments.")
+                return []
+            if total_amount <= 0:
+                return []
+            return [
+                {
+                    "paymentTypeKind": self.online_payment_type_kind,
+                    "sum": float(total_amount),
+                    "paymentTypeId": self.online_payment_type_id,
+                    "isProcessedExternally": True,
+                    "isFiscalizedExternally": True,
+                    "isPrepay": True,
+                }
+            ]
         if total_amount <= 0:
             return []
 

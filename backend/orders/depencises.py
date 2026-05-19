@@ -11,6 +11,8 @@ from backend.redactor.crud import SqlAlchemyMenuItemRepository
 from config import (
     API_IIKO,
     IIKO_BASE_URL,
+    IIKO_ONLINE_PAYMENT_TYPE_ID,
+    IIKO_ONLINE_PAYMENT_TYPE_KIND,
     IIKO_ORDER_SOURCE_KEY,
     IIKO_ORDER_TIMEOUT_SECONDS,
     IIKO_ORGANIZATION_ID,
@@ -41,6 +43,8 @@ def get_iiko_order_gateway() -> IikoOrderGateway:
         organization_id=IIKO_ORGANIZATION_ID,
         terminal_group_id=TERMINAL_ID_GROUP,
         source_key=IIKO_ORDER_SOURCE_KEY,
+        online_payment_type_id=IIKO_ONLINE_PAYMENT_TYPE_ID,
+        online_payment_type_kind=IIKO_ONLINE_PAYMENT_TYPE_KIND,
     )
 
 
