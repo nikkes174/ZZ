@@ -47,6 +47,7 @@ class IikoOrderGateway:
         payload: OrderCreate,
         items: list[IikoOrderItem],
         total_amount: int,
+        external_number: Optional[str] = None,
     ) -> dict[str, str]:
         if not self.client.api_login:
             raise IikoOrderError("API_IIKO is not configured.")
@@ -97,6 +98,8 @@ class IikoOrderGateway:
         }
         if self.source_key:
             order_payload["order"]["sourceKey"] = self.source_key
+        if external_number:
+            order_payload["order"]["externalNumber"] = external_number[:50]
         if comment_parts:
             order_payload["order"]["comment"] = " | ".join(comment_parts)
         if payments:

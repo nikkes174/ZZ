@@ -59,6 +59,7 @@ async def create_order(
             )
             existing_order = await order_service.get_by_idempotency_key(idempotency_key)
             if existing_order is not None:
+                await order_service.enqueue_iiko_submission_if_needed(order_id=existing_order.id)
                 existing_status = "created"
                 if existing_order.iiko_creation_status == "LocalPending":
                     existing_status = "processing"
@@ -81,6 +82,7 @@ async def create_order(
             )
             if not claimed_order.is_owner or claimed_order.prepared_order is None:
                 existing_order = claimed_order.order
+                await order_service.enqueue_iiko_submission_if_needed(order_id=existing_order.id)
                 existing_status = "created"
                 if existing_order.iiko_creation_status == "LocalPending":
                     existing_status = "processing"
@@ -99,6 +101,7 @@ async def create_order(
             spent_bonus = prepared_order.payload.bonus_spent
             if spent_bonus:
                 updated_user = await user_service.spend_bonus(user_id=user.id, bonus_amount=spent_bonus)
+            await order_service.enqueue_iiko_submission_if_needed(order_id=claimed_order.order.id)
             try:
                 order = await order_service.submit_claimed_order(
                     order_id=claimed_order.order.id,

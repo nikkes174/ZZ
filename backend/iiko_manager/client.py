@@ -104,8 +104,12 @@ class IikoApiClient:
     async def _post(self, path: str, json_payload: dict[str, Any], *, token: Optional[str]) -> dict[str, Any]:
         headers = {"Authorization": f"Bearer {token}"} if token else None
         logger.debug("Sending iiko request. path=%s payload_keys=%s", path, sorted(json_payload.keys()))
-        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-            response = await client.post(f"{self.base_url}/{path}", json=json_payload, headers=headers)
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                response = await client.post(f"{self.base_url}/{path}", json=json_payload, headers=headers)
+        except httpx.HTTPError as exc:
+            logger.warning("iiko request failed. path=%s error=%s", path, exc)
+            raise IikoClientError(f"iiko request failed for {path}: {exc}") from exc
 
         try:
             response.raise_for_status()

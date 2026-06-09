@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from sqlalchemy.exc import IntegrityError
@@ -52,6 +53,14 @@ class PreparedOrder:
 class OrderStatusSyncResult:
     checked: int = 0
     updated: int = 0
+
+
+@dataclass(frozen=True)
+class IikoOrderRetryResult:
+    checked: int = 0
+    submitted: int = 0
+    failed: int = 0
+    enqueued: int = 0
 
 
 @dataclass(frozen=True)
@@ -284,6 +293,13 @@ class OrderService:
         )
 
     async def submit_claimed_order(self, *, order_id: int, prepared_order: PreparedOrder) -> OrderRead:
+        claimed_order = await self.repository.claim_iiko_submission(order_id=order_id)
+        if claimed_order is None:
+            order = await self.repository.get_by_id(order_id)
+            if order is None:
+                raise OrderNotFoundError(order_id)
+            return self._to_read(order)
+
         try:
             iiko_result = await self.iiko_order_gateway.submit_order(
                 payload=prepared_order.payload,
@@ -297,6 +313,7 @@ class OrderService:
                     for item in prepared_order.normalized_items
                 ],
                 total_amount=prepared_order.total_amount,
+                external_number=self._build_iiko_external_number(order_id),
             )
         except IikoOrderError as exc:
             await self.repository.update_iiko_result(
@@ -316,6 +333,57 @@ class OrderService:
         if order is None:
             raise OrderNotFoundError(order_id)
         return self._to_read(order)
+
+    async def retry_pending_iiko_submissions(self, *, limit: int = 20) -> IikoOrderRetryResult:
+        safe_limit = max(1, min(limit, 100))
+        enqueued = await self.repository.enqueue_missing_paid_iiko_submission_jobs(limit=safe_limit)
+        jobs = await self.repository.claim_due_iiko_submission_jobs(limit=safe_limit)
+        submitted = 0
+        failed = 0
+
+        for job in jobs:
+            try:
+                order = await self.submit_existing_order_to_iiko(order_id=job.order_id)
+            except OrderValidationError as exc:
+                failed += 1
+                await self.repository.mark_iiko_submission_job_failed(
+                    job_id=job.id,
+                    error_message=str(exc),
+                    next_run_at=self._next_iiko_retry_at(job.attempts),
+                )
+                logger.exception("Could not retry iiko order submission. order_id=%s job_id=%s", job.order_id, job.id)
+                continue
+            if order.iiko_order_id:
+                await self.repository.mark_iiko_submission_job_done(job_id=job.id)
+            else:
+                failed += 1
+                await self.repository.mark_iiko_submission_job_failed(
+                    job_id=job.id,
+                    error_message="iiko submission is still processing.",
+                    next_run_at=self._next_iiko_retry_at(job.attempts),
+                )
+                continue
+            submitted += 1
+
+        return IikoOrderRetryResult(checked=len(jobs), submitted=submitted, failed=failed, enqueued=enqueued)
+
+    async def submit_existing_order_to_iiko(self, *, order_id: int) -> OrderRead:
+        order = await self.repository.get_by_id(order_id)
+        if order is None:
+            raise OrderNotFoundError(order_id)
+        if order.iiko_order_id and order.iiko_creation_status not in {"Failed", "LocalPending"}:
+            return self._to_read(order)
+
+        prepared_order = await self._prepare_existing_order_for_iiko(order)
+        return await self.submit_claimed_order(order_id=order.id, prepared_order=prepared_order)
+
+    async def enqueue_iiko_submission_if_needed(self, *, order_id: int) -> None:
+        order = await self.repository.get_by_id(order_id)
+        if order is None or order.iiko_order_id:
+            return
+        if order.iiko_creation_status not in {"LocalPending", "Failed"}:
+            return
+        await self.repository.enqueue_iiko_submission_job(order_id=order.id)
 
     async def prepare_order(self, *, payload: OrderCreate, available_bonus_balance: int) -> PreparedOrder:
         normalized_items = await self._normalize_order_items(payload)
@@ -390,6 +458,7 @@ class OrderService:
                     for item in prepared_order.normalized_items
                 ],
                 total_amount=prepared_order.total_amount,
+                external_number=self._build_iiko_external_number(local_order.id) if local_order is not None else None,
             )
         except IikoOrderError as exc:
             if local_order is not None:
@@ -424,6 +493,13 @@ class OrderService:
                 iiko_creation_status=iiko_result.get("creation_status") or None,
             )
         return self._to_read(order)
+
+    def _build_iiko_external_number(self, order_id: int) -> str:
+        return f"zamzam-order-{order_id}"
+
+    def _next_iiko_retry_at(self, attempts: int) -> datetime:
+        delay_seconds = min(15 * 60, 30 * (2 ** max(0, attempts - 1)))
+        return datetime.now(timezone.utc) + timedelta(seconds=delay_seconds)
 
     async def list_user_orders(self, user_id: int) -> UserOrdersPage:
         orders = await self.repository.list_by_user(user_id)
@@ -531,3 +607,47 @@ class OrderService:
             )
 
         return normalized_items
+
+    async def _prepare_existing_order_for_iiko(self, order) -> PreparedOrder:
+        order_items = [OrderItemPayload.model_validate(item) for item in json.loads(order.items_json)]
+        ordered_ids: list[int] = []
+        for item in order_items:
+            try:
+                item_id = int(item.id)
+            except (TypeError, ValueError) as exc:
+                raise OrderValidationError("Order contains an invalid menu item id.") from exc
+            ordered_ids.append(item_id)
+
+        menu_items = await self.menu_item_repository.get_many_by_ids(ordered_ids)
+        menu_items_by_id = {item.id: item for item in menu_items}
+        normalized_items: list[NormalizedOrderItem] = []
+        for item in order_items:
+            item_id = int(item.id)
+            menu_item = menu_items_by_id.get(item_id)
+            if menu_item is None or not menu_item.iiko_product_id:
+                raise OrderValidationError(f"Order item {item.id} is not linked to an iiko product.")
+            normalized_items.append(
+                NormalizedOrderItem(
+                    order_item=item,
+                    iiko_product_id=str(menu_item.iiko_product_id),
+                )
+            )
+
+        payload = OrderCreate(
+            customer_name=order.customer_name,
+            customer_phone=order.customer_phone,
+            checkout_type=order.checkout_type,
+            payment_type=order.payment_type,
+            delivery_address=order.delivery_address,
+            entrance=order.entrance,
+            comment=order.comment,
+            cutlery_count=order.cutlery_count,
+            bonus_spent=order.bonus_spent,
+            items=order_items,
+        )
+        return PreparedOrder(
+            payload=payload,
+            normalized_items=normalized_items,
+            subtotal_amount=order.subtotal_amount,
+            total_amount=order.total_amount,
+        )

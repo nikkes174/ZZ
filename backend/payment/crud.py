@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from sqlalchemy import select, update, func
+from sqlalchemy import or_, select, text, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.payment.models import PendingPaymentModel
@@ -71,7 +71,10 @@ class SqlAlchemyPendingPaymentRepository:
             .where(
                 PendingPaymentModel.id == pending_payment_id,
                 PendingPaymentModel.order_id.is_(None),
-                PendingPaymentModel.status != "processing",
+                or_(
+                    PendingPaymentModel.status != "processing",
+                    PendingPaymentModel.updated_at < func.now() - text("interval '2 minutes'"),
+                ),
             )
             .values(status="processing", error_message=None, updated_at=func.now())
             .returning(PendingPaymentModel)

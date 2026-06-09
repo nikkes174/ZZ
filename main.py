@@ -15,8 +15,9 @@ from fastapi.templating import Jinja2Templates
 from backend.auth import router as auth_router
 from backend.orders import router as orders_router
 from backend.orders.crud import SqlAlchemyOrderRepository
+from backend.orders.iiko import IikoOrderGateway
 from backend.orders.migrations import ensure_order_bonus_columns
-from backend.orders.service import IikoOrderStatusSyncService
+from backend.orders.service import IikoOrderStatusSyncService, OrderService
 from backend.payment.router import router as payment_router
 from backend.iiko_manager.client import IikoApiClient
 from backend.iiko_manager.repository import IikoCatalogRepository
@@ -31,6 +32,9 @@ from backend.user.migrations import ensure_user_auth_columns, sync_admin_users_f
 from config import (
     API_IIKO,
     IIKO_BASE_URL,
+    IIKO_ONLINE_PAYMENT_TYPE_ID,
+    IIKO_ONLINE_PAYMENT_TYPE_KIND,
+    IIKO_ORDER_SOURCE_KEY,
     IIKO_ORGANIZATION_ID,
     IIKO_ORDER_STATUS_SYNC_INTERVAL_SECONDS,
     IIKO_ORDER_STATUS_SYNC_LIMIT,
@@ -220,6 +224,39 @@ async def _sync_iiko_order_statuses() -> None:
             )
 
 
+async def _retry_pending_iiko_order_submissions() -> None:
+    if not API_IIKO:
+        logger.info("Skipping iiko order submission retry because API_IIKO is not configured.")
+        return
+
+    async with AsyncSessionLocal() as session:
+        service = OrderService(
+            repository=SqlAlchemyOrderRepository(session),
+            menu_item_repository=SqlAlchemyMenuItemRepository(session),
+            iiko_order_gateway=IikoOrderGateway(
+                client=IikoApiClient(
+                    api_login=API_IIKO,
+                    base_url=IIKO_BASE_URL,
+                    timeout_seconds=IIKO_ORDER_TIMEOUT_SECONDS,
+                ),
+                organization_id=IIKO_ORGANIZATION_ID,
+                terminal_group_id=TERMINAL_ID_GROUP,
+                source_key=IIKO_ORDER_SOURCE_KEY,
+                online_payment_type_id=IIKO_ONLINE_PAYMENT_TYPE_ID,
+                online_payment_type_kind=IIKO_ONLINE_PAYMENT_TYPE_KIND,
+            ),
+        )
+        result = await service.retry_pending_iiko_submissions(limit=IIKO_ORDER_STATUS_SYNC_LIMIT)
+        if result.enqueued or result.checked or result.submitted or result.failed:
+            logger.info(
+                "Finished iiko order submission retry. enqueued=%s checked=%s submitted=%s failed=%s",
+                result.enqueued,
+                result.checked,
+                result.submitted,
+                result.failed,
+            )
+
+
 async def _run_iiko_order_status_sync_loop(stop_event: asyncio.Event) -> None:
     logger.info(
         "Started background iiko order status sync loop. interval_seconds=%s",
@@ -236,6 +273,24 @@ async def _run_iiko_order_status_sync_loop(stop_event: asyncio.Event) -> None:
             await _sync_iiko_order_statuses()
         except Exception:
             logger.exception("Background iiko order status sync failed.")
+
+
+async def _run_iiko_order_submission_retry_loop(stop_event: asyncio.Event) -> None:
+    logger.info(
+        "Started background iiko order submission retry loop. interval_seconds=%s",
+        IIKO_ORDER_STATUS_SYNC_INTERVAL_SECONDS,
+    )
+    while not stop_event.is_set():
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=IIKO_ORDER_STATUS_SYNC_INTERVAL_SECONDS)
+            break
+        except asyncio.TimeoutError:
+            pass
+
+        try:
+            await _retry_pending_iiko_order_submissions()
+        except Exception:
+            logger.exception("Background iiko order submission retry failed.")
 
 
 @asynccontextmanager
@@ -255,15 +310,16 @@ async def lifespan(_: FastAPI):
     stop_event = asyncio.Event()
     sync_task = asyncio.create_task(_run_iiko_sync_loop(stop_event))
     order_status_sync_task = asyncio.create_task(_run_iiko_order_status_sync_loop(stop_event))
+    order_submission_retry_task = asyncio.create_task(_run_iiko_order_submission_retry_loop(stop_event))
     try:
         logger.info("Application startup completed.")
         yield
     finally:
         logger.info("Application shutdown initiated.")
         stop_event.set()
-        for task in (sync_task, order_status_sync_task):
+        for task in (sync_task, order_status_sync_task, order_submission_retry_task):
             task.cancel()
-        await asyncio.gather(sync_task, order_status_sync_task, return_exceptions=True)
+        await asyncio.gather(sync_task, order_status_sync_task, order_submission_retry_task, return_exceptions=True)
         logger.info("Application shutdown completed.")
 
 

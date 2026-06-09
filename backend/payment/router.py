@@ -46,6 +46,7 @@ async def _finalize_succeeded_payment(
         logger.warning("YooKassa webhook payment was not found locally. payment_id=%s", payment_id)
         return {"ok": True}
     if pending_payment.order_id is not None:
+        await order_service.enqueue_iiko_submission_if_needed(order_id=pending_payment.order_id)
         return {"ok": True, "order_id": pending_payment.order_id}
 
     claimed_payment = await pending_payment_repository.claim_for_order_creation(
@@ -64,24 +65,42 @@ async def _finalize_succeeded_payment(
     try:
         order_payload = OrderCreate.model_validate(json.loads(pending_payment.payload_json))
         user = await user_service.get_user_by_id(pending_payment.user_id)
-        spent_bonus = order_payload.bonus_spent
-        if spent_bonus:
-            await user_service.spend_bonus(user_id=pending_payment.user_id, bonus_amount=spent_bonus)
-            bonus_was_spent = True
-        order = await order_service.create_order(
+        claimed_order = await order_service.claim_order_creation(
             user_id=pending_payment.user_id,
             payload=order_payload,
             available_bonus_balance=user.bonus_balance,
             idempotency_key=f"payment:{payment_id}",
         )
-        if order.iiko_creation_status in {"Failed", "LocalPending"}:
-            raise OrderValidationError("iiko order creation is not completed.")
-        if order.bonus_awarded:
-            await user_service.add_bonus(user_id=pending_payment.user_id, bonus_delta=order.bonus_awarded)
         await pending_payment_repository.mark_order_created(
             pending_payment_id=pending_payment.id,
-            order_id=order.id,
+            order_id=claimed_order.order.id,
         )
+        await order_service.enqueue_iiko_submission_if_needed(order_id=claimed_order.order.id)
+
+        if not claimed_order.is_owner or claimed_order.prepared_order is None:
+            if claimed_order.order.iiko_creation_status in {"Failed", "LocalPending"}:
+                try:
+                    await order_service.submit_existing_order_to_iiko(order_id=claimed_order.order.id)
+                except OrderValidationError:
+                    logger.exception("Could not retry iiko order after YooKassa payment. payment_id=%s", payment_id)
+            return {"ok": True, "order_id": claimed_order.order.id}
+
+        spent_bonus = order_payload.bonus_spent
+        if spent_bonus:
+            await user_service.spend_bonus(user_id=pending_payment.user_id, bonus_amount=spent_bonus)
+            bonus_was_spent = True
+        try:
+            order = await order_service.submit_claimed_order(
+                order_id=claimed_order.order.id,
+                prepared_order=claimed_order.prepared_order,
+            )
+        except OrderValidationError:
+            logger.exception("Could not submit paid order to iiko. payment_id=%s order_id=%s", payment_id, claimed_order.order.id)
+            return {"ok": True, "order_id": claimed_order.order.id, "status": "iiko_retry_pending"}
+        if order.iiko_creation_status not in {"Success", "InProgress"}:
+            return {"ok": True, "order_id": order.id, "status": "iiko_retry_pending"}
+        if order.bonus_awarded:
+            await user_service.add_bonus(user_id=pending_payment.user_id, bonus_delta=order.bonus_awarded)
         return {"ok": True, "order_id": order.id}
     except (OrderValidationError, UserBonusError, UserNotFoundError) as exc:
         logger.exception("Could not create order after YooKassa payment. payment_id=%s", payment_id)
