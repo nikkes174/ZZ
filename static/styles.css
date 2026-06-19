@@ -1870,6 +1870,108 @@ body.admin-mode .section-edit-button {
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.delivery-easy-section {
+    width: 100vw;
+    max-width: none;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    padding: 88px max(24px, calc((100vw - 1240px) / 2 + 16px)) 48px;
+    background:
+        radial-gradient(circle at 50% 0%, rgba(216, 178, 107, 0.14), transparent 28%),
+        radial-gradient(circle at 18% 30%, rgba(35, 66, 32, 0.16), transparent 22%),
+        radial-gradient(circle at 82% 24%, rgba(232, 84, 36, 0.1), transparent 20%),
+        linear-gradient(180deg, #15110f 0%, #1a120d 54%, #120d09 100%);
+    color: #ffffff;
+}
+
+.delivery-easy-shell {
+    width: min(1240px, 100%);
+    margin: 0 auto;
+}
+
+.delivery-easy-head {
+    display: grid;
+    justify-items: center;
+    gap: 12px;
+    margin-bottom: 44px;
+    text-align: center;
+}
+
+.delivery-easy-head h2 {
+    margin: 0;
+    padding-bottom: 0.12em;
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: clamp(2rem, 4vw, 3.4rem);
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: transparent;
+    background-image: linear-gradient(90deg, #fff7df, #d8b26b, #ffefd0, #ffffff, #d8b26b);
+    background-size: 300% 100%;
+    background-position: 0% 50%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: heroGradientShift 8s ease-in-out infinite alternate;
+}
+
+.delivery-easy-section .section-kicker {
+    color: #c8922a;
+}
+
+.delivery-easy-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+}
+
+.delivery-easy-card {
+    display: grid;
+    justify-items: center;
+    gap: 18px;
+    min-height: 280px;
+    padding: 36px 28px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.05);
+    text-align: center;
+    backdrop-filter: blur(8px);
+}
+
+.delivery-easy-icon {
+    display: grid;
+    place-items: center;
+    width: 72px;
+    height: 72px;
+    color: rgba(255, 255, 255, 0.96);
+}
+
+.delivery-easy-icon svg {
+    width: 64px;
+    height: 64px;
+}
+
+.delivery-easy-icon img {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    display: block;
+}
+
+.delivery-easy-card h3 {
+    margin: 0;
+    color: #ffffff;
+    font-family: "Space Grotesk", "Inter", "Segoe UI", Arial, sans-serif;
+    font-size: clamp(1.5rem, 2.2vw, 2rem);
+    font-weight: 500;
+    letter-spacing: -0.03em;
+}
+
+.delivery-easy-card p {
+    margin: 0;
+    color: #c8922a;
+    font-size: 1.02rem;
+    line-height: 1.65;
+}
+
 .delivery-head {
     width: 100%;
     display: flex;
@@ -6137,6 +6239,19 @@ body.admin-mode .dish-edit-button {
         padding: 72px 18px 20px;
     }
 
+    .delivery-easy-section {
+        padding: 72px 18px 28px;
+    }
+
+    .delivery-easy-grid {
+        gap: 18px;
+    }
+
+    .delivery-easy-card {
+        min-height: 250px;
+        padding: 28px 22px;
+    }
+
     .delivery-track {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 18px;
@@ -6591,6 +6706,33 @@ body.admin-mode .dish-edit-button {
 
     .delivery-section {
         padding: 58px 14px 18px;
+    }
+
+    .delivery-easy-section {
+        padding: 58px 14px 18px;
+    }
+
+    .delivery-easy-head {
+        margin-bottom: 28px;
+    }
+
+    .delivery-easy-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .delivery-easy-card {
+        min-height: 0;
+        padding: 24px 18px;
+        border-radius: 22px;
+    }
+
+    .delivery-easy-card h3 {
+        font-size: 1.4rem;
+    }
+
+    .delivery-easy-card p {
+        font-size: 0.95rem;
     }
 
     .step-card {

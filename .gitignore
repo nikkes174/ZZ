@@ -27,3 +27,4 @@ wheels/
 DEPLOY.md
 
 .aider*
+.agents
