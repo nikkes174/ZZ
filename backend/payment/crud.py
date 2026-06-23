@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Optional
 
 from sqlalchemy import or_, select, text, update, func
@@ -60,6 +61,19 @@ class SqlAlchemyPendingPaymentRepository:
     async def get_by_yookassa_payment_id(self, payment_id: str) -> Optional[PendingPaymentModel]:
         stmt = select(PendingPaymentModel).where(PendingPaymentModel.yookassa_payment_id == payment_id)
         return await self._session.scalar(stmt)
+
+    async def list_unfinished_yookassa_payments(self, *, limit: int) -> Sequence[PendingPaymentModel]:
+        stmt = (
+            select(PendingPaymentModel)
+            .where(
+                PendingPaymentModel.yookassa_payment_id.is_not(None),
+                PendingPaymentModel.order_id.is_(None),
+                PendingPaymentModel.status.in_(("pending", "processing")),
+            )
+            .order_by(PendingPaymentModel.updated_at.asc(), PendingPaymentModel.id.asc())
+            .limit(max(1, min(limit, 100)))
+        )
+        return (await self._session.scalars(stmt)).all()
 
     async def claim_for_order_creation(
         self,

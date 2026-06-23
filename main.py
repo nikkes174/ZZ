@@ -18,7 +18,9 @@ from backend.orders.crud import SqlAlchemyOrderRepository
 from backend.orders.iiko import IikoOrderGateway
 from backend.orders.migrations import ensure_order_bonus_columns
 from backend.orders.service import IikoOrderStatusSyncService, OrderService
-from backend.payment.router import router as payment_router
+from backend.payment.crud import SqlAlchemyPendingPaymentRepository
+from backend.payment.router import _finalize_succeeded_payment, router as payment_router
+from backend.payment.service import YooKassaPaymentService
 from backend.iiko_manager.client import IikoApiClient
 from backend.iiko_manager.repository import IikoCatalogRepository
 from backend.iiko_manager.service import IikoCatalogSyncService
@@ -28,7 +30,9 @@ from backend.redactor.crud import SqlAlchemyMenuItemRepository
 from backend.redactor.migrations import ensure_menu_item_iiko_columns
 from backend.redactor.service import MenuItemService
 from backend.user import router as user_router
+from backend.user.crud import SqlAlchemyUserRepository
 from backend.user.migrations import ensure_user_auth_columns, sync_admin_users_from_env
+from backend.user.service import UserService
 from config import (
     API_IIKO,
     IIKO_BASE_URL,
@@ -42,6 +46,9 @@ from config import (
     IIKO_SYNC_INTERVAL_SECONDS,
     IIKO_SYNC_TIMEOUT_SECONDS,
     TERMINAL_ID_GROUP,
+    YOOKASSA_SECRET_KEY,
+    YOOKASSA_SHOP_ID,
+    YOOKASSA_RECONCILE_PENDING_PAYMENTS,
 )
 from db import AsyncSessionLocal, init_db
 
@@ -257,6 +264,65 @@ async def _retry_pending_iiko_order_submissions() -> None:
             )
 
 
+async def _reconcile_unfinished_yookassa_payments() -> None:
+    if not YOOKASSA_RECONCILE_PENDING_PAYMENTS:
+        logger.info("Skipping YooKassa payment reconciliation because it is disabled.")
+        return
+    if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
+        logger.info("Skipping YooKassa payment reconciliation because credentials are not configured.")
+        return
+
+    async with AsyncSessionLocal() as session:
+        pending_payment_repository = SqlAlchemyPendingPaymentRepository(session)
+        payments = await pending_payment_repository.list_unfinished_yookassa_payments(limit=IIKO_ORDER_STATUS_SYNC_LIMIT)
+        if not payments:
+            return
+
+        order_service = OrderService(
+            repository=SqlAlchemyOrderRepository(session),
+            menu_item_repository=SqlAlchemyMenuItemRepository(session),
+            iiko_order_gateway=IikoOrderGateway(
+                client=IikoApiClient(
+                    api_login=API_IIKO or "",
+                    base_url=IIKO_BASE_URL,
+                    timeout_seconds=IIKO_ORDER_TIMEOUT_SECONDS,
+                ),
+                organization_id=IIKO_ORGANIZATION_ID,
+                terminal_group_id=TERMINAL_ID_GROUP,
+                source_key=IIKO_ORDER_SOURCE_KEY,
+                online_payment_type_id=IIKO_ONLINE_PAYMENT_TYPE_ID,
+                online_payment_type_kind=IIKO_ONLINE_PAYMENT_TYPE_KIND,
+            ),
+        )
+        payment_service = YooKassaPaymentService(repository=pending_payment_repository)
+        user_service = UserService(repository=SqlAlchemyUserRepository(session))
+
+        reconciled = 0
+        for payment in payments:
+            if not payment.yookassa_payment_id:
+                continue
+            try:
+                result = await _finalize_succeeded_payment(
+                    payment_id=payment.yookassa_payment_id,
+                    payment_service=payment_service,
+                    pending_payment_repository=pending_payment_repository,
+                    order_service=order_service,
+                    user_service=user_service,
+                )
+            except Exception:
+                logger.exception(
+                    "Could not reconcile unfinished YooKassa payment. pending_payment_id=%s payment_id=%s",
+                    payment.id,
+                    payment.yookassa_payment_id,
+                )
+                continue
+            if result.get("order_id"):
+                reconciled += 1
+
+        if reconciled:
+            logger.info("Finished YooKassa payment reconciliation. checked=%s reconciled=%s", len(payments), reconciled)
+
+
 async def _run_iiko_order_status_sync_loop(stop_event: asyncio.Event) -> None:
     logger.info(
         "Started background iiko order status sync loop. interval_seconds=%s",
@@ -288,6 +354,7 @@ async def _run_iiko_order_submission_retry_loop(stop_event: asyncio.Event) -> No
             pass
 
         try:
+            await _reconcile_unfinished_yookassa_payments()
             await _retry_pending_iiko_order_submissions()
         except Exception:
             logger.exception("Background iiko order submission retry failed.")

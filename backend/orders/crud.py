@@ -269,22 +269,6 @@ class SqlAlchemyOrderRepository:
 
     async def enqueue_missing_paid_iiko_submission_jobs(self, *, limit: int) -> int:
         safe_limit = max(1, min(limit, 100))
-        link_stmt = text(
-            """
-            UPDATE pending_payments
-            SET
-                status = 'succeeded',
-                order_id = orders.id,
-                error_message = NULL,
-                updated_at = now()
-            FROM orders
-            WHERE pending_payments.yookassa_payment_id IS NOT NULL
-              AND pending_payments.order_id IS NULL
-              AND orders.idempotency_key = ('payment:' || pending_payments.yookassa_payment_id)
-            """
-        )
-        await self._session.execute(link_stmt)
-
         stmt = text(
             """
             INSERT INTO order_delivery_jobs (order_id, job_type, status)
@@ -295,10 +279,7 @@ class SqlAlchemyOrderRepository:
             WHERE orders.iiko_order_id IS NULL
               AND orders.iiko_creation_status IN ('LocalPending', 'Failed')
               AND order_delivery_jobs.id IS NULL
-              AND (
-                  pending_payments.status = 'succeeded'
-                  OR orders.idempotency_key LIKE 'payment:%'
-              )
+              AND pending_payments.status = 'succeeded'
             ORDER BY orders.updated_at ASC, orders.id ASC
             LIMIT :limit
             ON CONFLICT (order_id) DO NOTHING

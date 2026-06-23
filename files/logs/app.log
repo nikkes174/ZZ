@@ -8668,3 +8668,27 @@ For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/St
 2026-06-19 12:35:30,736 | INFO | main | Loaded 7 active iiko menu items for storefront.
 2026-06-19 12:35:46,257 | INFO | main | Loaded 7 active iiko menu items for storefront.
 2026-06-19 12:36:02,533 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-06-23 17:02:38,153 | INFO | httpx | HTTP Request: GET https://api.yookassa.ru/v3/payments/317fe6ce-000f-5001-9000-1bc12b4067d3 "HTTP/1.1 200 "
+2026-06-23 17:02:38,160 | ERROR | sqlalchemy.pool.impl.AsyncAdaptedQueuePool | Exception terminating connection <AdaptedConnection <asyncpg.connection.Connection object at 0x00000228C6991220>>
+Traceback (most recent call last):
+  File "C:\Users\pride\AppData\Local\Programs\Python\Python39\lib\site-packages\sqlalchemy\pool\base.py", line 374, in _close_connection
+    self._dialect.do_terminate(connection)
+  File "C:\Users\pride\AppData\Local\Programs\Python\Python39\lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py", line 1130, in do_terminate
+    dbapi_connection.terminate()
+  File "C:\Users\pride\AppData\Local\Programs\Python\Python39\lib\site-packages\sqlalchemy\dialects\postgresql\asyncpg.py", line 907, in terminate
+    self.await_(asyncio.shield(self._connection.close(timeout=2)))
+  File "C:\Users\pride\AppData\Local\Programs\Python\Python39\lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: ignore[no-any-return,attr-defined] # noqa: E501
+  File "C:\Users\pride\AppData\Local\Programs\Python\Python39\lib\site-packages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+  File "C:\Users\pride\AppData\Local\Programs\Python\Python39\lib\site-packages\asyncpg\connection.py", line 1504, in close
+    await self._protocol.close(timeout)
+  File "asyncpg\\protocol\\protocol.pyx", line 627, in close
+  File "asyncpg\\protocol\\protocol.pyx", line 660, in asyncpg.protocol.protocol.BaseProtocol._request_cancel
+  File "C:\Users\pride\AppData\Local\Programs\Python\Python39\lib\site-packages\asyncpg\connection.py", line 1673, in _cancel_current_command
+    self._cancellations.add(self._loop.create_task(self._cancel(waiter)))
+  File "C:\Users\pride\AppData\Local\Programs\Python\Python39\lib\asyncio\base_events.py", line 436, in create_task
+    self._check_closed()
+  File "C:\Users\pride\AppData\Local\Programs\Python\Python39\lib\asyncio\base_events.py", line 515, in _check_closed
+    raise RuntimeError('Event loop is closed')
+RuntimeError: Event loop is closed

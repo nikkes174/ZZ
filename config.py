@@ -22,6 +22,13 @@ def _get_csv(name: str) -> list[str]:
     ]
 
 
+def _get_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 DB_URL = os.getenv("DB_URL")
 DB_POOL_SIZE = _get_int("DB_POOL_SIZE", 5)
 DB_MAX_OVERFLOW = _get_int("DB_MAX_OVERFLOW", 10)
@@ -43,6 +50,7 @@ IIKO_ORDER_STATUS_SYNC_LIMIT = _get_int("IIKO_ORDER_STATUS_SYNC_LIMIT", 50)
 YOOKASSA_SHOP_ID = os.getenv("YOOKASSA_SHOP_ID")
 YOOKASSA_SECRET_KEY = os.getenv("YOOKASSA_SECRET_KEY")
 YOOKASSA_VAT_CODE = _get_int("YOOKASSA_VAT_CODE", 1)
+YOOKASSA_RECONCILE_PENDING_PAYMENTS = _get_bool("YOOKASSA_RECONCILE_PENDING_PAYMENTS", False)
 WEBAPP_URL = os.getenv("WEBAPP_URL", "http://127.0.0.1:8011")
 ADMIN_PHONES = _get_csv("ADMIN_PHONES")
 JWT_SECRET = os.getenv("JWT_SECRET", "")
