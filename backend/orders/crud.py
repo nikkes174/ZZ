@@ -268,25 +268,44 @@ class SqlAlchemyOrderRepository:
         await self._session.commit()
 
     async def enqueue_missing_paid_iiko_submission_jobs(self, *, limit: int) -> int:
+        safe_limit = max(1, min(limit, 100))
+        link_stmt = text(
+            """
+            UPDATE pending_payments
+            SET
+                status = 'succeeded',
+                order_id = orders.id,
+                error_message = NULL,
+                updated_at = now()
+            FROM orders
+            WHERE pending_payments.yookassa_payment_id IS NOT NULL
+              AND pending_payments.order_id IS NULL
+              AND orders.idempotency_key = ('payment:' || pending_payments.yookassa_payment_id)
+            """
+        )
+        await self._session.execute(link_stmt)
+
         stmt = text(
             """
             INSERT INTO order_delivery_jobs (order_id, job_type, status)
             SELECT orders.id, 'send_to_iiko', 'pending'
-            FROM pending_payments
-            JOIN orders ON orders.id = pending_payments.order_id
+            FROM orders
+            LEFT JOIN pending_payments ON pending_payments.order_id = orders.id
             LEFT JOIN order_delivery_jobs ON order_delivery_jobs.order_id = orders.id
-            WHERE pending_payments.status = 'succeeded'
-              AND pending_payments.order_id IS NOT NULL
-              AND orders.iiko_order_id IS NULL
+            WHERE orders.iiko_order_id IS NULL
               AND orders.iiko_creation_status IN ('LocalPending', 'Failed')
               AND order_delivery_jobs.id IS NULL
-            ORDER BY pending_payments.updated_at ASC, pending_payments.id ASC
+              AND (
+                  pending_payments.status = 'succeeded'
+                  OR orders.idempotency_key LIKE 'payment:%'
+              )
+            ORDER BY orders.updated_at ASC, orders.id ASC
             LIMIT :limit
             ON CONFLICT (order_id) DO NOTHING
             RETURNING id
             """
         )
-        result = await self._session.execute(stmt, {"limit": max(1, min(limit, 100))})
+        result = await self._session.execute(stmt, {"limit": safe_limit})
         created = len(result.fetchall())
         await self._session.commit()
         return created
