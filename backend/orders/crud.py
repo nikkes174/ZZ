@@ -275,8 +275,9 @@ class SqlAlchemyOrderRepository:
 
     async def enqueue_missing_paid_iiko_submission_jobs(self, *, limit: int, created_after: Optional[datetime] = None) -> int:
         safe_limit = max(1, min(limit, 100))
+        created_after_filter = "AND pending_payments.created_at >= :created_after" if created_after is not None else ""
         stmt = text(
-            """
+            f"""
             INSERT INTO order_delivery_jobs (order_id, job_type, status)
             SELECT orders.id, 'send_to_iiko', 'pending'
             FROM orders
@@ -286,14 +287,17 @@ class SqlAlchemyOrderRepository:
               AND orders.iiko_creation_status IN ('LocalPending', 'Failed')
               AND order_delivery_jobs.id IS NULL
               AND pending_payments.status IN ('succeeded', 'order_failed')
-              AND (:created_after IS NULL OR pending_payments.created_at >= :created_after)
+              {created_after_filter}
             ORDER BY orders.updated_at ASC, orders.id ASC
             LIMIT :limit
             ON CONFLICT (order_id) DO NOTHING
             RETURNING id
             """
         )
-        result = await self._session.execute(stmt, {"limit": safe_limit, "created_after": created_after})
+        params = {"limit": safe_limit}
+        if created_after is not None:
+            params["created_after"] = created_after
+        result = await self._session.execute(stmt, params)
         created = len(result.fetchall())
         await self._session.commit()
         return created
