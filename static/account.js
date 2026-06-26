@@ -2,6 +2,9 @@
 const SESSION_STORAGE_KEY = "zamzam_session_token";
 const REFRESH_STORAGE_KEY = "zamzam_refresh_token";
 const PENDING_PAYMENT_STORAGE_KEY = "zamzam_pending_payment_id";
+const PENDING_PAYMENT_SYNC_RETRY_DELAYS = [3000, 7000, 15000, 30000];
+let pendingPaymentSyncRetryIndex = 0;
+let pendingPaymentSyncTimeoutId = null;
 const MIN_CHECKOUT_AMOUNT = 1000;
 window.zamzamAuthFallbackBound = true;
 window.zamzamAccountCheckoutEnabled = true;
@@ -683,6 +686,11 @@ async function syncPendingPayment() {
     refreshSessionToken();
     const paymentId = readPersistentStorage(PENDING_PAYMENT_STORAGE_KEY);
     if (!paymentId || !sessionToken) {
+        pendingPaymentSyncRetryIndex = 0;
+        if (pendingPaymentSyncTimeoutId) {
+            window.clearTimeout(pendingPaymentSyncTimeoutId);
+            pendingPaymentSyncTimeoutId = null;
+        }
         return;
     }
 
@@ -694,6 +702,11 @@ async function syncPendingPayment() {
         const payload = await response.json().catch(() => ({}));
         if (response.ok && payload?.order_id) {
             removePersistentStorage(PENDING_PAYMENT_STORAGE_KEY);
+            pendingPaymentSyncRetryIndex = 0;
+            if (pendingPaymentSyncTimeoutId) {
+                window.clearTimeout(pendingPaymentSyncTimeoutId);
+                pendingPaymentSyncTimeoutId = null;
+            }
             await loadAccount();
             if (typeof window.showZamzamOrderSuccessModal === "function") {
                 window.showZamzamOrderSuccessModal("Ваш заказ принят. Скоро с вами свяжется наш оператор.");
@@ -704,6 +717,20 @@ async function syncPendingPayment() {
     } catch (error) {
         console.error(error);
     }
+
+    if (!readPersistentStorage(PENDING_PAYMENT_STORAGE_KEY)) {
+        pendingPaymentSyncRetryIndex = 0;
+        return;
+    }
+    if (pendingPaymentSyncTimeoutId || pendingPaymentSyncRetryIndex >= PENDING_PAYMENT_SYNC_RETRY_DELAYS.length) {
+        return;
+    }
+    const retryDelay = PENDING_PAYMENT_SYNC_RETRY_DELAYS[pendingPaymentSyncRetryIndex];
+    pendingPaymentSyncRetryIndex += 1;
+    pendingPaymentSyncTimeoutId = window.setTimeout(() => {
+        pendingPaymentSyncTimeoutId = null;
+        syncPendingPayment();
+    }, retryDelay);
 }
 
 async function handleAuthSuccess(payload) {

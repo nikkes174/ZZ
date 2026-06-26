@@ -334,10 +334,21 @@ class OrderService:
             raise OrderNotFoundError(order_id)
         return self._to_read(order)
 
-    async def retry_pending_iiko_submissions(self, *, limit: int = 20) -> IikoOrderRetryResult:
+    async def retry_pending_iiko_submissions(
+        self,
+        *,
+        limit: int = 20,
+        created_after: Optional[datetime] = None,
+    ) -> IikoOrderRetryResult:
         safe_limit = max(1, min(limit, 100))
-        enqueued = await self.repository.enqueue_missing_paid_iiko_submission_jobs(limit=safe_limit)
-        jobs = await self.repository.claim_due_iiko_submission_jobs(limit=safe_limit)
+        enqueued = await self.repository.enqueue_missing_paid_iiko_submission_jobs(
+            limit=safe_limit,
+            created_after=created_after,
+        )
+        jobs = await self.repository.claim_due_iiko_submission_jobs(
+            limit=safe_limit,
+            created_after=created_after,
+        )
         submitted = 0
         failed = 0
 
@@ -426,61 +437,8 @@ class OrderService:
         )
 
         bonus_awarded = self._calculate_bonus_awarded(prepared_order.total_amount)
-        local_order = None
-        if normalized_idempotency_key:
-            try:
-                local_order = await self.repository.create(
-                    user_id=user_id,
-                    payload=prepared_order.payload,
-                    subtotal_amount=prepared_order.subtotal_amount,
-                    bonus_spent=prepared_order.payload.bonus_spent,
-                    total_amount=prepared_order.total_amount,
-                    bonus_awarded=bonus_awarded,
-                    idempotency_key=normalized_idempotency_key,
-                    iiko_creation_status="LocalPending",
-                )
-            except IntegrityError:
-                existing_order = await self.repository.get_by_idempotency_key(normalized_idempotency_key)
-                if existing_order is not None:
-                    return self._to_read(existing_order)
-                raise
-
         try:
-            iiko_result = await self.iiko_order_gateway.submit_order(
-                payload=prepared_order.payload,
-                items=[
-                    IikoOrderItem(
-                        product_id=item.iiko_product_id,
-                        title=item.order_item.title,
-                        price=item.order_item.price,
-                        quantity=item.order_item.quantity,
-                    )
-                    for item in prepared_order.normalized_items
-                ],
-                total_amount=prepared_order.total_amount,
-                external_number=self._build_iiko_external_number(local_order.id) if local_order is not None else None,
-            )
-        except IikoOrderError as exc:
-            if local_order is not None:
-                await self.repository.update_iiko_result(
-                    order_id=local_order.id,
-                    iiko_order_id=None,
-                    iiko_correlation_id=None,
-                    iiko_creation_status="Failed",
-                )
-            raise OrderValidationError(str(exc)) from exc
-
-        if local_order is not None:
-            order = await self.repository.update_iiko_result(
-                order_id=local_order.id,
-                iiko_order_id=iiko_result.get("iiko_order_id") or None,
-                iiko_correlation_id=iiko_result.get("correlation_id") or None,
-                iiko_creation_status=iiko_result.get("creation_status") or None,
-            )
-            if order is None:
-                raise OrderNotFoundError(local_order.id)
-        else:
-            order = await self.repository.create(
+            local_order = await self.repository.create(
                 user_id=user_id,
                 payload=prepared_order.payload,
                 subtotal_amount=prepared_order.subtotal_amount,
@@ -488,11 +446,18 @@ class OrderService:
                 total_amount=prepared_order.total_amount,
                 bonus_awarded=bonus_awarded,
                 idempotency_key=normalized_idempotency_key,
-                iiko_order_id=iiko_result.get("iiko_order_id") or None,
-                iiko_correlation_id=iiko_result.get("correlation_id") or None,
-                iiko_creation_status=iiko_result.get("creation_status") or None,
+                iiko_creation_status="LocalPending",
             )
-        return self._to_read(order)
+        except IntegrityError:
+            if normalized_idempotency_key:
+                existing_order = await self.repository.get_by_idempotency_key(normalized_idempotency_key)
+                if existing_order is not None:
+                    await self.enqueue_iiko_submission_if_needed(order_id=existing_order.id)
+                    return self._to_read(existing_order)
+            raise
+
+        await self.repository.enqueue_iiko_submission_job(order_id=local_order.id)
+        return self._to_read(local_order)
 
     def _build_iiko_external_number(self, order_id: int) -> str:
         return f"zamzam-order-{order_id}"

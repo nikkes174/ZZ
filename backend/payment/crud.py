@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import or_, select, text, update, func
@@ -62,17 +63,20 @@ class SqlAlchemyPendingPaymentRepository:
         stmt = select(PendingPaymentModel).where(PendingPaymentModel.yookassa_payment_id == payment_id)
         return await self._session.scalar(stmt)
 
-    async def list_unfinished_yookassa_payments(self, *, limit: int) -> Sequence[PendingPaymentModel]:
-        stmt = (
-            select(PendingPaymentModel)
-            .where(
-                PendingPaymentModel.yookassa_payment_id.is_not(None),
-                PendingPaymentModel.order_id.is_(None),
-                PendingPaymentModel.status.in_(("pending", "processing")),
-            )
-            .order_by(PendingPaymentModel.updated_at.asc(), PendingPaymentModel.id.asc())
-            .limit(max(1, min(limit, 100)))
+    async def list_unfinished_yookassa_payments(
+        self,
+        *,
+        limit: int,
+        created_after: Optional[datetime] = None,
+    ) -> Sequence[PendingPaymentModel]:
+        stmt = select(PendingPaymentModel).where(
+            PendingPaymentModel.yookassa_payment_id.is_not(None),
+            PendingPaymentModel.order_id.is_(None),
+            PendingPaymentModel.status.in_(("pending", "processing", "order_failed")),
         )
+        if created_after is not None:
+            stmt = stmt.where(PendingPaymentModel.created_at >= created_after)
+        stmt = stmt.order_by(PendingPaymentModel.updated_at.asc(), PendingPaymentModel.id.asc()).limit(max(1, min(limit, 100)))
         return (await self._session.scalars(stmt)).all()
 
     async def claim_for_order_creation(

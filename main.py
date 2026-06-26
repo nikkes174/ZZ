@@ -3,7 +3,10 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
+
+from sqlalchemy import text
 
 from app_logging import configure_application_logging
 from fastapi import FastAPI, Request
@@ -45,10 +48,9 @@ from config import (
     IIKO_ORDER_TIMEOUT_SECONDS,
     IIKO_SYNC_INTERVAL_SECONDS,
     IIKO_SYNC_TIMEOUT_SECONDS,
-    TERMINAL_ID_GROUP,
+    TERMINAL_ID_GROUP_MALYSHAVA,
     YOOKASSA_SECRET_KEY,
     YOOKASSA_SHOP_ID,
-    YOOKASSA_RECONCILE_PENDING_PAYMENTS,
 )
 from db import AsyncSessionLocal, init_db
 
@@ -59,6 +61,7 @@ configure_application_logging()
 logger = logging.getLogger(__name__)
 OFERTA_TEXT_PATH = BASE_DIR / "files" / "legal" / "oferta.txt"
 POLICY_TEXT_PATH = BASE_DIR / "files" / "legal" / "politic.txt"
+PAYMENT_RECONCILE_CREATED_AFTER: datetime | None = None
 
 
 MENU_ITEMS = [
@@ -167,7 +170,7 @@ async def _sync_iiko_catalog() -> None:
     logger.info("Starting iiko catalog sync.")
     if not API_IIKO:
         raise RuntimeError("API_IIKO is required because iiko is the only source of truth for catalog data.")
-    if not TERMINAL_ID_GROUP:
+    if not TERMINAL_ID_GROUP_MALYSHAVA:
         raise RuntimeError("TERMINAL_ID_GROUP is required because iiko is the only source of truth for catalog data.")
 
     async with AsyncSessionLocal() as session:
@@ -178,7 +181,7 @@ async def _sync_iiko_catalog() -> None:
                 timeout_seconds=IIKO_SYNC_TIMEOUT_SECONDS,
             ),
             repository=IikoCatalogRepository(session),
-            terminal_group_id=TERMINAL_ID_GROUP,
+            terminal_group_id=TERMINAL_ID_GROUP_MALYSHAVA,
             organization_id=IIKO_ORGANIZATION_ID,
         )
         result = await service.sync()
@@ -235,6 +238,9 @@ async def _retry_pending_iiko_order_submissions() -> None:
     if not API_IIKO:
         logger.info("Skipping iiko order submission retry because API_IIKO is not configured.")
         return
+    if PAYMENT_RECONCILE_CREATED_AFTER is None:
+        logger.info("Skipping iiko order submission retry because cutoff is not initialized.")
+        return
 
     async with AsyncSessionLocal() as session:
         service = OrderService(
@@ -247,13 +253,16 @@ async def _retry_pending_iiko_order_submissions() -> None:
                     timeout_seconds=IIKO_ORDER_TIMEOUT_SECONDS,
                 ),
                 organization_id=IIKO_ORGANIZATION_ID,
-                terminal_group_id=TERMINAL_ID_GROUP,
+                terminal_group_id=TERMINAL_ID_GROUP_MALYSHAVA,
                 source_key=IIKO_ORDER_SOURCE_KEY,
                 online_payment_type_id=IIKO_ONLINE_PAYMENT_TYPE_ID,
                 online_payment_type_kind=IIKO_ONLINE_PAYMENT_TYPE_KIND,
             ),
         )
-        result = await service.retry_pending_iiko_submissions(limit=IIKO_ORDER_STATUS_SYNC_LIMIT)
+        result = await service.retry_pending_iiko_submissions(
+            limit=IIKO_ORDER_STATUS_SYNC_LIMIT,
+            created_after=PAYMENT_RECONCILE_CREATED_AFTER,
+        )
         if result.enqueued or result.checked or result.submitted or result.failed:
             logger.info(
                 "Finished iiko order submission retry. enqueued=%s checked=%s submitted=%s failed=%s",
@@ -264,17 +273,54 @@ async def _retry_pending_iiko_order_submissions() -> None:
             )
 
 
+async def _ensure_payment_reconcile_cutoff() -> datetime:
+    created_after = datetime.now(timezone.utc)
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS app_runtime_settings (
+                    key VARCHAR(128) PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                )
+                """
+            )
+        )
+        await session.execute(
+            text(
+                """
+                INSERT INTO app_runtime_settings (key, value)
+                VALUES ('payment_reconcile_created_after', :value)
+                ON CONFLICT (key) DO NOTHING
+                """
+            ),
+            {"value": created_after.isoformat()},
+        )
+        result = await session.execute(
+            text("SELECT value FROM app_runtime_settings WHERE key = 'payment_reconcile_created_after'")
+        )
+        value = result.scalar_one()
+        await session.commit()
+
+    return datetime.fromisoformat(str(value))
+
+
 async def _reconcile_unfinished_yookassa_payments() -> None:
-    if not YOOKASSA_RECONCILE_PENDING_PAYMENTS:
-        logger.info("Skipping YooKassa payment reconciliation because it is disabled.")
-        return
     if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
         logger.info("Skipping YooKassa payment reconciliation because credentials are not configured.")
+        return
+    if PAYMENT_RECONCILE_CREATED_AFTER is None:
+        logger.info("Skipping YooKassa payment reconciliation because cutoff is not initialized.")
         return
 
     async with AsyncSessionLocal() as session:
         pending_payment_repository = SqlAlchemyPendingPaymentRepository(session)
-        payments = await pending_payment_repository.list_unfinished_yookassa_payments(limit=IIKO_ORDER_STATUS_SYNC_LIMIT)
+        payments = await pending_payment_repository.list_unfinished_yookassa_payments(
+            limit=IIKO_ORDER_STATUS_SYNC_LIMIT,
+            created_after=PAYMENT_RECONCILE_CREATED_AFTER,
+        )
         if not payments:
             return
 
@@ -288,7 +334,7 @@ async def _reconcile_unfinished_yookassa_payments() -> None:
                     timeout_seconds=IIKO_ORDER_TIMEOUT_SECONDS,
                 ),
                 organization_id=IIKO_ORGANIZATION_ID,
-                terminal_group_id=TERMINAL_ID_GROUP,
+                terminal_group_id=TERMINAL_ID_GROUP_MALYSHAVA,
                 source_key=IIKO_ORDER_SOURCE_KEY,
                 online_payment_type_id=IIKO_ONLINE_PAYMENT_TYPE_ID,
                 online_payment_type_kind=IIKO_ONLINE_PAYMENT_TYPE_KIND,
@@ -362,6 +408,7 @@ async def _run_iiko_order_submission_retry_loop(stop_event: asyncio.Event) -> No
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    global PAYMENT_RECONCILE_CREATED_AFTER
     logger.info("Application startup initiated.")
     await init_db()
     logger.info("Database metadata initialized.")
@@ -373,6 +420,8 @@ async def lifespan(_: FastAPI):
     logger.info("User auth migrations ensured.")
     await sync_admin_users_from_env()
     logger.info("Admin users synchronized from environment.")
+    PAYMENT_RECONCILE_CREATED_AFTER = await _ensure_payment_reconcile_cutoff()
+    logger.info("YooKassa payment reconciliation cutoff initialized. created_after=%s", PAYMENT_RECONCILE_CREATED_AFTER.isoformat())
     await _sync_iiko_catalog()
     stop_event = asyncio.Event()
     sync_task = asyncio.create_task(_run_iiko_sync_loop(stop_event))

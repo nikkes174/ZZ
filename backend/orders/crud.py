@@ -51,8 +51,8 @@ class OrderRepository(Protocol):
     async def list_orders_pending_iiko_submission(self, *, limit: int) -> Sequence[OrderModel]: ...
     async def update_status_by_iiko_order_id(self, *, iiko_order_id: str, status: str) -> Optional[OrderModel]: ...
     async def enqueue_iiko_submission_job(self, *, order_id: int) -> None: ...
-    async def enqueue_missing_paid_iiko_submission_jobs(self, *, limit: int) -> int: ...
-    async def claim_due_iiko_submission_jobs(self, *, limit: int) -> Sequence[OrderDeliveryJobModel]: ...
+    async def enqueue_missing_paid_iiko_submission_jobs(self, *, limit: int, created_after: Optional[datetime] = None) -> int: ...
+    async def claim_due_iiko_submission_jobs(self, *, limit: int, created_after: Optional[datetime] = None) -> Sequence[OrderDeliveryJobModel]: ...
     async def mark_iiko_submission_job_done(self, *, job_id: int) -> None: ...
     async def mark_iiko_submission_job_failed(self, *, job_id: int, error_message: str, next_run_at: datetime) -> None: ...
 
@@ -146,7 +146,13 @@ class SqlAlchemyOrderRepository:
             .where(
                 OrderModel.id == order_id,
                 OrderModel.iiko_order_id.is_(None),
-                OrderModel.iiko_creation_status.in_(("LocalPending", "Failed")),
+                or_(
+                    OrderModel.iiko_creation_status.in_(("LocalPending", "Failed")),
+                    (
+                        OrderModel.iiko_creation_status == "IikoProcessing"
+                    )
+                    & (OrderModel.updated_at < func.now() - text("interval '5 minutes'")),
+                ),
             )
             .values(iiko_creation_status="IikoProcessing", updated_at=func.now())
             .returning(OrderModel)
@@ -267,7 +273,7 @@ class SqlAlchemyOrderRepository:
         await self._session.execute(stmt)
         await self._session.commit()
 
-    async def enqueue_missing_paid_iiko_submission_jobs(self, *, limit: int) -> int:
+    async def enqueue_missing_paid_iiko_submission_jobs(self, *, limit: int, created_after: Optional[datetime] = None) -> int:
         safe_limit = max(1, min(limit, 100))
         stmt = text(
             """
@@ -279,29 +285,37 @@ class SqlAlchemyOrderRepository:
             WHERE orders.iiko_order_id IS NULL
               AND orders.iiko_creation_status IN ('LocalPending', 'Failed')
               AND order_delivery_jobs.id IS NULL
-              AND pending_payments.status = 'succeeded'
+              AND pending_payments.status IN ('succeeded', 'order_failed')
+              AND (:created_after IS NULL OR pending_payments.created_at >= :created_after)
             ORDER BY orders.updated_at ASC, orders.id ASC
             LIMIT :limit
             ON CONFLICT (order_id) DO NOTHING
             RETURNING id
             """
         )
-        result = await self._session.execute(stmt, {"limit": safe_limit})
+        result = await self._session.execute(stmt, {"limit": safe_limit, "created_after": created_after})
         created = len(result.fetchall())
         await self._session.commit()
         return created
 
-    async def claim_due_iiko_submission_jobs(self, *, limit: int) -> Sequence[OrderDeliveryJobModel]:
+    async def claim_due_iiko_submission_jobs(self, *, limit: int, created_after: Optional[datetime] = None) -> Sequence[OrderDeliveryJobModel]:
         safe_limit = max(1, min(limit, 100))
         async with self._session.begin():
-            stmt = (
-                select(OrderDeliveryJobModel)
-                .where(
-                    OrderDeliveryJobModel.job_type == "send_to_iiko",
+            stmt = select(OrderDeliveryJobModel).where(
+                OrderDeliveryJobModel.job_type == "send_to_iiko",
+                or_(
                     OrderDeliveryJobModel.status.in_(("pending", "failed")),
-                    OrderDeliveryJobModel.next_run_at <= func.now(),
-                )
-                .order_by(OrderDeliveryJobModel.next_run_at.asc(), OrderDeliveryJobModel.id.asc())
+                    (
+                        OrderDeliveryJobModel.status == "processing"
+                    )
+                    & (OrderDeliveryJobModel.locked_at < func.now() - text("interval '5 minutes'")),
+                ),
+                OrderDeliveryJobModel.next_run_at <= func.now(),
+            )
+            if created_after is not None:
+                stmt = stmt.where(OrderDeliveryJobModel.created_at >= created_after)
+            stmt = (
+                stmt.order_by(OrderDeliveryJobModel.next_run_at.asc(), OrderDeliveryJobModel.id.asc())
                 .limit(safe_limit)
                 .with_for_update(skip_locked=True)
             )

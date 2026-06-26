@@ -102,15 +102,7 @@ async def create_order(
             if spent_bonus:
                 updated_user = await user_service.spend_bonus(user_id=user.id, bonus_amount=spent_bonus)
             await order_service.enqueue_iiko_submission_if_needed(order_id=claimed_order.order.id)
-            try:
-                order = await order_service.submit_claimed_order(
-                    order_id=claimed_order.order.id,
-                    prepared_order=claimed_order.prepared_order,
-                )
-            except Exception:
-                if spent_bonus:
-                    await user_service.refund_bonus(user_id=user.id, bonus_amount=spent_bonus)
-                raise
+            order = claimed_order.order
             if order.bonus_awarded:
                 updated_user = await user_service.add_bonus(user_id=user.id, bonus_delta=order.bonus_awarded)
             return PaymentInitRead(
