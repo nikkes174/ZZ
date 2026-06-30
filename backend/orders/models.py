@@ -20,6 +20,9 @@ class OrderModel(Base):
     checkout_type: Mapped[str] = mapped_column(String(20), nullable=False)
     payment_type: Mapped[str] = mapped_column(String(20), nullable=False)
     delivery_address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    delivery_street: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    delivery_house: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    delivery_flat: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     entrance: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     comment: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     items_json: Mapped[str] = mapped_column(Text, nullable=False)
@@ -33,6 +36,17 @@ class OrderModel(Base):
     iiko_order_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     iiko_correlation_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     iiko_creation_status: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    branch_code: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        index=True,
+    )
+
+    iiko_terminal_group_id: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        index=True,
+    )
     status: Mapped[str] = mapped_column(String(64), nullable=False, default=ORDER_STATUS_PREPARING)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -53,7 +67,8 @@ class OrderDeliveryJobModel(Base):
     __tablename__ = "order_delivery_jobs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, unique=True,
+                                          index=True)
     job_type: Mapped[str] = mapped_column(String(32), nullable=False, default="send_to_iiko")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", index=True)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

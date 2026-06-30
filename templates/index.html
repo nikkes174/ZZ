@@ -12,6 +12,81 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles.css?v=20260619-delivery-easy-mobile-fix-1">
+    <style>
+        .site-footer-contact-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(150px, 1fr));
+            column-gap: 46px;
+            row-gap: 18px;
+            width: max-content;
+            max-width: 100%;
+        }
+
+        .site-footer-contact-item {
+            display: grid;
+            gap: 8px;
+            align-content: start;
+            min-width: 0;
+        }
+
+        .site-footer-contact-item .site-footer-map-trigger,
+        .site-footer-contact-item .site-footer-phone {
+            text-align: left;
+        }
+
+        .site-footer-contact-item .site-footer-phone,
+        .site-footer-contact-item strong {
+            white-space: nowrap;
+        }
+
+        .site-footer-contact-item .site-footer-map-trigger {
+            white-space: nowrap;
+        }
+
+        #reservation-modal {
+            width: min(420px, calc(100vw - 32px));
+        }
+
+        #reservation-modal .checkout-modal-shell {
+            width: min(420px, calc(100vw - 32px));
+        }
+
+        #reservation-modal .footer-map-modal-wrap {
+            padding: 28px;
+        }
+
+        .reservation-branch-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .reservation-branch-link {
+            display: grid;
+            gap: 4px;
+            padding: 14px 16px;
+            border: 1px solid rgba(216, 178, 107, 0.24);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.04);
+            color: #fff;
+            text-decoration: none;
+        }
+
+        .reservation-branch-link span {
+            color: rgba(255, 255, 255, 0.72);
+            font-size: 0.86rem;
+        }
+
+        .reservation-branch-link strong {
+            color: #ffffff;
+            font-size: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .site-footer-contact-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body class="preloader-active">
     <div class="page-preloader" id="page-preloader" aria-hidden="true">
@@ -50,6 +125,7 @@
     <div class="checkout-backdrop" id="checkout-backdrop"></div>
     <div class="checkout-backdrop" id="auth-backdrop"></div>
     <div class="checkout-backdrop" id="footer-map-backdrop"></div>
+    <div class="checkout-backdrop" id="reservation-backdrop"></div>
     <div class="checkout-backdrop" id="delivery-info-backdrop"></div>
     <div class="admin-backdrop" id="admin-backdrop"></div>
     <aside class="cart-drawer" id="order-panel">
@@ -64,7 +140,15 @@
                 <button class="checkout-switch is-active" id="cart-checkout-type-pickup" type="button">Самовывоз</button>
                 <button class="checkout-switch" id="cart-checkout-type-delivery" type="button">Доставка</button>
             </div>
-            <p class="cart-checkout-note" id="cart-checkout-note">Самовывоз доступен без минимальной суммы.</p>
+            <p class="cart-checkout-note" id="cart-checkout-note" hidden></p>
+        </div>
+
+        <div class="cart-checkout-mode">
+            <span class="cart-checkout-mode-label">Ресторан на:</span>
+            <div class="checkout-switcher cart-checkout-switcher" role="tablist" aria-label="Филиал ресторана">
+                <button class="checkout-switch is-active" id="cart-branch-malyshava" type="button">Малышева</button>
+                <button class="checkout-switch" id="cart-branch-suh" type="button">Сухоложской</button>
+            </div>
         </div>
 
         <div class="order-items" id="order-items">
@@ -122,19 +206,31 @@
 
                     <div class="checkout-delivery-fields is-hidden" id="checkout-delivery-fields">
                         <div class="checkout-grid">
-                            <label class="checkout-field checkout-field-wide checkout-field-floating">
+                            <label class="checkout-field checkout-field-floating">
                                 <input id="checkout-address" type="text" maxlength="255" placeholder=" ">
-                                <span>Адрес доставки</span>
+                                <span>Улица</span>
+                            </label>
+
+                            <label class="checkout-field checkout-field-floating">
+                                <input id="checkout-house" type="text" maxlength="64" placeholder=" ">
+                                <span>Дом</span>
                             </label>
                         </div>
 
                         <div class="checkout-grid">
                             <label class="checkout-field checkout-field-floating">
-                                <input id="checkout-entrance" type="text" maxlength="64" placeholder=" ">
-                                <span>Подъезд / этаж</span>
+                                <input id="checkout-flat" type="text" maxlength="64" placeholder=" ">
+                                <span>Квартира / офис</span>
                             </label>
 
                             <label class="checkout-field checkout-field-floating">
+                                <input id="checkout-entrance" type="text" maxlength="64" placeholder=" ">
+                                <span>Подъезд / этаж</span>
+                            </label>
+                        </div>
+
+                        <div class="checkout-grid">
+                            <label class="checkout-field checkout-field-wide checkout-field-floating">
                                 <input id="checkout-comment" type="text" maxlength="255" placeholder=" ">
                                 <span>Комментарий курьеру</span>
                             </label>
@@ -333,7 +429,7 @@
                 <div class="checkout-modal-head">
                     <div>
                         <span class="section-kicker">Мы находимся</span>
-                        <h3>ул. Малышева, д.28</h3>
+                        <h3 id="footer-map-location-title">ул. Малышева, д. 28</h3>
                     </div>
                 </div>
 
@@ -341,7 +437,7 @@
                     <div class="footer-map-card-grid">
                         <div class="footer-map-card-copy">
                             <span class="footer-map-card-label">Адрес</span>
-                            <strong>Екатеринбург, ул. Малышева, д.28</strong>
+                            <strong id="footer-map-location-address">Екатеринбург, ул. Малышева, д. 28</strong>
                         </div>
                         <div class="footer-map-card-copy">
                             <span class="footer-map-card-label">Режим работы</span>
@@ -362,6 +458,30 @@
             </div>
         </div>
     </section>
+    <section class="checkout-modal footer-map-modal" id="reservation-modal" aria-hidden="true">
+        <div class="checkout-modal-shell">
+            <div class="footer-map-modal-wrap">
+                <div class="checkout-modal-head">
+                    <div>
+                        <span class="section-kicker">Бронирование</span>
+                        <h3>Выберите ресторан</h3>
+                    </div>
+                    <button class="admin-close" id="reservation-close" type="button" aria-label="Закрыть выбор ресторана">x</button>
+                </div>
+
+                <div class="reservation-branch-list">
+                    <a class="reservation-branch-link button-shiny" href="tel:+79827505455">
+                        <span>ул. Малышева, д. 28</span>
+                        <strong>+7 982 750-54-55</strong>
+                    </a>
+                    <a class="reservation-branch-link button-shiny" href="tel:+79530420044">
+                        <span>ул. Сухоложская, д. 5/1</span>
+                        <strong>+7 (953) 042-00-44</strong>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
     <section class="checkout-modal footer-map-modal delivery-info-modal" id="delivery-info-modal" aria-hidden="true">
         <div class="checkout-modal-shell">
             <div class="footer-map-modal-wrap delivery-info-modal-wrap">
@@ -375,9 +495,8 @@
                 </div>
 
                 <div class="delivery-info-list">
-                    <div class="delivery-info-item">
-                        <span>Минимальная сумма заказа для доставки</span>
-                        <strong>1 000 руб.</strong>
+                   <div class="delivery-info-item">
+
                         <span>Бесплатная доставка при заказе от</span>
                         <strong>5 000 руб.</strong>
                     </div>
@@ -682,7 +801,7 @@
 
                 <div class="hero-actions">
                     <a class="hero-button hero-button-primary" href="#menu">Смотреть меню</a>
-                    <a class="hero-button hero-button-secondary button-shiny" id="cart-open-hero" href="tel:+79827505455"><span>Забронировать стол</span></a>
+                    <button class="hero-button hero-button-secondary button-shiny" id="cart-open-hero" type="button"><span>Забронировать стол</span></button>
                 </div>
             </div>
 
@@ -704,7 +823,7 @@
                             <img src="/static/pic/div2.svg" alt="" loading="lazy" decoding="async">
                         </div>
                         <h3>Вызовите Яндекс курьера</h3>
-                        <p>ул. Малышева, 28<br>доставка по Екатеринбургу</p>
+                        <p>ул. Малышева, 28 или Сухоложская 5/1<br>доставка по Екатеринбургу</p>
                     </article>
 
                     <article class="delivery-easy-card">
@@ -860,12 +979,24 @@
 
             <div class="site-footer-column site-footer-meta">
                 <h4 class="site-footer-heading">Контакты</h4>
-                <span class="site-footer-label">Режим работы</span>
-                <strong>Пн - Вс • 10:00 - 23:00</strong>
-                <span class="site-footer-label">Адрес</span>
-                <button class="site-footer-map-trigger" id="footer-map-open" type="button">ул. Малышева, д.28</button>
-                <span class="site-footer-label">Телефон</span>
-                <a class="site-footer-phone" href="tel:+79827505455">+7 982 750-54-55</a>
+                <div class="site-footer-contact-grid">
+                    <div class="site-footer-contact-item">
+                        <span class="site-footer-label">Адрес</span>
+                        <button class="site-footer-map-trigger" id="footer-map-open" type="button" data-map-src="https://www.google.com/maps?q=%D0%B3.%20%D0%95%D0%BA%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%BD%D0%B1%D1%83%D1%80%D0%B3,%20%D1%83%D0%BB.%20%D0%9C%D0%B0%D0%BB%D1%8B%D1%88%D0%B5%D0%B2%D0%B0,%20%D0%B4.%2028&amp;output=embed" data-map-title="ул. Малышева, д. 28" data-map-address="Екатеринбург, ул. Малышева, д. 28" style="text-align:left;">ул. Малышева, д. 28</button>
+                        <span class="site-footer-label">Телефон</span>
+                        <a class="site-footer-phone" href="tel:+79827505455">+7 982 750-54-55</a>
+                        <span class="site-footer-label">Режим работы</span>
+                        <strong>Пн - Вс • 10:00 - 23:00</strong>
+                    </div>
+                    <div class="site-footer-contact-item">
+                        <span class="site-footer-label">Адрес</span>
+                        <button class="site-footer-map-trigger" id="footer-map-open-footer" type="button" data-map-src="https://www.google.com/maps?q=%D0%B3.%20%D0%95%D0%BA%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%BD%D0%B1%D1%83%D1%80%D0%B3,%20%D1%83%D0%BB.%20%D0%A1%D1%83%D1%85%D0%BE%D0%BB%D0%BE%D0%B6%D1%81%D0%BA%D0%B0%D1%8F,%20%D0%B4.%205%2F1&amp;output=embed" data-map-title="ул. Сухоложская, д. 5/1" data-map-address="Екатеринбург, ул. Сухоложская, д. 5/1" style="text-align:left;">ул. Сухоложская, д. 5/1</button>
+                        <span class="site-footer-label">Телефон</span>
+                        <a class="site-footer-phone" href="tel:+79530420044">+7 (953) 042-00-44</a>
+                        <span class="site-footer-label">Режим работы</span>
+                        <strong>Пн - Вс • 10:00 - 00:00</strong>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -875,11 +1006,10 @@
         </div>
     </footer>
 
-    <script defer src="/static/app.js?v=20260519-free-delivery-counter-1"></script>
+    <script defer src="/static/app.js?v=20260628-delivery-fields-1"></script>
     <script defer src="/static/catalog-admin.js?v=20260506-hero-mobile-fix-2"></script>
-    <script defer src="/static/account.js?v=20260508-auth-consents-1"></script>
-    <script defer src="/static/checkout-bridge.js?v=20260506-mobile-auth-storage-fix-1"></script>
-    <script defer src="/static/orders-admin.js?v=20260506-hero-mobile-fix-2"></script>
+    <script defer src="/static/account.js?v=20260630-free-street-1"></script>
+    <script defer src="/static/orders-admin.js?v=20260627-iiko-address-suggest-4"></script>
     <script>
         (function () {
             const preloader = document.getElementById("page-preloader");
@@ -890,6 +1020,16 @@
             const deliveryInfoModal = document.getElementById("delivery-info-modal");
             const deliveryInfoBackdrop = document.getElementById("delivery-info-backdrop");
             const deliveryInfoClose = document.getElementById("delivery-info-close");
+            const footerMapBackdrop = document.getElementById("footer-map-backdrop");
+            const footerMapModal = document.getElementById("footer-map-modal");
+            const footerMapClose = document.getElementById("footer-map-close");
+            const footerMapFrame = footerMapModal ? footerMapModal.querySelector("iframe") : null;
+            const footerMapLocationTitle = document.getElementById("footer-map-location-title");
+            const footerMapLocationAddress = document.getElementById("footer-map-location-address");
+            const reservationOpen = document.getElementById("cart-open-hero");
+            const reservationBackdrop = document.getElementById("reservation-backdrop");
+            const reservationModal = document.getElementById("reservation-modal");
+            const reservationClose = document.getElementById("reservation-close");
 
             function openDeliveryInfoModal(event) {
                 event?.preventDefault();
@@ -904,6 +1044,58 @@
                 deliveryInfoBackdrop?.classList.remove("is-open");
                 deliveryInfoModal?.classList.remove("is-open");
                 deliveryInfoModal?.setAttribute("aria-hidden", "true");
+                document.body.classList.remove("admin-open");
+            }
+
+            function openFooterMapModal(event) {
+                if (!footerMapBackdrop || !footerMapModal) {
+                    return;
+                }
+
+                const trigger = event.currentTarget;
+                if (trigger instanceof HTMLElement) {
+                    const mapSrc = trigger.getAttribute("data-map-src");
+                    const mapTitle = trigger.getAttribute("data-map-title");
+                    const mapAddress = trigger.getAttribute("data-map-address");
+
+                    if (mapSrc && footerMapFrame) {
+                        footerMapFrame.src = mapSrc;
+                    }
+                    if (mapTitle && footerMapLocationTitle) {
+                        footerMapLocationTitle.textContent = mapTitle;
+                    }
+                    if (mapAddress && footerMapLocationAddress) {
+                        footerMapLocationAddress.textContent = mapAddress;
+                    }
+                    if (footerMapFrame) {
+                        footerMapFrame.title = "Карта Zamzam: " + (mapAddress || mapTitle || "адрес");
+                    }
+                }
+
+                footerMapBackdrop.classList.add("is-open");
+                footerMapModal.classList.add("is-open");
+                footerMapModal.setAttribute("aria-hidden", "false");
+                document.body.classList.add("admin-open");
+            }
+
+            function closeFooterMapModal() {
+                footerMapBackdrop?.classList.remove("is-open");
+                footerMapModal?.classList.remove("is-open");
+                footerMapModal?.setAttribute("aria-hidden", "true");
+                document.body.classList.remove("admin-open");
+            }
+
+            function openReservationModal() {
+                reservationBackdrop?.classList.add("is-open");
+                reservationModal?.classList.add("is-open");
+                reservationModal?.setAttribute("aria-hidden", "false");
+                document.body.classList.add("admin-open");
+            }
+
+            function closeReservationModal() {
+                reservationBackdrop?.classList.remove("is-open");
+                reservationModal?.classList.remove("is-open");
+                reservationModal?.setAttribute("aria-hidden", "true");
                 document.body.classList.remove("admin-open");
             }
 
@@ -963,9 +1155,17 @@
             document.querySelectorAll("[data-delivery-info-open]").forEach(function (item) {
                 item.addEventListener("click", openDeliveryInfoModal);
             });
+            document.querySelectorAll("#footer-map-open, #footer-map-open-footer").forEach(function (item) {
+                item.addEventListener("click", openFooterMapModal);
+            });
+            reservationOpen?.addEventListener("click", openReservationModal);
 
             deliveryInfoClose?.addEventListener("click", closeDeliveryInfoModal);
             deliveryInfoBackdrop?.addEventListener("click", closeDeliveryInfoModal);
+            footerMapClose?.addEventListener("click", closeFooterMapModal);
+            footerMapBackdrop?.addEventListener("click", closeFooterMapModal);
+            reservationClose?.addEventListener("click", closeReservationModal);
+            reservationBackdrop?.addEventListener("click", closeReservationModal);
 
             topbarWrap?.addEventListener("click", function (event) {
                 if (!topbar?.classList.contains("is-menu-open")) {
@@ -1007,6 +1207,8 @@
                 if (event.key === "Escape") {
                     setMobileMenuOpen(false);
                     closeDeliveryInfoModal();
+                    closeFooterMapModal();
+                    closeReservationModal();
                 }
             });
 

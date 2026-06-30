@@ -5,7 +5,6 @@ const PENDING_PAYMENT_STORAGE_KEY = "zamzam_pending_payment_id";
 const PENDING_PAYMENT_SYNC_RETRY_DELAYS = [3000, 7000, 15000, 30000];
 let pendingPaymentSyncRetryIndex = 0;
 let pendingPaymentSyncTimeoutId = null;
-const MIN_CHECKOUT_AMOUNT = 1000;
 window.zamzamAuthFallbackBound = true;
 window.zamzamAccountCheckoutEnabled = true;
 
@@ -38,7 +37,7 @@ function removePersistentStorage(key) {
     window.sessionStorage.removeItem(key);
 }
 
-const ACTIVE_ORDER_STATUSES = new Set(["Готовится", "Заказ отправлен", "Готов к выдаче"]);
+const ACTIVE_ORDER_STATUSES = new Set(["Готовится", "Приготовлен", "Заказ отправлен", "Готов к выдаче"]);
 
 const authModal = document.getElementById("auth-modal");
 const authBackdrop = document.getElementById("auth-backdrop");
@@ -100,6 +99,9 @@ const checkoutButton = document.getElementById("checkout-button");
 const floatingTools = document.querySelector(".floating-tools");
 const checkoutOfertaConsent = document.getElementById("checkout-oferta-consent");
 const checkoutPolicyConsent = document.getElementById("checkout-policy-consent");
+const checkoutAddressInput = document.getElementById("checkout-address");
+const checkoutHouseInput = document.getElementById("checkout-house");
+const checkoutFlatInput = document.getElementById("checkout-flat");
 
 let sessionToken = readPersistentStorage(SESSION_STORAGE_KEY);
 let authMode = "login";
@@ -536,6 +538,9 @@ function getOrderStatusClass(status) {
     if (status === "Готов к выдаче") {
         return "account-order-status-ready";
     }
+    if (status === "Приготовлен") {
+        return "account-order-status-ready";
+    }
     return "";
 }
 
@@ -954,9 +959,12 @@ function buildOrderPayload(appApi) {
     const checkoutState = appApi.getCheckoutState();
     const customerName = getCheckoutName();
     const customerPhone = getCheckoutPhone();
-    const deliveryAddress = document.getElementById("checkout-address")?.value.trim() || "";
+    const deliveryStreet = checkoutAddressInput?.value.trim() || "";
+    const deliveryHouse = checkoutHouseInput?.value.trim() || "";
+    const deliveryFlat = checkoutFlatInput?.value.trim() || "";
     const entrance = document.getElementById("checkout-entrance")?.value.trim() || "";
     const comment = document.getElementById("checkout-comment")?.value.trim() || "";
+    const isDelivery = checkoutState.checkoutType === "delivery";
 
     return {
         entries,
@@ -967,9 +975,13 @@ function buildOrderPayload(appApi) {
             customer_name: customerName,
             customer_phone: customerPhone,
             checkout_type: checkoutState.checkoutType,
+            branch_code: checkoutState.branchCode,
             payment_type: "card",
-            delivery_address: deliveryAddress || null,
-            entrance: entrance || null,
+            delivery_address: null,
+            delivery_street: isDelivery ? deliveryStreet || null : null,
+            delivery_house: isDelivery ? deliveryHouse || null : null,
+            delivery_flat: isDelivery ? deliveryFlat || null : null,
+            entrance: isDelivery ? entrance || null : null,
             comment: comment || null,
             cutlery_count: checkoutState.cutleryItemsCount,
             bonus_spent: clampBonusSpent(getBonusSpentValue()),
@@ -1003,8 +1015,15 @@ async function submitOrderWithSession() {
         return;
     }
 
-    if (payload.checkout_type === "delivery" && (appApi.getCartTotals().totalPriceValue || 0) < MIN_CHECKOUT_AMOUNT) {
-        showCheckoutWarning(`Для доставки минимальная сумма заказа ${MIN_CHECKOUT_AMOUNT} ₽.`);
+    if (payload.checkout_type === "delivery" && !payload.delivery_street) {
+        showCheckoutWarning("Укажите улицу доставки.");
+        checkoutAddressInput?.focus();
+        return;
+    }
+
+    if (payload.checkout_type === "delivery" && !payload.delivery_house) {
+        showCheckoutWarning("Укажите номер дома.");
+        checkoutHouseInput?.focus();
         return;
     }
 

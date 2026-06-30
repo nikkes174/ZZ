@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 ORDER_STATUS_PREPARING = "Готовится"
+ORDER_STATUS_COOKED = "Приготовлен"
 ORDER_STATUS_DELIVERY_SENT = "Заказ отправлен"
 ORDER_STATUS_DELIVERED = "Доставлен"
 ORDER_STATUS_PICKUP_READY = "Готов к выдаче"
@@ -10,6 +11,7 @@ ORDER_STATUS_CANCELLED = "Отменен"
 ORDER_STATUSES_BY_CHECKOUT_TYPE: dict[str, tuple[str, ...]] = {
     "delivery": (
         ORDER_STATUS_PREPARING,
+        ORDER_STATUS_COOKED,
         ORDER_STATUS_DELIVERY_SENT,
         ORDER_STATUS_DELIVERED,
         ORDER_STATUS_CANCELLED,
@@ -24,6 +26,7 @@ ORDER_STATUSES_BY_CHECKOUT_TYPE: dict[str, tuple[str, ...]] = {
 
 ACTIVE_ORDER_STATUSES = {
     ORDER_STATUS_PREPARING,
+    ORDER_STATUS_COOKED,
     ORDER_STATUS_DELIVERY_SENT,
     ORDER_STATUS_PICKUP_READY,
 }

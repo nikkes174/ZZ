@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -10,14 +9,7 @@ from backend.orders.schemas import OrderCreate
 
 
 logger = logging.getLogger(__name__)
-_HOUSE_RE = re.compile(r"(?:д\.?|дом)\s*([0-9A-Za-zА-Яа-я/-]+)", re.IGNORECASE)
-_FLAT_RE = re.compile(r"(?:кв\.?|квартира)\s*([0-9A-Za-zА-Яа-я/-]+)", re.IGNORECASE)
-_BUILDING_RE = re.compile(r"(?:к\.|корп\.?|корпус)\s*([0-9A-Za-zА-Яа-я/-]+)", re.IGNORECASE)
-_HOUSE_NUMBER_RE = re.compile(r"\b([0-9]+[0-9A-Za-zА-Яа-я/-]*)\b")
-_ADDRESS_PART_LABEL_RE = re.compile(
-    r"^(?:ул\.?|улица|пр\.?|проспект|пер\.?|переулок|бульвар|б-р)\s+",
-    re.IGNORECASE,
-)
+DEFAULT_DELIVERY_CITY = "Екатеринбург"
 
 
 class IikoOrderError(Exception):
@@ -36,31 +28,34 @@ class IikoOrderItem:
 class IikoOrderGateway:
     client: IikoApiClient
     organization_id: Optional[str]
-    terminal_group_id: Optional[str]
     source_key: str = "zamzam-site"
     online_payment_type_id: Optional[str] = None
     online_payment_type_kind: str = "Card"
 
     async def submit_order(
-        self,
-        *,
-        payload: OrderCreate,
-        items: list[IikoOrderItem],
-        total_amount: int,
-        external_number: Optional[str] = None,
+            self,
+            *,
+            payload: OrderCreate,
+            items: list[IikoOrderItem],
+            total_amount: int,
+            terminal_group_id: str,
+            external_number: Optional[str] = None,
     ) -> dict[str, str]:
         if not self.client.api_login:
             raise IikoOrderError("API_IIKO is not configured.")
-        if not self.terminal_group_id:
+
+        if not terminal_group_id:
             raise IikoOrderError("TERMINAL_ID_GROUP is not configured.")
 
         token = await self.client.get_access_token()
         organization_id = await self._resolve_organization_id(token=token)
+
         order_type_id = await self._resolve_order_type_id(
             token=token,
             checkout_type=payload.checkout_type,
             organization_id=organization_id,
         )
+
         payments = await self._build_payments(
             token=token,
             organization_id=organization_id,
@@ -68,74 +63,135 @@ class IikoOrderGateway:
             total_amount=total_amount,
         )
 
-        comment_parts = []
-        if payload.comment:
+        comment_parts: list[str] = []
+
+        if payload.comment and payload.comment.strip():
             comment_parts.append(payload.comment.strip())
-        if payload.entrance:
-            comment_parts.append(f"Подъезд: {payload.entrance.strip()}")
+
         if payload.cutlery_count > 0:
             comment_parts.append(f"Приборы: {payload.cutlery_count}")
 
-        order_payload: dict[str, object] = {
-            "organizationId": organization_id,
-            "terminalGroupId": self.terminal_group_id,
-            "order": {
-                "phone": payload.customer_phone,
-                "customer": {
-                    "name": payload.customer_name,
-                },
-                "orderTypeId": order_type_id,
-                "items": [
-                    {
-                        "productId": item.product_id,
-                        "type": "Product",
-                        "amount": item.quantity,
-                        "price": item.price,
-                    }
-                    for item in items
-                ],
+        order_data: dict[str, object] = {
+            "phone": payload.customer_phone,
+            "customer": {
+                "name": payload.customer_name,
             },
+            "orderTypeId": order_type_id,
+            "items": [
+                {
+                    "productId": item.product_id,
+                    "type": "Product",
+                    "amount": item.quantity,
+                    "price": item.price,
+                }
+                for item in items
+            ],
         }
+
         if self.source_key:
-            order_payload["order"]["sourceKey"] = self.source_key
+            order_data["sourceKey"] = self.source_key
+
         if external_number:
-            order_payload["order"]["externalNumber"] = external_number[:50]
+            order_data["externalNumber"] = external_number[:50]
+
         if comment_parts:
-            order_payload["order"]["comment"] = " | ".join(comment_parts)
+            order_data["comment"] = " | ".join(comment_parts)
+
         if payments:
-            order_payload["order"]["payments"] = payments
-        if payload.checkout_type == "delivery" and payload.delivery_address:
-            order_payload["order"]["deliveryPoint"] = self._build_delivery_point(
-                address=payload.delivery_address,
+            order_data["payments"] = payments
+
+        if payload.checkout_type == "delivery":
+            delivery_street = (payload.delivery_street or "").strip()
+            delivery_house = (payload.delivery_house or "").strip()
+
+            if not delivery_street:
+                raise IikoOrderError("Не указана улица доставки.")
+
+            if not delivery_house:
+                raise IikoOrderError("Не указан номер дома.")
+
+            delivery_info = self._build_delivery_info(
+                street=delivery_street,
+                house=delivery_house,
+                flat=payload.delivery_flat,
                 entrance=payload.entrance,
-                comment=payload.comment,
             )
 
+            order_data["deliveryInfo"] = delivery_info
+
+            logger.info(
+                "Sending iiko delivery info. street=%s house=%s delivery_info=%s",
+                delivery_street,
+                delivery_house,
+                delivery_info,
+            )
+
+        order_payload: dict[str, object] = {
+            "organizationId": organization_id,
+            "terminalGroupId": terminal_group_id,
+            "order": order_data,
+        }
+
         try:
-            response_payload = await self.client.create_delivery_order(token=token, payload=order_payload)
+            response_payload = await self.client.create_delivery_order(
+                token=token,
+                payload=order_payload,
+            )
         except IikoClientError as exc:
             raise IikoOrderError(str(exc)) from exc
 
-        order_info = response_payload.get("orderInfo") or {}
+        raw_order_info = response_payload.get("orderInfo")
+        order_info = raw_order_info if isinstance(raw_order_info, dict) else {}
+
         creation_status = str(order_info.get("creationStatus") or "")
+
         if creation_status not in {"Success", "InProgress"}:
-            error_info = order_info.get("errorInfo") or {}
+            raw_error_info = order_info.get("errorInfo")
+            error_info = raw_error_info if isinstance(raw_error_info, dict) else {}
+
             error_code = error_info.get("code")
-            error_message = str(error_info.get("message") or error_info.get("description") or "Unknown iiko error.")
-            raise IikoOrderError(self._to_user_message(error_code=error_code, error_message=error_message))
+            error_message = str(
+                error_info.get("message")
+                or error_info.get("description")
+                or "Unknown iiko error."
+            )
+
+            raise IikoOrderError(
+                self._to_user_message(
+                    error_code=error_code,
+                    error_message=error_message,
+                )
+            )
+
+        iiko_order_id = str(order_info.get("id") or "")
+        correlation_id = str(response_payload.get("correlationId") or "")
 
         logger.info(
             "iiko order accepted. creation_status=%s order_id=%s correlation_id=%s",
             creation_status,
-            order_info.get("id"),
-            response_payload.get("correlationId"),
+            iiko_order_id,
+            correlation_id,
         )
+
+        if iiko_order_id:
+            try:
+                await self.client.confirm_delivery_order(
+                    token=token,
+                    organization_id=organization_id,
+                    order_id=iiko_order_id,
+                )
+            except IikoClientError as exc:
+                logger.warning(
+                    "Could not confirm iiko delivery order. order_id=%s error=%s",
+                    iiko_order_id,
+                    exc,
+                )
+
         return {
-            "iiko_order_id": str(order_info.get("id") or ""),
-            "correlation_id": str(response_payload.get("correlationId") or ""),
+            "iiko_order_id": iiko_order_id,
+            "correlation_id": correlation_id,
             "creation_status": creation_status,
         }
-
     async def _resolve_organization_id(self, *, token: str) -> str:
         if self.organization_id:
             return self.organization_id
@@ -225,81 +281,35 @@ class IikoOrderGateway:
         logger.warning("Cash payment type was not found in iiko. order will be sent without payments.")
         return []
 
-    def _build_delivery_point(self, *, address: str, entrance: Optional[str], comment: Optional[str]) -> dict[str, object]:
-        normalized_address = address.strip()
-        parsed_address = self._parse_delivery_address(normalized_address, entrance=entrance)
-        comment_parts = []
-        if entrance:
-            comment_parts.append(f"Подъезд: {entrance.strip()}")
-        if comment:
-            comment_parts.append(comment.strip())
-        comment_parts.append(f"Адрес: {normalized_address}")
+    def _build_delivery_info(
+        self,
+        *,
+        street: str,
+        house: str,
+        flat: Optional[str],
+        entrance: Optional[str],
+    ) -> dict[str, object]:
+        normalized_street = street.strip()
+        normalized_house = house.strip()
 
-        payload: dict[str, object] = {
-            "address": parsed_address,
-        }
-        if comment_parts:
-            payload["comment"] = " | ".join(comment_parts)
-        return payload
+        line_parts = [
+            f"город {DEFAULT_DELIVERY_CITY}",
+            normalized_street,
+            f"дом {normalized_house}",
+        ]
 
-    def _parse_delivery_address(self, address: str, entrance: Optional[str]) -> dict[str, object]:
-        parts = [part.strip() for part in address.split(",") if part.strip()]
-        house = self._extract_house(address)
-        street = self._extract_street(parts=parts, house=house, fallback=address)
-        parsed_address: dict[str, object] = {
-            "street": {
-                "name": street,
-            },
-            "house": house,
-        }
-
-        building = self._extract_optional_part(_BUILDING_RE, address)
-        if building:
-            parsed_address["building"] = building
-
-        flat = self._extract_optional_part(_FLAT_RE, address)
-        if flat:
-            parsed_address["flat"] = flat
+        if flat and flat.strip():
+            line_parts.append(f"квартира {flat.strip()}")
 
         if entrance and entrance.strip():
-            parsed_address["entrance"] = entrance.strip()[:64]
+            line_parts.append(entrance.strip())
 
-        return parsed_address
-
-    def _extract_street(self, *, parts: list[str], house: str, fallback: str) -> str:
-        for part in parts:
-            if house and house in part and any(char.isdigit() for char in part):
-                continue
-            if _FLAT_RE.search(part) or _BUILDING_RE.search(part):
-                continue
-            cleaned = _ADDRESS_PART_LABEL_RE.sub("", part).strip()
-            if cleaned:
-                return cleaned[:255]
-
-        cleaned_fallback = fallback.replace(house, "").strip(" ,")
-        return (cleaned_fallback or fallback)[:255]
-
-    def _extract_optional_part(self, pattern: re.Pattern[str], address: str) -> Optional[str]:
-        match = pattern.search(address)
-        if not match:
-            return None
-        return match.group(1).strip()[:64]
-
-    def _extract_house(self, address: str) -> str:
-        match = _HOUSE_RE.search(address)
-        if match:
-            return match.group(1)
-
-        parts = [part.strip() for part in address.split(",") if part.strip()]
-        for part in reversed(parts):
-            if _FLAT_RE.search(part) or _BUILDING_RE.search(part):
-                continue
-            if any(char.isdigit() for char in part):
-                number_match = _HOUSE_NUMBER_RE.search(part)
-                if number_match:
-                    return number_match.group(1)[:64]
-                return part[:64]
-        return address[:64]
+        return {
+            "address": {
+                "line1": ", ".join(line_parts),
+                "type": "city",
+            },
+        }
 
     def _to_user_message(self, *, error_code: object, error_message: str) -> str:
         if error_code == "TerminalGroupDisabled":

@@ -68,6 +68,47 @@ class IikoApiClient:
         logger.info("iiko payment types received. count=%s", len(payment_types))
         return payment_types
 
+    async def get_cities(self, *, token: str, organization_ids: list[str]) -> list[dict[str, Any]]:
+        logger.info("Requesting iiko cities. organization_ids=%s", organization_ids)
+        payload = await self._post(
+            "cities",
+            {"organizationIds": organization_ids, "includeDeleted": False},
+            token=token,
+        )
+        items = payload.get("cities") or payload.get("items")
+        if not isinstance(items, list):
+            raise IikoClientError(f"iiko cities response is invalid. keys={sorted(payload.keys())}")
+
+        cities: list[dict[str, Any]] = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            nested_items = item.get("items") or item.get("cities")
+            if isinstance(nested_items, list):
+                cities.extend(city for city in nested_items if isinstance(city, dict))
+                continue
+            if item.get("id") or item.get("name"):
+                cities.append(item)
+        logger.info("iiko cities received. count=%s", len(cities))
+        return cities
+
+    async def get_streets_by_city(self, *, token: str, organization_id: str, city_id: str) -> list[dict[str, Any]]:
+        logger.info("Requesting iiko streets by city. organization_id=%s city_id=%s", organization_id, city_id)
+        payload = await self._post(
+            "streets/by_city",
+            {
+                "organizationId": organization_id,
+                "cityId": city_id,
+                "includeDeleted": False,
+            },
+            token=token,
+        )
+        streets = payload.get("streets") or payload.get("items")
+        if not isinstance(streets, list):
+            raise IikoClientError(f"iiko streets by city response is invalid. keys={sorted(payload.keys())}")
+        logger.info("iiko streets by city received. count=%s", len(streets))
+        return streets
+
     async def create_delivery_order(self, *, token: str, payload: dict[str, Any]) -> dict[str, Any]:
         logger.info(
             "Sending delivery order to iiko. organization_id=%s terminal_group_id=%s",
@@ -78,6 +119,20 @@ class IikoApiClient:
         if not isinstance(response_payload, dict):
             raise IikoClientError("iiko delivery create response is invalid.")
         return response_payload
+
+    async def confirm_delivery_order(self, *, token: str, organization_id: str, order_id: str) -> dict[str, Any]:
+        logger.info("Confirming iiko delivery order. organization_id=%s order_id=%s", organization_id, order_id)
+        payload = await self._post(
+            "deliveries/confirm",
+            {
+                "organizationId": organization_id,
+                "orderId": order_id,
+            },
+            token=token,
+        )
+        if not isinstance(payload, dict):
+            raise IikoClientError("iiko delivery confirm response is invalid.")
+        return payload
 
     async def get_delivery_orders_by_ids(
         self,
@@ -99,6 +154,28 @@ class IikoApiClient:
         if not isinstance(orders, list):
             raise IikoClientError("iiko deliveries by id response is invalid.")
         logger.info("iiko delivery orders received. count=%s", len(orders))
+        return orders
+
+    async def get_delivery_orders_by_pos_ids(
+        self,
+        *,
+        token: str,
+        organization_id: str,
+        pos_order_ids: list[str],
+    ) -> list[dict[str, Any]]:
+        logger.info("Requesting iiko delivery orders by pos ids. count=%s", len(pos_order_ids))
+        payload = await self._post(
+            "deliveries/by_id",
+            {
+                "organizationId": organization_id,
+                "posOrderIds": pos_order_ids,
+            },
+            token=token,
+        )
+        orders = payload.get("orders")
+        if not isinstance(orders, list):
+            raise IikoClientError("iiko deliveries by pos ids response is invalid.")
+        logger.info("iiko delivery orders by pos ids received. count=%s", len(orders))
         return orders
 
     async def _post(self, path: str, json_payload: dict[str, Any], *, token: Optional[str]) -> dict[str, Any]:

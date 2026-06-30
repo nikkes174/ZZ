@@ -1,5 +1,4 @@
 const cart = new Map();
-const MIN_CHECKOUT_AMOUNT = 1000;
 const FREE_DELIVERY_AMOUNT = 5000;
 const SESSION_STORAGE_KEY = "zamzam_session_token";
 
@@ -50,10 +49,14 @@ const footerMapClose = document.getElementById("footer-map-close");
 const checkoutForm = document.getElementById("checkout-form");
 const checkoutTypePickup = document.getElementById("cart-checkout-type-pickup");
 const checkoutTypeDelivery = document.getElementById("cart-checkout-type-delivery");
+const cartBranchMalyshava = document.getElementById("cart-branch-malyshava");
+const cartBranchSuh = document.getElementById("cart-branch-suh");
 const checkoutPaymentCash = document.getElementById("checkout-payment-cash");
 const checkoutPaymentCard = document.getElementById("checkout-payment-card");
 const checkoutDeliveryFields = document.getElementById("checkout-delivery-fields");
 const checkoutAddress = document.getElementById("checkout-address");
+const checkoutHouse = document.getElementById("checkout-house");
+const checkoutFlat = document.getElementById("checkout-flat");
 const checkoutEntrance = document.getElementById("checkout-entrance");
 const checkoutComment = document.getElementById("checkout-comment");
 const checkoutName = document.getElementById("checkout-name");
@@ -140,6 +143,7 @@ let activeSectionEditor = null;
 let cutleryItemsCount = 0;
 let checkoutType = "pickup";
 let checkoutPayment = "card";
+let branchCode = "malyshava";
 let isDelivery = false;
 let cartToastTimeoutId = null;
 let revealObserver = null;
@@ -150,7 +154,7 @@ let orderSuccessScrollY = 0;
 menuStartTrigger?.classList.add("button-shiny");
 
 if ("scrollRestoration" in window.history) {
-    window.history.scrollRestoration = "manual";
+    window.history.scrollRestoration = "auto";
 }
 
 const cartToast = (() => {
@@ -207,22 +211,6 @@ function bindPhonePrefix(input) {
 
 window.zamzamEnsurePhonePrefix = ensurePhonePrefixValue;
 
-function bindClick(element, handler) {
-    if (element) {
-        element.addEventListener("click", handler);
-    }
-    if (cartCheckoutNote) {
-        cartCheckoutNote.textContent = isDelivery
-            ? "Минимальная сумма заказа для доставки 1000 ₽."
-            : "Самовывоз доступен без минимальной суммы.";
-    }
-    if (cartCheckoutNote) {
-        cartCheckoutNote.textContent = isDelivery
-            ? "Минимальная сумма заказа для доставки 1000 ₽."
-            : "Самовывоз доступен без минимальной суммы.";
-    }
-}
-
 function getCards() {
     return Array.from(document.querySelectorAll(".dish-card"));
 }
@@ -249,20 +237,22 @@ function closeMobileMenu() {
 function syncCartCheckoutNote() {
     if (cartCheckoutNote) {
         if (checkoutType !== "delivery") {
-            cartCheckoutNote.textContent = "Самовывоз доступен без минимальной суммы.";
+            cartCheckoutNote.textContent = "";
+            cartCheckoutNote.hidden = true;
             return;
         }
 
+        cartCheckoutNote.hidden = false;
         const { totalPriceValue } = getCartTotals();
         const remainingToFreeDelivery = Math.max(0, FREE_DELIVERY_AMOUNT - totalPriceValue);
         cartCheckoutNote.innerHTML = remainingToFreeDelivery > 0
-            ? `Минимальная сумма заказа для доставки ${formatPrice(MIN_CHECKOUT_AMOUNT)}<br>Сумма заказа для бесплатной доставки от ${formatPrice(FREE_DELIVERY_AMOUNT)}<br>До бесплатной доставки осталось ${formatPrice(remainingToFreeDelivery)}`
+            ? `<br>Сумма заказа для бесплатной доставки от ${formatPrice(FREE_DELIVERY_AMOUNT)}<br>До бесплатной доставки осталось ${formatPrice(remainingToFreeDelivery)}`
             : "Доставка будет бесплатной.";
     }
 }
 
-function canCheckoutWithCurrentType(totalPriceValue) {
-    return checkoutType !== "delivery" || totalPriceValue >= MIN_CHECKOUT_AMOUNT;
+function canCheckoutWithCurrentType() {
+    return true;
 }
 
 const HERO_PARTICLE_SELECTOR = ".hero-kicker, .hero h1, .hero-address, .hero h2 > span";
@@ -878,6 +868,23 @@ function syncCheckoutType() {
     if (checkoutAddress) {
         checkoutAddress.required = isDelivery;
     }
+    if (checkoutHouse) {
+        checkoutHouse.required = isDelivery;
+    }
+    if (!isDelivery) {
+        if (checkoutAddress) {
+            checkoutAddress.value = "";
+        }
+        if (checkoutHouse) {
+            checkoutHouse.value = "";
+        }
+        if (checkoutFlat) {
+            checkoutFlat.value = "";
+        }
+        if (checkoutEntrance) {
+            checkoutEntrance.value = "";
+        }
+    }
 
     if (checkoutNote) {
         checkoutNote.textContent = isDelivery
@@ -890,6 +897,11 @@ function syncCheckoutType() {
 function syncCheckoutPayment() {
     checkoutPayment = "card";
     checkoutPaymentCard?.classList.toggle("is-active", checkoutPayment === "card");
+}
+
+function syncBranchSelection() {
+    cartBranchMalyshava?.classList.toggle("is-active", branchCode === "malyshava");
+    cartBranchSuh?.classList.toggle("is-active", branchCode === "suh");
 }
 
 function openCheckoutModal() {
@@ -1896,6 +1908,14 @@ bindClick(checkoutTypeDelivery, () => {
     syncCartCheckoutNote();
     renderCart();
 });
+bindClick(cartBranchMalyshava, () => {
+    branchCode = "malyshava";
+    syncBranchSelection();
+});
+bindClick(cartBranchSuh, () => {
+    branchCode = "suh";
+    syncBranchSelection();
+});
 bindClick(checkoutPaymentCard, () => {
     checkoutPayment = "card";
     syncCheckoutPayment();
@@ -2173,28 +2193,29 @@ if (checkoutForm) {
 
         event.preventDefault();
 
-        const { totalItems, totalPriceValue } = getCartTotals();
+        const { totalItems } = getCartTotals();
         if (!totalItems) {
             window.alert("Сначала добавьте блюда в корзину.");
             return;
         }
 
-        if (!canCheckoutWithCurrentType(totalPriceValue)) {
-            window.alert(`Для доставки минимальная сумма заказа ${MIN_CHECKOUT_AMOUNT} ₽.`);
-            return;
-        }
-
         const customerName = checkoutName?.value.trim() || "";
         const customerPhone = ensurePhonePrefixValue(checkoutPhone).trim();
-        const deliveryAddress = checkoutAddress?.value.trim() || "";
+        const deliveryStreet = checkoutAddress?.value.trim() || "";
+        const deliveryHouse = checkoutHouse?.value.trim() || "";
 
         if (!customerName || !customerPhone) {
             window.alert("Укажите телефон для связи.");
             return;
         }
 
-        if (checkoutType === "delivery" && !deliveryAddress) {
-            window.alert("Укажите адрес доставки.");
+        if (checkoutType === "delivery" && !deliveryStreet) {
+            window.alert("Укажите улицу доставки.");
+            return;
+        }
+
+        if (checkoutType === "delivery" && !deliveryHouse) {
+            window.alert("Укажите номер дома.");
             return;
         }
 
@@ -2251,10 +2272,6 @@ window.addEventListener("scroll", () => {
     updateFloatingToolsVisibility();
 });
 
-window.addEventListener("load", () => {
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-});
-
 setAdminMode(false);
 bindPhonePrefix(checkoutPhone);
 bindPhonePrefix(document.getElementById("auth-phone"));
@@ -2287,6 +2304,7 @@ window.zamzamApp = {
     getCheckoutState: () => ({
         checkoutType,
         checkoutPayment,
+        branchCode,
         cutleryItemsCount,
     }),
     closeCart,
@@ -2300,9 +2318,11 @@ window.zamzamApp = {
         checkoutForm?.reset();
         checkoutType = "pickup";
         checkoutPayment = "card";
+        branchCode = "malyshava";
         ensurePhonePrefixValue(checkoutPhone);
         syncCheckoutType();
         syncCheckoutPayment();
+        syncBranchSelection();
         syncCartCheckoutNote();
         renderCart();
         closeCheckoutModal();

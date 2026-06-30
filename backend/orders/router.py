@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import time
 from typing import Optional
 
@@ -10,7 +11,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from backend.auth.dependencies import require_admin_user, require_current_user
 from backend.orders.availability import ensure_order_time_open
 from backend.orders.depencises import get_order_service
-from backend.orders.schemas import AdminOrdersPage, OrderCreate, OrderRead, OrderStatusUpdate, UserOrdersPage
+from backend.orders.schemas import (
+    AdminOrdersPage,
+    OrderCreate,
+    OrderRead,
+    OrderStatusUpdate,
+    UserOrdersPage,
+)
 from backend.orders.service import OrderNotFoundError, OrderService, OrderValidationError
 from backend.payment.depencises import get_yookassa_payment_service
 from backend.payment.schemas import PaymentInitRead
@@ -21,6 +28,7 @@ from backend.user.schemas import UserRead
 from backend.user.service import UserBonusError, UserService
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
+logger = logging.getLogger(__name__)
 
 
 def _build_order_idempotency_key(*, request: Request, user_id: int, payload: OrderCreate) -> str:
@@ -46,6 +54,16 @@ async def create_order(
     ensure_order_time_open()
     await rate_limiter.check(key=f"orders-create:ip:{client_ip(request)}", limit=30, window_seconds=60)
     await rate_limiter.check(key=f"orders-create:user:{user.id}", limit=10, window_seconds=60)
+    logger.info(
+        "Received order payload. checkout_type=%s branch_code=%s delivery_street=%s delivery_house=%s delivery_flat=%s entrance=%s comment=%s",
+        payload.checkout_type,
+        payload.branch_code,
+        payload.delivery_street,
+        payload.delivery_house,
+        payload.delivery_flat,
+        payload.entrance,
+        payload.comment,
+    )
     try:
         prepared_order = await order_service.prepare_order(
             payload=payload,

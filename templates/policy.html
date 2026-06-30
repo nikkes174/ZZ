@@ -58,8 +58,10 @@
 
                     <article class="legal-page-aside-card">
                         <span class="legal-page-aside-label">Контакты</span>
-                        <button class="site-footer-map-trigger legal-page-map-trigger" id="footer-map-open" type="button">Екатеринбург, ул. Малышева, д.28</button>
+                        <button class="site-footer-map-trigger legal-page-map-trigger" id="footer-map-open" type="button" data-map-src="https://www.google.com/maps?q=%D0%B3.%20%D0%95%D0%BA%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%BD%D0%B1%D1%83%D1%80%D0%B3,%20%D1%83%D0%BB.%20%D0%9C%D0%B0%D0%BB%D1%8B%D1%88%D0%B5%D0%B2%D0%B0,%20%D0%B4.%2028&amp;output=embed" data-map-label="Ресторан на Малышева" data-map-address="Екатеринбург, ул. Малышева, д. 28" style="text-align:left;">Екатеринбург, ул. Малышева, д. 28</button>
                         <a class="site-footer-phone legal-page-phone" href="tel:+79827505455">+7 982 750-54-55</a>
+                        <button class="site-footer-map-trigger legal-page-map-trigger" id="footer-map-open-footer" type="button" data-map-src="https://www.google.com/maps?q=%D0%B3.%20%D0%95%D0%BA%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%BD%D0%B1%D1%83%D1%80%D0%B3,%20%D1%83%D0%BB.%20%D0%A1%D1%83%D1%85%D0%BE%D0%BB%D0%BE%D0%B6%D1%81%D0%BA%D0%B0%D1%8F,%20%D0%B4.%205%2F1&amp;output=embed" data-map-label="Ресторан на Сухоложской" data-map-address="Екатеринбург, ул. Сухоложская, д. 5/1" style="text-align:left;">Екатеринбург, ул. Сухоложская, д. 5/1</button>
+                        <a class="site-footer-phone legal-page-phone" href="tel:+79530420044">+7 (953) 042-00-44</a>
                     </article>
                 </aside>
 
@@ -75,41 +77,55 @@
     </main>
 
     <section class="checkout-modal footer-map-modal" id="footer-map-modal" aria-hidden="true">
-        <div class="checkout-modal-shell">
-            <div class="footer-map-modal-wrap">
-                <div class="checkout-modal-head">
-                    <div>
-                        <span class="section-kicker">Мы находимся</span>
-                        <h3>ул. Малышева, д.28</h3>
-                    </div>
-                    <button class="admin-close" id="footer-map-close" type="button" aria-label="Закрыть карту">x</button>
+    <div class="checkout-modal-shell">
+        <div class="footer-map-modal-wrap">
+            <div class="checkout-modal-head">
+                <div>
+                    <span class="section-kicker">Мы находимся</span>
+                    <h3>Адреса ресторанов</h3>
                 </div>
+                <button
+                    class="admin-close"
+                    id="footer-map-close"
+                    type="button"
+                    aria-label="Закрыть карту"
+                >
+                    x
+                </button>
+            </div>
 
-                <div class="footer-map-card">
-                    <div class="footer-map-card-grid">
-                        <div class="footer-map-card-copy">
-                            <span class="footer-map-card-label">Адрес</span>
-                            <strong>Екатеринбург, ул. Малышева, д.28</strong>
-                        </div>
-                        <div class="footer-map-card-copy">
-                            <span class="footer-map-card-label">Режим работы</span>
-                            <strong>Пн - Вс • 10:00 - 23:00</strong>
-                        </div>
+            <div class="footer-map-card">
+                <div class="footer-map-card-grid">
+                    <div class="footer-map-card-copy">
+                        <span class="footer-map-card-label">Ресторан на Малышева</span>
+                        <strong>Екатеринбург, ул. Малышева, д. 28</strong>
                     </div>
-                </div>
 
-                <div class="footer-map-frame">
-                    <iframe
-                        title="Карта Zamzam"
-                        src="https://www.google.com/maps?q=%D0%B3.%20%D0%95%D0%BA%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%BD%D0%B1%D1%83%D1%80%D0%B3,%20%D1%83%D0%BB.%20%D0%9C%D0%B0%D0%BB%D1%8B%D1%88%D0%B5%D0%B2%D0%B0,%20%D0%B4.28&output=embed"
-                        loading="lazy"
-                        referrerpolicy="no-referrer-when-downgrade"
-                        allowfullscreen>
-                    </iframe>
+                    <div class="footer-map-card-copy">
+                        <span class="footer-map-card-label">Ресторан на Сухоложской</span>
+                        <strong>Екатеринбург, ул. Сухоложская, д. 5/1</strong>
+                        <a href="tel:+79530420044">+7 (953) 042-00-44</a>
+                    </div>
+
+                    <div class="footer-map-card-copy">
+                        <span class="footer-map-card-label">Режим работы</span>
+                        <strong>Пн – Вс • 10:00 – 23:00</strong>
+                    </div>
                 </div>
             </div>
+
+            <div class="footer-map-frame">
+                <iframe
+                    title="Карта Zamzam на улице Малышева"
+                    src="https://www.google.com/maps?q=%D0%B3.%20%D0%95%D0%BA%D0%B0%D1%82%D0%B5%D1%80%D0%B8%D0%BD%D0%B1%D1%83%D1%80%D0%B3,%20%D1%83%D0%BB.%20%D0%9C%D0%B0%D0%BB%D1%8B%D1%88%D0%B5%D0%B2%D0%B0,%20%D0%B4.28&output=embed"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    allowfullscreen
+                ></iframe>
+            </div>
         </div>
-    </section>
+    </div>
+</section>
 
 
 

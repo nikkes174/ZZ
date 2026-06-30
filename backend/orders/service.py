@@ -9,11 +9,13 @@ from typing import Any, Optional
 from sqlalchemy.exc import IntegrityError
 
 from backend.iiko_manager.client import IikoApiClient, IikoClientError
+from backend.orders.branches import BranchCode, resolve_terminal_group_id
 from backend.orders.crud import OrderRepository
 from backend.orders.iiko import IikoOrderError, IikoOrderGateway, IikoOrderItem
 from backend.orders.schemas import AdminOrdersPage, OrderCreate, OrderItemPayload, OrderRead, UserOrdersPage
 from backend.orders.statuses import (
     ORDER_STATUS_CANCELLED,
+    ORDER_STATUS_COOKED,
     ORDER_STATUS_DELIVERED,
     ORDER_STATUS_DELIVERY_SENT,
     ORDER_STATUS_PICKUP_DONE,
@@ -22,7 +24,6 @@ from backend.orders.statuses import (
     get_allowed_statuses,
 )
 from backend.redactor.crud import MenuItemRepository
-from config import API_IIKO
 logger = logging.getLogger(__name__)
 BONUS_AWARD_PERCENT = 5
 
@@ -47,6 +48,8 @@ class PreparedOrder:
     normalized_items: list[NormalizedOrderItem]
     subtotal_amount: int
     total_amount: int
+    branch_code: BranchCode
+    terminal_group_id: str
 
 
 @dataclass(frozen=True)
@@ -111,12 +114,50 @@ class IikoOrderStatusSyncService:
 
             iiko_status = self._extract_iiko_status(iiko_order)
             if (iiko_status or "").strip().lower() == "error":
+                pos_order = await self._load_pos_order(
+                    token=token,
+                    organization_id=organization_id,
+                    iiko_order=iiko_order,
+                )
+                pos_status = self._extract_iiko_status(pos_order) if pos_order else None
+                next_status = self._map_iiko_status(iiko_status=pos_status, checkout_type=local_order.checkout_type)
+                if next_status:
+                    if next_status != local_order.status:
+                        await self.repository.update_status_by_iiko_order_id(
+                            iiko_order_id=iiko_order_id,
+                            status=next_status,
+                        )
+                    await self.repository.update_iiko_result(
+                        order_id=local_order.id,
+                        iiko_order_id=local_order.iiko_order_id,
+                        iiko_correlation_id=local_order.iiko_correlation_id,
+                        iiko_creation_status="Success",
+                    )
+                    updated += 1
+                    logger.info(
+                        "Synced order status from iiko pos order. order_id=%s iiko_order_id=%s pos_status=%s status=%s",
+                        local_order.id,
+                        iiko_order_id,
+                        pos_status,
+                        next_status,
+                    )
+                    continue
                 logger.warning(
                     "iiko order is in Error status. order_id=%s iiko_order_id=%s payload=%s",
                     local_order.id,
                     iiko_order_id,
                     json.dumps(iiko_order, ensure_ascii=False, default=str)[:4000],
                 )
+                if self._extract_iiko_pos_order_id(iiko_order):
+                    if local_order.iiko_creation_status == "Failed":
+                        await self.repository.update_iiko_result(
+                            order_id=local_order.id,
+                            iiko_order_id=local_order.iiko_order_id,
+                            iiko_correlation_id=local_order.iiko_correlation_id,
+                            iiko_creation_status="InProgress",
+                        )
+                        updated += 1
+                    continue
                 await self.repository.update_iiko_result(
                     order_id=local_order.id,
                     iiko_order_id=local_order.iiko_order_id,
@@ -127,12 +168,27 @@ class IikoOrderStatusSyncService:
                 continue
             next_status = self._map_iiko_status(iiko_status=iiko_status, checkout_type=local_order.checkout_type)
             if not next_status or next_status == local_order.status:
+                if next_status and local_order.iiko_creation_status == "Failed":
+                    await self.repository.update_iiko_result(
+                        order_id=local_order.id,
+                        iiko_order_id=local_order.iiko_order_id,
+                        iiko_correlation_id=local_order.iiko_correlation_id,
+                        iiko_creation_status="Success",
+                    )
+                    updated += 1
                 continue
 
             await self.repository.update_status_by_iiko_order_id(
                 iiko_order_id=iiko_order_id,
                 status=next_status,
             )
+            if local_order.iiko_creation_status == "Failed":
+                await self.repository.update_iiko_result(
+                    order_id=local_order.id,
+                    iiko_order_id=local_order.iiko_order_id,
+                    iiko_correlation_id=local_order.iiko_correlation_id,
+                    iiko_creation_status="Success",
+                )
             updated += 1
             logger.info(
                 "Synced order status from iiko. order_id=%s iiko_order_id=%s iiko_status=%s status=%s",
@@ -143,6 +199,30 @@ class IikoOrderStatusSyncService:
             )
 
         return OrderStatusSyncResult(checked=len(orders_by_iiko_id), updated=updated)
+
+    async def _load_pos_order(
+        self,
+        *,
+        token: str,
+        organization_id: str,
+        iiko_order: dict[str, Any],
+    ) -> Optional[dict[str, Any]]:
+        pos_id = self._extract_iiko_pos_order_id(iiko_order)
+        if not pos_id:
+            return None
+        try:
+            pos_orders = await self.client.get_delivery_orders_by_pos_ids(
+                token=token,
+                organization_id=organization_id,
+                pos_order_ids=[pos_id],
+            )
+        except IikoClientError as exc:
+            logger.info("Could not load iiko order by posId. pos_id=%s error=%s", pos_id, exc)
+            return None
+        if not pos_orders:
+            logger.info("iiko order by posId was not found yet. pos_id=%s", pos_id)
+            return None
+        return pos_orders[0] if pos_orders else None
 
     async def _resolve_organization_id(self, *, token: str) -> str:
         if self.organization_id:
@@ -167,6 +247,17 @@ class IikoOrderStatusSyncService:
             payload.get("orderId"),
             (payload.get("order") or {}).get("id") if isinstance(payload.get("order"), dict) else None,
             (payload.get("orderInfo") or {}).get("id") if isinstance(payload.get("orderInfo"), dict) else None,
+        ):
+            if candidate:
+                return str(candidate)
+        return None
+
+    def _extract_iiko_pos_order_id(self, payload: dict[str, Any]) -> Optional[str]:
+        for candidate in (
+            payload.get("posId"),
+            payload.get("posOrderId"),
+            (payload.get("order") or {}).get("posId") if isinstance(payload.get("order"), dict) else None,
+            (payload.get("orderInfo") or {}).get("posId") if isinstance(payload.get("orderInfo"), dict) else None,
         ):
             if candidate:
                 return str(candidate)
@@ -211,7 +302,7 @@ class IikoOrderStatusSyncService:
         if normalized in {"onway", "on_way", "on way"}:
             return ORDER_STATUS_DELIVERY_SENT if checkout_type == "delivery" else ORDER_STATUS_PICKUP_READY
         if normalized in {"cookingcompleted", "cooking_completed", "cooking completed", "ready", "waiting"}:
-            return ORDER_STATUS_PICKUP_READY if checkout_type == "pickup" else ORDER_STATUS_DELIVERY_SENT
+            return ORDER_STATUS_PICKUP_READY if checkout_type == "pickup" else ORDER_STATUS_COOKED
         if normalized in {
             "success",
             "inprogress",
@@ -236,6 +327,12 @@ class OrderService:
     repository: OrderRepository
     menu_item_repository: MenuItemRepository
     iiko_order_gateway: IikoOrderGateway
+
+    def _build_delivery_address_text(self, *, street: str, house: str, flat: Optional[str]) -> str:
+        parts = [street.strip(), house.strip()]
+        if flat and flat.strip():
+            parts.append(f"кв. {flat.strip()}")
+        return ", ".join(part for part in parts if part)
 
     def _calculate_bonus_awarded(self, total_amount: int) -> int:
         return max(0, total_amount * BONUS_AWARD_PERCENT // 100)
@@ -275,6 +372,8 @@ class OrderService:
                 bonus_awarded=bonus_awarded,
                 idempotency_key=normalized_idempotency_key,
                 iiko_creation_status="LocalPending",
+                branch_code=prepared_order.branch_code.value,
+                iiko_terminal_group_id=prepared_order.terminal_group_id,
             )
         except IntegrityError:
             existing_order = await self.repository.get_by_idempotency_key(normalized_idempotency_key)
@@ -313,6 +412,7 @@ class OrderService:
                     for item in prepared_order.normalized_items
                 ],
                 total_amount=prepared_order.total_amount,
+                terminal_group_id=prepared_order.terminal_group_id,
                 external_number=self._build_iiko_external_number(order_id),
             )
         except IikoOrderError as exc:
@@ -401,20 +501,42 @@ class OrderService:
         subtotal_amount = sum(item.order_item.price * item.order_item.quantity for item in normalized_items)
         if subtotal_amount <= 0:
             raise OrderValidationError("Сумма заказа должна быть больше нуля.")
-        if payload.checkout_type == "delivery" and not (payload.delivery_address or "").strip():
-            raise OrderValidationError("Укажите адрес доставки.")
+        if payload.checkout_type == "delivery" and not (payload.delivery_street or "").strip():
+            raise OrderValidationError("Укажите улицу доставки.")
+        if payload.checkout_type == "delivery" and not (payload.delivery_house or "").strip():
+            raise OrderValidationError("Укажите номер дома.")
         if payload.bonus_spent > available_bonus_balance:
             raise OrderValidationError("Недостаточно бонусов для списания.")
         if payload.bonus_spent > subtotal_amount:
             raise OrderValidationError("Нельзя списать бонусов больше суммы заказа.")
 
-        normalized_payload = payload.model_copy(update={"items": [item.order_item for item in normalized_items]})
+        terminal_group_id = resolve_terminal_group_id(payload.branch_code)
+        payload_updates: dict[str, object] = {"items": [item.order_item for item in normalized_items]}
+        if payload.checkout_type == "delivery":
+            payload_updates["delivery_address"] = self._build_delivery_address_text(
+                street=payload.delivery_street or "",
+                house=payload.delivery_house or "",
+                flat=payload.delivery_flat,
+            )
+        else:
+            payload_updates.update(
+                {
+                    "delivery_address": None,
+                    "delivery_street": None,
+                    "delivery_house": None,
+                    "delivery_flat": None,
+                    "entrance": None,
+                }
+            )
+        normalized_payload = payload.model_copy(update=payload_updates)
         total_amount = subtotal_amount - normalized_payload.bonus_spent
         return PreparedOrder(
             payload=normalized_payload,
             normalized_items=normalized_items,
             subtotal_amount=subtotal_amount,
             total_amount=total_amount,
+            branch_code=normalized_payload.branch_code,
+            terminal_group_id=terminal_group_id,
         )
 
     async def create_order(
@@ -447,6 +569,8 @@ class OrderService:
                 bonus_awarded=bonus_awarded,
                 idempotency_key=normalized_idempotency_key,
                 iiko_creation_status="LocalPending",
+                branch_code=prepared_order.branch_code.value,
+                iiko_terminal_group_id=prepared_order.terminal_group_id,
             )
         except IntegrityError:
             if normalized_idempotency_key:
@@ -516,6 +640,9 @@ class OrderService:
             checkout_type=order.checkout_type,
             payment_type=order.payment_type,
             delivery_address=order.delivery_address,
+            delivery_street=order.delivery_street,
+            delivery_house=order.delivery_house,
+            delivery_flat=order.delivery_flat,
             entrance=order.entrance,
             comment=order.comment,
             items=json.loads(order.items_json),
@@ -531,6 +658,8 @@ class OrderService:
             status=order.status,
             created_at=order.created_at,
             updated_at=order.updated_at,
+            branch_code=BranchCode(order.branch_code),
+            iiko_terminal_group_id=order.iiko_terminal_group_id,
         )
 
     async def _normalize_order_items(self, payload: OrderCreate) -> list[NormalizedOrderItem]:
@@ -574,6 +703,10 @@ class OrderService:
         return normalized_items
 
     async def _prepare_existing_order_for_iiko(self, order) -> PreparedOrder:
+        if order.checkout_type == "delivery":
+            if not (order.delivery_street or "").strip() or not (order.delivery_house or "").strip():
+                raise OrderValidationError("У заказа доставки не заполнены улица и дом для отправки в iiko.")
+
         order_items = [OrderItemPayload.model_validate(item) for item in json.loads(order.items_json)]
         ordered_ids: list[int] = []
         for item in order_items:
@@ -604,15 +737,21 @@ class OrderService:
             checkout_type=order.checkout_type,
             payment_type=order.payment_type,
             delivery_address=order.delivery_address,
+            delivery_street=order.delivery_street,
+            delivery_house=order.delivery_house,
+            delivery_flat=order.delivery_flat,
             entrance=order.entrance,
             comment=order.comment,
             cutlery_count=order.cutlery_count,
             bonus_spent=order.bonus_spent,
             items=order_items,
+            branch_code=BranchCode(order.branch_code),
         )
         return PreparedOrder(
             payload=payload,
             normalized_items=normalized_items,
             subtotal_amount=order.subtotal_amount,
             total_amount=order.total_amount,
+            branch_code=BranchCode(order.branch_code),
+            terminal_group_id=order.iiko_terminal_group_id,
         )

@@ -15,7 +15,7 @@ function getAdminHeaders(extraHeaders = {}) {
 let ordersAdminPhoneFilter = "";
 let ordersAdminStatusOptions = {
     pickup: ["Готовится", "Готов к выдаче", "Выдан", "Отменен"],
-    delivery: ["Готовится", "Заказ отправлен", "Доставлен", "Отменен"],
+    delivery: ["Готовится", "Приготовлен", "Заказ отправлен", "Доставлен", "Отменен"],
 };
 
 function ensureOrdersAdminPhoneValue() {

@@ -25,6 +25,8 @@ class OrderRepository(Protocol):
         bonus_spent: int,
         total_amount: int,
         bonus_awarded: int,
+        branch_code: str,
+        iiko_terminal_group_id: str,
         idempotency_key: Optional[str] = None,
         iiko_order_id: Optional[str] = None,
         iiko_correlation_id: Optional[str] = None,
@@ -72,6 +74,8 @@ class SqlAlchemyOrderRepository:
         bonus_spent: int,
         total_amount: int,
         bonus_awarded: int,
+        branch_code: str,
+        iiko_terminal_group_id: str,
         idempotency_key: Optional[str] = None,
         iiko_order_id: Optional[str] = None,
         iiko_correlation_id: Optional[str] = None,
@@ -84,6 +88,9 @@ class SqlAlchemyOrderRepository:
             checkout_type=payload.checkout_type,
             payment_type=payload.payment_type,
             delivery_address=payload.delivery_address,
+            delivery_street=payload.delivery_street,
+            delivery_house=payload.delivery_house,
+            delivery_flat=payload.delivery_flat,
             entrance=payload.entrance,
             comment=payload.comment,
             items_json=json.dumps([item.model_dump() for item in payload.items], ensure_ascii=False),
@@ -97,6 +104,8 @@ class SqlAlchemyOrderRepository:
             iiko_order_id=iiko_order_id,
             iiko_correlation_id=iiko_correlation_id,
             iiko_creation_status=iiko_creation_status,
+            branch_code=branch_code,
+            iiko_terminal_group_id=iiko_terminal_group_id,
             status=ORDER_STATUS_PREPARING,
         )
         self._session.add(model)
@@ -229,7 +238,6 @@ class SqlAlchemyOrderRepository:
             .where(
                 OrderModel.status.in_(self.ACTIVE_STATUSES),
                 OrderModel.iiko_order_id.is_not(None),
-                or_(OrderModel.iiko_creation_status.is_(None), OrderModel.iiko_creation_status != "Failed"),
             )
             .order_by(OrderModel.created_at.asc(), OrderModel.id.asc())
             .limit(limit)
@@ -287,6 +295,15 @@ class SqlAlchemyOrderRepository:
               AND orders.iiko_creation_status IN ('LocalPending', 'Failed')
               AND order_delivery_jobs.id IS NULL
               AND pending_payments.status IN ('succeeded', 'order_failed')
+              AND (
+                  orders.checkout_type <> 'delivery'
+                  OR (
+                      orders.delivery_street IS NOT NULL
+                      AND btrim(orders.delivery_street) <> ''
+                      AND orders.delivery_house IS NOT NULL
+                      AND btrim(orders.delivery_house) <> ''
+                  )
+              )
               {created_after_filter}
             ORDER BY orders.updated_at ASC, orders.id ASC
             LIMIT :limit
@@ -305,7 +322,7 @@ class SqlAlchemyOrderRepository:
     async def claim_due_iiko_submission_jobs(self, *, limit: int, created_after: Optional[datetime] = None) -> Sequence[OrderDeliveryJobModel]:
         safe_limit = max(1, min(limit, 100))
         async with self._session.begin():
-            stmt = select(OrderDeliveryJobModel).where(
+            stmt = select(OrderDeliveryJobModel).join(OrderModel).where(
                 OrderDeliveryJobModel.job_type == "send_to_iiko",
                 or_(
                     OrderDeliveryJobModel.status.in_(("pending", "failed")),
@@ -315,6 +332,15 @@ class SqlAlchemyOrderRepository:
                     & (OrderDeliveryJobModel.locked_at < func.now() - text("interval '5 minutes'")),
                 ),
                 OrderDeliveryJobModel.next_run_at <= func.now(),
+                or_(
+                    OrderModel.checkout_type != "delivery",
+                    (
+                        OrderModel.delivery_street.is_not(None)
+                        & (func.btrim(OrderModel.delivery_street) != "")
+                        & OrderModel.delivery_house.is_not(None)
+                        & (func.btrim(OrderModel.delivery_house) != "")
+                    ),
+                ),
             )
             if created_after is not None:
                 stmt = stmt.where(OrderDeliveryJobModel.created_at >= created_after)

@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from backend.orders.branches import BranchCode
 from backend.orders.statuses import get_allowed_statuses
 
 
@@ -26,11 +27,15 @@ class OrderCreate(BaseModel):
     checkout_type: str = Field(..., min_length=4, max_length=20)
     payment_type: str = Field(..., min_length=4, max_length=20)
     delivery_address: Optional[str] = Field(default=None, max_length=255)
+    delivery_street: Optional[str] = Field(default=None, max_length=255)
+    delivery_house: Optional[str] = Field(default=None, max_length=64)
+    delivery_flat: Optional[str] = Field(default=None, max_length=64)
     entrance: Optional[str] = Field(default=None, max_length=64)
     comment: Optional[str] = Field(default=None, max_length=255)
     cutlery_count: int = Field(default=0, ge=0, le=50)
     bonus_spent: int = Field(default=0, ge=0, le=1_000_000)
     items: list[OrderItemPayload] = Field(..., min_length=1, max_length=100)
+    branch_code: BranchCode
 
     @field_validator("checkout_type")
     @classmethod
@@ -55,6 +60,9 @@ class OrderRead(BaseModel):
     checkout_type: str
     payment_type: str
     delivery_address: Optional[str]
+    delivery_street: Optional[str]
+    delivery_house: Optional[str]
+    delivery_flat: Optional[str]
     entrance: Optional[str]
     comment: Optional[str]
     items: list[OrderItemPayload]
@@ -70,7 +78,8 @@ class OrderRead(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
-
+    branch_code: BranchCode
+    iiko_terminal_group_id: str
 
 class UserOrdersPage(BaseModel):
     items: list[OrderRead]
@@ -96,3 +105,4 @@ class AdminOrdersPage(BaseModel):
             for checkout_type in ("pickup", "delivery")
         ]
         return cls(items=items, status_options=options)
+

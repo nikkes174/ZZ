@@ -4,7 +4,6 @@
     const SESSION_STORAGE_KEY = "zamzam_session_token";
     const REFRESH_STORAGE_KEY = "zamzam_refresh_token";
     const PENDING_PAYMENT_STORAGE_KEY = "zamzam_pending_payment_id";
-    const MIN_CHECKOUT_AMOUNT = 1000;
     const checkoutForm = document.getElementById("checkout-form");
     const checkoutSubmit = document.getElementById("checkout-submit");
     const checkoutName = document.getElementById("checkout-name");
@@ -153,6 +152,7 @@
                 customer_name: customerName,
                 customer_phone: customerPhone,
                 checkout_type: checkoutState.checkoutType,
+                branch_code: checkoutState.branchCode,
                 payment_type: "card",
                 delivery_address: deliveryAddress || null,
                 entrance: entrance || null,
@@ -209,14 +209,6 @@
         if (!orderData.customerName || !isValidCheckoutPhone(orderData.customerPhone)) {
             showCheckoutWarning("Заполните имя и телефон.");
             checkoutPhone?.focus();
-            return;
-        }
-
-        if (
-            orderData.payload.checkout_type === "delivery" &&
-            (orderData.appApi?.getCartTotals().totalPriceValue || 0) < MIN_CHECKOUT_AMOUNT
-        ) {
-            showCheckoutWarning(`Для доставки минимальная сумма заказа ${MIN_CHECKOUT_AMOUNT} ₽.`);
             return;
         }
 

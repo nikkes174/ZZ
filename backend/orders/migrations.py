@@ -2,10 +2,14 @@ from __future__ import annotations
 
 from sqlalchemy import text
 
+from config import TERMINAL_ID_GROUP_MALYSHAVA
 from db import engine
 
 
 async def ensure_order_bonus_columns() -> None:
+    if not TERMINAL_ID_GROUP_MALYSHAVA:
+        raise RuntimeError("TERMINAL_ID_GROUP_MALYSHAVA is required for orders branch migration.")
+
     statements = [
         "ALTER TABLE orders ADD COLUMN IF NOT EXISTS subtotal_amount INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE orders ADD COLUMN IF NOT EXISTS bonus_spent INTEGER NOT NULL DEFAULT 0",
@@ -14,6 +18,9 @@ async def ensure_order_bonus_columns() -> None:
         "ALTER TABLE orders ADD COLUMN IF NOT EXISTS iiko_order_id VARCHAR(64)",
         "ALTER TABLE orders ADD COLUMN IF NOT EXISTS iiko_correlation_id VARCHAR(64)",
         "ALTER TABLE orders ADD COLUMN IF NOT EXISTS iiko_creation_status VARCHAR(32)",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_street VARCHAR(255)",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_house VARCHAR(64)",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_flat VARCHAR(64)",
         """
         CREATE TABLE IF NOT EXISTS order_delivery_jobs (
             id SERIAL PRIMARY KEY,
@@ -30,9 +37,21 @@ async def ensure_order_bonus_columns() -> None:
         """,
         "CREATE INDEX IF NOT EXISTS ix_order_delivery_jobs_order_id ON order_delivery_jobs (order_id)",
         "CREATE INDEX IF NOT EXISTS ix_order_delivery_jobs_status_next_run_at ON order_delivery_jobs (status, next_run_at)",
-        "UPDATE orders SET status = 'Готовится' WHERE status = 'Подтвержден'",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS branch_code VARCHAR(32)",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS iiko_terminal_group_id VARCHAR(64)",
+        "UPDATE orders SET branch_code = 'malyshava' WHERE branch_code IS NULL",
+        """
+        UPDATE orders
+        SET iiko_terminal_group_id = :malyshava_terminal_group_id
+        WHERE iiko_terminal_group_id IS NULL
+        """,
+        "ALTER TABLE orders ALTER COLUMN branch_code SET NOT NULL",
+        "ALTER TABLE orders ALTER COLUMN iiko_terminal_group_id SET NOT NULL",
+        "CREATE INDEX IF NOT EXISTS ix_orders_branch_code ON orders (branch_code)",
+        "CREATE INDEX IF NOT EXISTS ix_orders_iiko_terminal_group_id ON orders (iiko_terminal_group_id)",
     ]
 
+    params = {"malyshava_terminal_group_id": TERMINAL_ID_GROUP_MALYSHAVA}
     async with engine.begin() as conn:
         for statement in statements:
-            await conn.execute(text(statement))
+            await conn.execute(text(statement), params)
