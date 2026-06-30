@@ -19868,7 +19868,7 @@ body.admin-mode .dish-edit-button {
                     </a>
                     <a class="reservation-branch-link button-shiny" href="tel:+79530420044">
                         <span>ул. Сухоложская, д. 5/1</span>
-                        <strong>+7 (953) 042-00-44</strong>
+                        <strong>+7 953 042-00-44</strong>
                     </a>
                 </div>
             </div>
