@@ -301,15 +301,14 @@ class IikoOrderGateway:
         if flat and flat.strip():
             line_parts.append(f"квартира {flat.strip()}")
 
-        if entrance and entrance.strip():
-            line_parts.append(entrance.strip())
-
-        return {
-            "address": {
-                "line1": ", ".join(line_parts),
-                "type": "city",
-            },
+        address: dict[str, object] = {
+            "line1": ", ".join(line_parts),
+            "type": "city",
         }
+        if entrance and entrance.strip():
+            address["entrance"] = entrance.strip()
+
+        return {"address": address}
 
     def _to_user_message(self, *, error_code: object, error_message: str) -> str:
         if error_code == "TerminalGroupDisabled":
