@@ -110,20 +110,20 @@ class IikoOrderGateway:
             if not delivery_house:
                 raise IikoOrderError("Не указан номер дома.")
 
-            delivery_info = self._build_delivery_info(
+            delivery_point = self._build_delivery_point(
                 street=delivery_street,
                 house=delivery_house,
                 flat=payload.delivery_flat,
                 entrance=payload.entrance,
             )
 
-            order_data["deliveryInfo"] = delivery_info
+            order_data["deliveryPoint"] = delivery_point
 
             logger.info(
-                "Sending iiko delivery info. street=%s house=%s delivery_info=%s",
+                "Sending iiko delivery point. street=%s house=%s delivery_point=%s",
                 delivery_street,
                 delivery_house,
-                delivery_info,
+                delivery_point,
             )
 
         order_payload: dict[str, object] = {
@@ -281,7 +281,7 @@ class IikoOrderGateway:
         logger.warning("Cash payment type was not found in iiko. order will be sent without payments.")
         return []
 
-    def _build_delivery_info(
+    def _build_delivery_point(
         self,
         *,
         street: str,
@@ -292,19 +292,17 @@ class IikoOrderGateway:
         normalized_street = street.strip()
         normalized_house = house.strip()
 
-        line_parts = [
-            f"город {DEFAULT_DELIVERY_CITY}",
-            normalized_street,
-            f"дом {normalized_house}",
-        ]
+        address: dict[str, object] = {
+            "street": {
+                "name": normalized_street,
+                "city": DEFAULT_DELIVERY_CITY,
+            },
+            "house": normalized_house,
+        }
 
         if flat and flat.strip():
-            line_parts.append(f"квартира {flat.strip()}")
+            address["flat"] = flat.strip()
 
-        address: dict[str, object] = {
-            "line1": ", ".join(line_parts),
-            "type": "city",
-        }
         if entrance and entrance.strip():
             address["entrance"] = entrance.strip()
 
