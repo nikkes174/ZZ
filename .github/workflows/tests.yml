@@ -10,6 +10,11 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      DB_URL: postgresql+asyncpg://test:test@localhost:5432/test
+      API_IIKO: test
+      IIKO_ORGANIZATION_ID: 00000000-0000-0000-0000-000000000001
+      TERMINAL_ID_GROUP_MALYSHAVA: 00000000-0000-0000-0000-000000000002
 
     steps:
       - uses: actions/checkout@v4
