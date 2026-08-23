@@ -9,6 +9,8 @@
     const checkoutName = document.getElementById("checkout-name");
     const checkoutPhone = document.getElementById("checkout-phone");
     const checkoutAddress = document.getElementById("checkout-address");
+    const checkoutHouse = document.getElementById("checkout-house");
+    const checkoutFlat = document.getElementById("checkout-flat");
     const checkoutEntrance = document.getElementById("checkout-entrance");
     const checkoutComment = document.getElementById("checkout-comment");
     const checkoutBonusSpent = document.getElementById("checkout-bonus-spent");
@@ -138,10 +140,18 @@
         const checkoutState = appApi.getCheckoutState();
         const customerName = checkoutName?.value.trim() || "";
         const customerPhone = ensurePhonePrefixValue(checkoutPhone).trim();
-        const deliveryAddress = checkoutAddress?.value.trim() || "";
+        const deliveryStreet = checkoutAddress?.value.trim() || "";
+        const deliveryHouse = checkoutHouse?.value.trim() || "";
+        const deliveryFlat = checkoutFlat?.value.trim() || "";
         const entrance = checkoutEntrance?.value.trim() || "";
         const comment = checkoutComment?.value.trim() || "";
         const bonusSpent = getBonusSpentValue();
+        const isDelivery = checkoutState.checkoutType === "delivery";
+        const deliveryAddress = isDelivery
+            ? [deliveryStreet, deliveryHouse, deliveryFlat ? `кв. ${deliveryFlat}` : ""]
+                .filter(Boolean)
+                .join(", ")
+            : null;
 
         return {
             appApi,
@@ -154,8 +164,11 @@
                 checkout_type: checkoutState.checkoutType,
                 branch_code: checkoutState.branchCode,
                 payment_type: "card",
-                delivery_address: deliveryAddress || null,
-                entrance: entrance || null,
+                delivery_address: deliveryAddress,
+                delivery_street: isDelivery ? deliveryStreet || null : null,
+                delivery_house: isDelivery ? deliveryHouse || null : null,
+                delivery_flat: isDelivery ? deliveryFlat || null : null,
+                entrance: isDelivery ? entrance || null : null,
                 comment: comment || null,
                 cutlery_count: checkoutState.cutleryItemsCount,
                 bonus_spent: bonusSpent,
@@ -210,6 +223,31 @@
             showCheckoutWarning("Заполните имя и телефон.");
             checkoutPhone?.focus();
             return;
+        }
+
+        if (orderData.payload.checkout_type === "delivery") {
+            const deliveryStreet = orderData.payload.delivery_street || "";
+            const deliveryHouse = orderData.payload.delivery_house || "";
+
+            if (!deliveryStreet) {
+                showCheckoutWarning("Укажите улицу доставки.");
+                checkoutAddress?.focus();
+                return;
+            }
+
+            if (!deliveryHouse) {
+                showCheckoutWarning("Укажите номер дома.");
+                checkoutHouse?.focus();
+                return;
+            }
+
+            if (deliveryHouse.length > 10) {
+                showCheckoutWarning(
+                    "Номер дома слишком длинный. Укажите номер дома длиной не более 10 символов.",
+                );
+                checkoutHouse?.focus();
+                return;
+            }
         }
 
         if (!validateCheckoutConsents()) {
