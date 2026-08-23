@@ -153,21 +153,16 @@ class IikoOrderStatusSyncService:
                     iiko_order_id,
                     json.dumps(iiko_order, ensure_ascii=False, default=str)[:4000],
                 )
-                if self._extract_iiko_pos_order_id(iiko_order):
-                    if local_order.iiko_creation_status == "Failed":
-                        await self.repository.update_iiko_result(
-                            order_id=local_order.id,
-                            iiko_order_id=local_order.iiko_order_id,
-                            iiko_correlation_id=local_order.iiko_correlation_id,
-                            iiko_creation_status="InProgress",
-                        )
-                        updated += 1
-                    continue
-                await self.repository.update_iiko_result(
+                error_code, error_message = self._extract_iiko_error(iiko_order)
+                is_timeout = "creation timeout expired" in (error_message or "").lower()
+                await self.repository.update_iiko_attempt_result(
                     order_id=local_order.id,
-                    iiko_order_id=local_order.iiko_order_id,
-                    iiko_correlation_id=local_order.iiko_correlation_id,
-                    iiko_creation_status="Failed",
+                    iiko_order_id=self._extract_iiko_order_id(iiko_order),
+                    iiko_pos_order_id=self._extract_iiko_pos_order_id(iiko_order),
+                    correlation_id=None,
+                    creation_status="RecoveryPending" if is_timeout else "Failed",
+                    error_code=error_code,
+                    error_message=error_message,
                 )
                 updated += 1
                 continue
@@ -293,6 +288,18 @@ class IikoOrderStatusSyncService:
                 return str(candidate)
         return None
 
+    def _extract_iiko_error(self, payload: dict[str, Any]) -> tuple[Optional[str], Optional[str]]:
+        for source in (payload, payload.get("order"), payload.get("orderInfo")):
+            if not isinstance(source, dict):
+                continue
+            error_info = source.get("errorInfo")
+            if not isinstance(error_info, dict):
+                continue
+            code = error_info.get("code")
+            message = error_info.get("message") or error_info.get("description")
+            return (str(code) if code else None, str(message) if message else None)
+        return None, None
+
     def _map_iiko_status(self, *, iiko_status: Optional[str], checkout_type: str) -> Optional[str]:
         if not iiko_status:
             return None
@@ -404,6 +411,7 @@ class OrderService:
                 raise OrderNotFoundError(order_id)
             return self._to_read(order)
 
+        iiko_request_order_id = await self.repository.ensure_iiko_request_order_id(order_id=order_id)
         try:
             iiko_result = await self.iiko_order_gateway.submit_order(
                 payload=prepared_order.payload,
@@ -419,21 +427,39 @@ class OrderService:
                 total_amount=prepared_order.total_amount,
                 terminal_group_id=prepared_order.terminal_group_id,
                 external_number=self._build_iiko_external_number(order_id),
+                iiko_request_order_id=iiko_request_order_id,
             )
         except IikoOrderError as exc:
-            await self.repository.update_iiko_result(
+            creation_status = "RecoveryPending" if (exc.retryable or exc.ambiguous) else "Failed"
+            order = await self.repository.update_iiko_attempt_result(
                 order_id=order_id,
-                iiko_order_id=None,
-                iiko_correlation_id=None,
-                iiko_creation_status="Failed",
+                iiko_order_id=exc.iiko_order_id,
+                iiko_pos_order_id=exc.pos_order_id,
+                correlation_id=exc.correlation_id,
+                creation_status=creation_status,
+                error_code=exc.error_code,
+                error_message=exc.error_message,
             )
+            if order is None:
+                raise OrderNotFoundError(order_id)
+            if creation_status == "RecoveryPending":
+                if (exc.error_code or "").lower() == "duplicatedorderid":
+                    await self.recover_iiko_order(order)
+                    recovered_order = await self.repository.get_by_id(order_id)
+                    if recovered_order is not None:
+                        return self._to_read(recovered_order)
+                return self._to_read(order)
             raise OrderValidationError(str(exc)) from exc
 
-        order = await self.repository.update_iiko_result(
+        creation_status = "RecoveryPending" if iiko_result.get("creation_status") == "InProgress" else "Success"
+        order = await self.repository.update_iiko_attempt_result(
             order_id=order_id,
             iiko_order_id=iiko_result.get("iiko_order_id") or None,
-            iiko_correlation_id=iiko_result.get("correlation_id") or None,
-            iiko_creation_status=iiko_result.get("creation_status") or None,
+            iiko_pos_order_id=iiko_result.get("iiko_pos_order_id") or None,
+            correlation_id=iiko_result.get("correlation_id") or None,
+            creation_status=creation_status,
+            error_code=None,
+            error_message=None,
         )
         if order is None:
             raise OrderNotFoundError(order_id)
@@ -458,6 +484,56 @@ class OrderService:
         failed = 0
 
         for job in jobs:
+            current_order = await self.repository.get_by_id(job.order_id)
+            if current_order is None:
+                continue
+            recover_legacy_timeout = (
+                current_order.iiko_creation_status == "Failed"
+                and bool(current_order.iiko_order_id or current_order.iiko_request_order_id)
+                and (
+                    not current_order.iiko_error_code
+                    or "creation timeout expired" in (current_order.iiko_error_message or "").lower()
+                )
+            )
+            if current_order.iiko_creation_status == "RecoveryPending" or recover_legacy_timeout:
+                if recover_legacy_timeout:
+                    await self.repository.update_iiko_attempt_result(
+                        order_id=current_order.id,
+                        iiko_order_id=None,
+                        iiko_pos_order_id=None,
+                        correlation_id=None,
+                        creation_status="RecoveryPending",
+                        error_code=current_order.iiko_error_code,
+                        error_message=current_order.iiko_error_message,
+                    )
+                recovery = "manual_review" if job.attempts >= 10 else await self.recover_iiko_order(current_order)
+                if recovery == "success":
+                    await self.repository.mark_iiko_submission_job_done(job_id=job.id)
+                    submitted += 1
+                    continue
+                if recovery == "manual_review":
+                    failed += 1
+                    message = "iiko recovery limit reached; paid order requires manual review."
+                    await self.repository.mark_iiko_submission_job_manual_review(job_id=job.id, error_message=message)
+                    logger.critical(
+                        "PAID ORDER NOT DELIVERED TO IIKO. order_id=%s iiko_request_order_id=%s "
+                        "iiko_order_id=%s pos_id=%s attempts=%s error=%s",
+                        current_order.id,
+                        current_order.iiko_request_order_id,
+                        current_order.iiko_order_id,
+                        current_order.iiko_pos_order_id,
+                        job.attempts,
+                        current_order.iiko_error_message,
+                    )
+                    continue
+                if recovery == "wait":
+                    failed += 1
+                    await self.repository.mark_iiko_submission_job_failed(
+                        job_id=job.id,
+                        error_message="iiko recovery is still pending.",
+                        next_run_at=self._next_iiko_retry_at(job.attempts),
+                    )
+                    continue
             try:
                 order = await self.submit_existing_order_to_iiko(order_id=job.order_id)
             except IikoPayloadValidationError as exc:
@@ -476,8 +552,21 @@ class OrderService:
                 )
                 logger.exception("Could not retry iiko order submission. order_id=%s job_id=%s", job.order_id, job.id)
                 continue
-            if order.iiko_order_id:
+            if order.iiko_creation_status == "Success":
                 await self.repository.mark_iiko_submission_job_done(job_id=job.id)
+            elif order.iiko_creation_status == "RecoveryPending":
+                failed += 1
+                await self.repository.mark_iiko_submission_job_failed(
+                    job_id=job.id,
+                    error_message="iiko submission outcome is ambiguous; recovery is pending.",
+                    next_run_at=self._next_iiko_retry_at(job.attempts),
+                )
+            elif order.iiko_creation_status == "Failed":
+                failed += 1
+                await self.repository.mark_iiko_submission_job_dead(
+                    job_id=job.id,
+                    error_message="iiko rejected the order permanently.",
+                )
             else:
                 failed += 1
                 await self.repository.mark_iiko_submission_job_failed(
@@ -500,11 +589,74 @@ class OrderService:
         prepared_order = await self._prepare_existing_order_for_iiko(order)
         return await self.submit_claimed_order(order_id=order.id, prepared_order=prepared_order)
 
+    async def recover_iiko_order(self, order) -> str:
+        """Recover an ambiguous iiko create attempt without issuing deliveries/create."""
+        if order.iiko_recovery_checks >= 10:
+            await self.repository.update_iiko_attempt_result(
+                order_id=order.id,
+                iiko_order_id=None,
+                iiko_pos_order_id=None,
+                correlation_id=None,
+                creation_status="ManualReview",
+                error_code=order.iiko_error_code,
+                error_message=order.iiko_error_message,
+            )
+            return "manual_review"
+        try:
+            result = await self.iiko_order_gateway.recover_order(
+                iiko_order_id=order.iiko_order_id,
+                iiko_request_order_id=order.iiko_request_order_id,
+                pos_order_id=order.iiko_pos_order_id,
+            )
+        except IikoOrderError:
+            await self.repository.increment_iiko_recovery_checks(order_id=order.id)
+            return "wait"
+
+        creation_status = str(result.get("creation_status") or "")
+        pos_found = bool(result.get("pos_found"))
+        pos_status = str(result.get("status") or "")
+        if creation_status == "Success" or (pos_found and bool(pos_status)):
+            await self.repository.update_iiko_attempt_result(
+                order_id=order.id,
+                iiko_order_id=result.get("iiko_order_id"),
+                iiko_pos_order_id=result.get("iiko_pos_order_id"),
+                correlation_id=None,
+                creation_status="Success",
+                error_code=None,
+                error_message=None,
+            )
+            await self.repository.reset_iiko_recovery_checks(order_id=order.id)
+            return "success"
+
+        error_code = result.get("error_code") or order.iiko_error_code
+        error_message = result.get("error_message") or order.iiko_error_message
+        is_timeout = "creation timeout expired" in str(error_message or "").lower()
+        if creation_status == "InProgress" or not is_timeout and creation_status != "Error":
+            await self.repository.increment_iiko_recovery_checks(order_id=order.id)
+            return "wait"
+        if creation_status == "Error" and not is_timeout:
+            await self.repository.update_iiko_attempt_result(
+                order_id=order.id,
+                iiko_order_id=result.get("iiko_order_id"),
+                iiko_pos_order_id=result.get("iiko_pos_order_id"),
+                correlation_id=None,
+                creation_status="Failed",
+                error_code=error_code,
+                error_message=error_message,
+            )
+            return "wait"
+
+        checks = await self.repository.increment_iiko_recovery_checks(order_id=order.id)
+        if checks < 3:
+            return "wait"
+        rotated = await self.repository.rotate_iiko_request_order_id_for_confirmed_retry(order_id=order.id)
+        return "resubmit" if rotated else "wait"
+
     async def enqueue_iiko_submission_if_needed(self, *, order_id: int) -> None:
         order = await self.repository.get_by_id(order_id)
-        if order is None or order.iiko_order_id:
+        if order is None or (order.iiko_order_id and order.iiko_creation_status != "RecoveryPending"):
             return
-        if order.iiko_creation_status not in {"LocalPending", "Failed"}:
+        if order.iiko_creation_status not in {"LocalPending", "Failed", "RecoveryPending"}:
             return
         await self.repository.enqueue_iiko_submission_job(order_id=order.id)
 

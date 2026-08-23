@@ -15,6 +15,7 @@ from config import (
     IIKO_ONLINE_PAYMENT_TYPE_KIND,
     IIKO_ORDER_SOURCE_KEY,
     IIKO_ORDER_TIMEOUT_SECONDS,
+    IIKO_TRANSPORT_TO_FRONT_TIMEOUT_SECONDS,
     IIKO_ORGANIZATION_ID,
 )
 from db import get_db
@@ -43,6 +44,7 @@ def get_iiko_order_gateway() -> IikoOrderGateway:
         source_key=IIKO_ORDER_SOURCE_KEY,
         online_payment_type_id=IIKO_ONLINE_PAYMENT_TYPE_ID,
         online_payment_type_kind=IIKO_ONLINE_PAYMENT_TYPE_KIND,
+        transport_to_front_timeout_seconds=IIKO_TRANSPORT_TO_FRONT_TIMEOUT_SECONDS,
     )
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from uuid import uuid4
 from collections.abc import Sequence
 from datetime import datetime
 from typing import Optional, Protocol
@@ -41,6 +42,15 @@ class OrderRepository(Protocol):
         iiko_correlation_id: Optional[str],
         iiko_creation_status: Optional[str],
     ) -> Optional[OrderModel]: ...
+    async def ensure_iiko_request_order_id(self, *, order_id: int) -> str: ...
+    async def rotate_iiko_request_order_id_for_confirmed_retry(self, *, order_id: int) -> Optional[str]: ...
+    async def update_iiko_attempt_result(
+        self, *, order_id: int, iiko_order_id: Optional[str], iiko_pos_order_id: Optional[str],
+        correlation_id: Optional[str], creation_status: Optional[str], error_code: Optional[str],
+        error_message: Optional[str],
+    ) -> Optional[OrderModel]: ...
+    async def increment_iiko_recovery_checks(self, *, order_id: int) -> int: ...
+    async def reset_iiko_recovery_checks(self, *, order_id: int) -> None: ...
     async def claim_iiko_submission(self, *, order_id: int) -> Optional[OrderModel]: ...
     async def list_by_user(self, user_id: int) -> Sequence[OrderModel]: ...
     async def get_latest_by_user(self, user_id: int) -> Optional[OrderModel]: ...
@@ -58,6 +68,7 @@ class OrderRepository(Protocol):
     async def mark_iiko_submission_job_done(self, *, job_id: int) -> None: ...
     async def mark_iiko_submission_job_failed(self, *, job_id: int, error_message: str, next_run_at: datetime) -> None: ...
     async def mark_iiko_submission_job_dead(self, *, job_id: int, error_message: str) -> None: ...
+    async def mark_iiko_submission_job_manual_review(self, *, job_id: int, error_message: str) -> None: ...
 
 
 class SqlAlchemyOrderRepository:
@@ -149,6 +160,108 @@ class SqlAlchemyOrderRepository:
 
         await self._session.commit()
         return order
+
+    async def ensure_iiko_request_order_id(self, *, order_id: int) -> str:
+        request_id = str(uuid4())
+        stmt = (
+            update(OrderModel)
+            .where(OrderModel.id == order_id, OrderModel.iiko_request_order_id.is_(None))
+            .values(iiko_request_order_id=request_id, updated_at=func.now())
+            .returning(OrderModel.iiko_request_order_id)
+        )
+        result = await self._session.execute(stmt)
+        stored_id = result.scalar_one_or_none()
+        if stored_id is None:
+            stored_id = await self._session.scalar(
+                select(OrderModel.iiko_request_order_id).where(OrderModel.id == order_id)
+            )
+        await self._session.commit()
+        if not stored_id:
+            raise ValueError(f"Could not ensure iiko request id for order {order_id}.")
+        return str(stored_id)
+
+    async def rotate_iiko_request_order_id_for_confirmed_retry(self, *, order_id: int) -> Optional[str]:
+        request_id = str(uuid4())
+        stmt = (
+            update(OrderModel)
+            .where(
+                OrderModel.id == order_id,
+                OrderModel.iiko_creation_status == "RecoveryPending",
+                OrderModel.iiko_recovery_checks >= 3,
+            )
+            .values(
+                iiko_request_order_id=request_id,
+                iiko_order_id=None,
+                iiko_pos_order_id=None,
+                iiko_correlation_id=None,
+                iiko_creation_status="LocalPending",
+                iiko_recovery_checks=0,
+                iiko_error_message=func.concat(
+                    "Confirmed absence after recovery; previous_iiko_request_order_id=",
+                    OrderModel.iiko_request_order_id,
+                    "; previous_iiko_order_id=",
+                    func.coalesce(OrderModel.iiko_order_id, ""),
+                ),
+                updated_at=func.now(),
+            )
+            .returning(OrderModel.iiko_request_order_id)
+        )
+        result = await self._session.execute(stmt)
+        rotated_id = result.scalar_one_or_none()
+        await self._session.commit()
+        return str(rotated_id) if rotated_id else None
+
+    async def update_iiko_attempt_result(
+        self,
+        *,
+        order_id: int,
+        iiko_order_id: Optional[str],
+        iiko_pos_order_id: Optional[str],
+        correlation_id: Optional[str],
+        creation_status: Optional[str],
+        error_code: Optional[str],
+        error_message: Optional[str],
+    ) -> Optional[OrderModel]:
+        stmt = (
+            update(OrderModel)
+            .where(OrderModel.id == order_id)
+            .values(
+                iiko_order_id=func.coalesce(iiko_order_id, OrderModel.iiko_order_id),
+                iiko_pos_order_id=func.coalesce(iiko_pos_order_id, OrderModel.iiko_pos_order_id),
+                iiko_correlation_id=func.coalesce(correlation_id, OrderModel.iiko_correlation_id),
+                iiko_creation_status=creation_status,
+                iiko_error_code=error_code,
+                iiko_error_message=error_message,
+                iiko_last_error_at=func.now() if error_message else OrderModel.iiko_last_error_at,
+                updated_at=func.now(),
+            )
+            .returning(OrderModel)
+        )
+        result = await self._session.execute(stmt)
+        order = result.scalar_one_or_none()
+        if order is None:
+            await self._session.rollback()
+            return None
+        await self._session.commit()
+        return order
+
+    async def increment_iiko_recovery_checks(self, *, order_id: int) -> int:
+        stmt = (
+            update(OrderModel)
+            .where(OrderModel.id == order_id)
+            .values(iiko_recovery_checks=OrderModel.iiko_recovery_checks + 1, updated_at=func.now())
+            .returning(OrderModel.iiko_recovery_checks)
+        )
+        result = await self._session.execute(stmt)
+        count = result.scalar_one_or_none()
+        await self._session.commit()
+        return int(count or 0)
+
+    async def reset_iiko_recovery_checks(self, *, order_id: int) -> None:
+        await self._session.execute(
+            update(OrderModel).where(OrderModel.id == order_id).values(iiko_recovery_checks=0, updated_at=func.now())
+        )
+        await self._session.commit()
 
     async def claim_iiko_submission(self, *, order_id: int) -> Optional[OrderModel]:
         stmt = (
@@ -249,8 +362,7 @@ class SqlAlchemyOrderRepository:
         stmt = (
             select(OrderModel)
             .where(
-                OrderModel.iiko_order_id.is_(None),
-                OrderModel.iiko_creation_status.in_(("LocalPending", "Failed")),
+                OrderModel.iiko_creation_status.in_(("LocalPending", "Failed", "RecoveryPending")),
             )
             .order_by(OrderModel.updated_at.asc(), OrderModel.id.asc())
             .limit(limit)
@@ -292,8 +404,7 @@ class SqlAlchemyOrderRepository:
             FROM orders
             LEFT JOIN pending_payments ON pending_payments.order_id = orders.id
             LEFT JOIN order_delivery_jobs ON order_delivery_jobs.order_id = orders.id
-            WHERE orders.iiko_order_id IS NULL
-              AND orders.iiko_creation_status IN ('LocalPending', 'Failed')
+            WHERE orders.iiko_creation_status IN ('LocalPending', 'Failed', 'RecoveryPending')
               AND order_delivery_jobs.id IS NULL
               AND pending_payments.status IN ('succeeded', 'order_failed')
               AND (
@@ -401,6 +512,15 @@ class SqlAlchemyOrderRepository:
                 error_message=error_message[:2000],
                 updated_at=func.now(),
             )
+        )
+        await self._session.execute(stmt)
+        await self._session.commit()
+
+    async def mark_iiko_submission_job_manual_review(self, *, job_id: int, error_message: str) -> None:
+        stmt = (
+            update(OrderDeliveryJobModel)
+            .where(OrderDeliveryJobModel.id == job_id)
+            .values(status="manual_review", locked_at=None, error_message=error_message[:2000], updated_at=func.now())
         )
         await self._session.execute(stmt)
         await self._session.commit()

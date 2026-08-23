@@ -14,6 +14,10 @@ def _get_int(name: str, default: int) -> int:
     return int(value)
 
 
+def _get_bounded_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
+    return max(minimum, min(maximum, _get_int(name, default)))
+
+
 def _get_csv(name: str) -> list[str]:
     return [
         item.strip()
@@ -45,6 +49,9 @@ IIKO_ORGANIZATION_ID = os.getenv("IIKO_ORGANIZATION_ID")
 IIKO_SYNC_TIMEOUT_SECONDS = _get_int("IIKO_SYNC_TIMEOUT_SECONDS", 20)
 IIKO_SYNC_INTERVAL_SECONDS = _get_int("IIKO_SYNC_INTERVAL_SECONDS", 300)
 IIKO_ORDER_TIMEOUT_SECONDS = _get_int("IIKO_ORDER_TIMEOUT_SECONDS", 60)
+IIKO_TRANSPORT_TO_FRONT_TIMEOUT_SECONDS = _get_bounded_int(
+    "IIKO_TRANSPORT_TO_FRONT_TIMEOUT_SECONDS", 60, minimum=8, maximum=120
+)
 IIKO_ORDER_SOURCE_KEY = os.getenv("IIKO_ORDER_SOURCE_KEY", "zamzam-site")
 IIKO_ONLINE_PAYMENT_TYPE_ID = os.getenv("IIKO_ONLINE_PAYMENT_TYPE_ID")
 IIKO_ONLINE_PAYMENT_TYPE_KIND = os.getenv("IIKO_ONLINE_PAYMENT_TYPE_KIND", "Card")

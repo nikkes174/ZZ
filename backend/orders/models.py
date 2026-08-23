@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.orders.statuses import ORDER_STATUS_PREPARING
@@ -12,6 +12,19 @@ from db import Base
 
 class OrderModel(Base):
     __tablename__ = "orders"
+    __table_args__ = (
+        Index(
+            "ix_orders_iiko_request_order_id",
+            "iiko_request_order_id",
+            unique=True,
+            postgresql_where=text("iiko_request_order_id IS NOT NULL"),
+        ),
+        Index(
+            "ix_orders_iiko_pos_order_id",
+            "iiko_pos_order_id",
+            postgresql_where=text("iiko_pos_order_id IS NOT NULL"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -34,8 +47,14 @@ class OrderModel(Base):
     bonus_awarded: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     idempotency_key: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, unique=True, index=True)
     iiko_order_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    iiko_request_order_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    iiko_pos_order_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     iiko_correlation_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     iiko_creation_status: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    iiko_error_code: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    iiko_error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    iiko_last_error_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    iiko_recovery_checks: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     branch_code: Mapped[str] = mapped_column(
         String(32),
         nullable=False,

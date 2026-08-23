@@ -18,7 +18,28 @@ DEFAULT_DELIVERY_CITY = "Екатеринбург"
 
 
 class IikoOrderError(Exception):
-    pass
+    def __init__(
+        self,
+        message: str,
+        *,
+        iiko_order_id: Optional[str] = None,
+        pos_order_id: Optional[str] = None,
+        correlation_id: Optional[str] = None,
+        creation_status: Optional[str] = None,
+        error_code: Optional[str] = None,
+        error_message: Optional[str] = None,
+        retryable: bool = False,
+        ambiguous: bool = False,
+    ) -> None:
+        super().__init__(message)
+        self.iiko_order_id = iiko_order_id
+        self.pos_order_id = pos_order_id
+        self.correlation_id = correlation_id
+        self.creation_status = creation_status
+        self.error_code = error_code
+        self.error_message = error_message or message
+        self.retryable = retryable
+        self.ambiguous = ambiguous
 
 
 @dataclass(frozen=True)
@@ -36,6 +57,7 @@ class IikoOrderGateway:
     source_key: str = "zamzam-site"
     online_payment_type_id: Optional[str] = None
     online_payment_type_kind: str = "Card"
+    transport_to_front_timeout_seconds: int = 60
 
     async def submit_order(
             self,
@@ -45,6 +67,7 @@ class IikoOrderGateway:
             total_amount: int,
             terminal_group_id: str,
             external_number: Optional[str] = None,
+            iiko_request_order_id: str,
     ) -> dict[str, str]:
         if not self.client.api_login:
             raise IikoOrderError("API_IIKO is not configured.")
@@ -52,8 +75,11 @@ class IikoOrderGateway:
         if not terminal_group_id:
             raise IikoOrderError("TERMINAL_ID_GROUP is not configured.")
 
-        token = await self.client.get_access_token()
-        organization_id = await self._resolve_organization_id(token=token)
+        try:
+            token = await self.client.get_access_token()
+            organization_id = await self._resolve_organization_id(token=token)
+        except IikoClientError as exc:
+            raise IikoOrderError(str(exc), retryable=exc.retryable, ambiguous=exc.ambiguous) from exc
 
         order_type_id = await self._resolve_order_type_id(
             token=token,
@@ -77,6 +103,7 @@ class IikoOrderGateway:
             comment_parts.append(f"Приборы: {payload.cutlery_count}")
 
         order_data: dict[str, object] = {
+            "id": iiko_request_order_id,
             "phone": payload.customer_phone,
             "customer": {
                 "name": payload.customer_name,
@@ -143,6 +170,10 @@ class IikoOrderGateway:
             "organizationId": organization_id,
             "terminalGroupId": terminal_group_id,
             "order": order_data,
+            "createOrderSettings": {
+                "transportToFrontTimeout": self.transport_to_front_timeout_seconds,
+                "checkStopList": True,
+            },
         }
 
         try:
@@ -151,33 +182,37 @@ class IikoOrderGateway:
                 payload=order_payload,
             )
         except IikoClientError as exc:
-            raise IikoOrderError(str(exc)) from exc
+            raise IikoOrderError(str(exc), retryable=exc.retryable, ambiguous=exc.ambiguous) from exc
 
         raw_order_info = response_payload.get("orderInfo")
         order_info = raw_order_info if isinstance(raw_order_info, dict) else {}
 
         creation_status = str(order_info.get("creationStatus") or "")
+        iiko_order_id = str(order_info.get("id") or "") or None
+        pos_order_id = str(order_info.get("posId") or "") or None
+        correlation_id = str(response_payload.get("correlationId") or "") or None
+        raw_error_info = order_info.get("errorInfo")
+        error_info = raw_error_info if isinstance(raw_error_info, dict) else {}
+        error_code = str(error_info.get("code") or "") or None
+        error_message = str(error_info.get("message") or error_info.get("description") or "") or None
 
         if creation_status not in {"Success", "InProgress"}:
-            raw_error_info = order_info.get("errorInfo")
-            error_info = raw_error_info if isinstance(raw_error_info, dict) else {}
-
-            error_code = error_info.get("code")
-            error_message = str(
-                error_info.get("message")
-                or error_info.get("description")
-                or "Unknown iiko error."
-            )
-
+            error_message = error_message or "Unknown iiko error."
+            retryable, ambiguous = self._classify_iiko_error(error_code=error_code, error_message=error_message)
             raise IikoOrderError(
                 self._to_user_message(
                     error_code=error_code,
                     error_message=error_message,
-                )
+                ),
+                iiko_order_id=iiko_order_id,
+                pos_order_id=pos_order_id,
+                correlation_id=correlation_id,
+                creation_status=creation_status or "Error",
+                error_code=error_code,
+                error_message=error_message,
+                retryable=retryable,
+                ambiguous=ambiguous,
             )
-
-        iiko_order_id = str(order_info.get("id") or "")
-        correlation_id = str(response_payload.get("correlationId") or "")
 
         logger.info(
             "iiko order accepted. creation_status=%s order_id=%s correlation_id=%s",
@@ -202,9 +237,84 @@ class IikoOrderGateway:
 
         return {
             "iiko_order_id": iiko_order_id,
+            "iiko_pos_order_id": pos_order_id,
             "correlation_id": correlation_id,
             "creation_status": creation_status,
         }
+
+    async def recover_order(
+        self,
+        *,
+        iiko_order_id: Optional[str],
+        iiko_request_order_id: Optional[str],
+        pos_order_id: Optional[str],
+    ) -> dict[str, object]:
+        """Look up an existing attempt; this method never creates an order."""
+        if not self.client.api_login:
+            raise IikoOrderError("API_IIKO is not configured.", retryable=True)
+        try:
+            token = await self.client.get_access_token()
+            organization_id = await self._resolve_organization_id(token=token)
+        except IikoClientError as exc:
+            raise IikoOrderError(str(exc), retryable=exc.retryable, ambiguous=exc.ambiguous) from exc
+        lookup_id = iiko_order_id or iiko_request_order_id
+        order: Optional[dict[str, object]] = None
+        if lookup_id:
+            try:
+                found = await self.client.get_delivery_orders_by_ids(
+                    token=token, organization_id=organization_id, order_ids=[lookup_id]
+                )
+            except IikoClientError as exc:
+                raise IikoOrderError(str(exc), retryable=exc.retryable, ambiguous=exc.ambiguous) from exc
+            order = found[0] if found else None
+        if order is not None:
+            result = self._extract_recovery_result(order)
+            if result["creation_status"] != "Error":
+                return result
+        if pos_order_id:
+            try:
+                by_pos = await self.client.get_delivery_orders_by_pos_ids(
+                    token=token, organization_id=organization_id, pos_order_ids=[pos_order_id]
+                )
+            except IikoClientError as exc:
+                raise IikoOrderError(str(exc), retryable=exc.retryable, ambiguous=exc.ambiguous) from exc
+            if by_pos:
+                result = self._extract_recovery_result(by_pos[0])
+                result["pos_found"] = True
+                return result
+        result = self._extract_recovery_result(order or {})
+        result["pos_found"] = False
+        return result
+
+    def _extract_recovery_result(self, payload: dict[str, object]) -> dict[str, object]:
+        if isinstance(payload.get("order"), dict):
+            nested = payload["order"]
+        elif isinstance(payload.get("orderInfo"), dict):
+            nested = payload["orderInfo"]
+        else:
+            nested = payload
+        nested = nested if isinstance(nested, dict) else {}
+        error_info = nested.get("errorInfo") if isinstance(nested.get("errorInfo"), dict) else {}
+        return {
+            "found": bool(payload),
+            "iiko_order_id": nested.get("id") or payload.get("id"),
+            "iiko_pos_order_id": nested.get("posId") or payload.get("posId"),
+            "creation_status": nested.get("creationStatus") or payload.get("creationStatus"),
+            "status": nested.get("status") or nested.get("deliveryStatus") or payload.get("status"),
+            "error_code": error_info.get("code"),
+            "error_message": error_info.get("message") or error_info.get("description"),
+        }
+
+    def _classify_iiko_error(self, *, error_code: Optional[str], error_message: str) -> tuple[bool, bool]:
+        normalized_code = (error_code or "").lower()
+        normalized_message = error_message.lower()
+        if "creation timeout expired" in normalized_message or normalized_code == "duplicatedorderid":
+            return True, True
+        if normalized_code in {"productexludedfrommenu", "terminalgroupdisabled"}:
+            return False, False
+        if "invalid" in normalized_message or "outside the range" in normalized_message:
+            return False, False
+        return False, False
     async def _resolve_organization_id(self, *, token: str) -> str:
         if self.organization_id:
             return self.organization_id

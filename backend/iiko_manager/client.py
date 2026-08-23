@@ -8,7 +8,11 @@ import logging
 
 
 class IikoClientError(Exception):
-    pass
+    def __init__(self, message: str, *, retryable: bool = False, ambiguous: bool = False, status_code: Optional[int] = None):
+        super().__init__(message)
+        self.retryable = retryable
+        self.ambiguous = ambiguous
+        self.status_code = status_code
 
 
 logger = logging.getLogger(__name__)
@@ -186,7 +190,11 @@ class IikoApiClient:
                 response = await client.post(f"{self.base_url}/{path}", json=json_payload, headers=headers)
         except httpx.HTTPError as exc:
             logger.warning("iiko request failed. path=%s error=%s", path, exc)
-            raise IikoClientError(f"iiko request failed for {path}: {exc}") from exc
+            retryable = isinstance(exc, (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.RemoteProtocolError))
+            ambiguous = isinstance(exc, (httpx.ReadTimeout, httpx.RemoteProtocolError))
+            raise IikoClientError(
+                f"iiko request failed for {path}: {exc}", retryable=retryable, ambiguous=ambiguous
+            ) from exc
 
         try:
             response.raise_for_status()
@@ -198,7 +206,13 @@ class IikoApiClient:
                 response.status_code,
                 detail,
             )
-            raise IikoClientError(f"iiko request failed for {path}: {response.status_code} {detail}") from exc
+            retryable = response.status_code in {502, 503, 504}
+            raise IikoClientError(
+                f"iiko request failed for {path}: {response.status_code} {detail}",
+                retryable=retryable,
+                ambiguous=retryable,
+                status_code=response.status_code,
+            ) from exc
 
         payload = response.json()
         if not isinstance(payload, dict):
