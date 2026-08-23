@@ -6,6 +6,7 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from backend.orders.branches import BranchCode
+from backend.orders.iiko_validation import normalize_optional_text
 from backend.orders.statuses import get_allowed_statuses
 
 
@@ -36,6 +37,20 @@ class OrderCreate(BaseModel):
     bonus_spent: int = Field(default=0, ge=0, le=1_000_000)
     items: list[OrderItemPayload] = Field(..., min_length=1, max_length=100)
     branch_code: BranchCode
+
+    @field_validator(
+        "customer_name",
+        "customer_phone",
+        "delivery_street",
+        "delivery_house",
+        "delivery_flat",
+        "entrance",
+        "comment",
+        mode="before",
+    )
+    @classmethod
+    def normalize_text_fields(cls, value: Any) -> Any:
+        return normalize_optional_text(value)
 
     @field_validator("checkout_type")
     @classmethod
@@ -105,4 +120,3 @@ class AdminOrdersPage(BaseModel):
             for checkout_type in ("pickup", "delivery")
         ]
         return cls(items=items, status_options=options)
-

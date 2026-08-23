@@ -12,6 +12,7 @@ from backend.iiko_manager.client import IikoApiClient, IikoClientError
 from backend.orders.branches import BranchCode, resolve_terminal_group_id
 from backend.orders.crud import OrderRepository
 from backend.orders.iiko import IikoOrderError, IikoOrderGateway, IikoOrderItem
+from backend.orders.iiko_validation import IikoDeliveryAddressValidationError, validate_iiko_delivery_address
 from backend.orders.schemas import AdminOrdersPage, OrderCreate, OrderItemPayload, OrderRead, UserOrdersPage
 from backend.orders.statuses import (
     ORDER_STATUS_CANCELLED,
@@ -29,6 +30,10 @@ BONUS_AWARD_PERCENT = 5
 
 
 class OrderValidationError(Exception):
+    pass
+
+
+class IikoPayloadValidationError(OrderValidationError):
     pass
 
 
@@ -455,6 +460,13 @@ class OrderService:
         for job in jobs:
             try:
                 order = await self.submit_existing_order_to_iiko(order_id=job.order_id)
+            except IikoPayloadValidationError as exc:
+                failed += 1
+                await self.repository.mark_iiko_submission_job_dead(
+                    job_id=job.id,
+                    error_message=str(exc),
+                )
+                continue
             except OrderValidationError as exc:
                 failed += 1
                 await self.repository.mark_iiko_submission_job_failed(
@@ -497,14 +509,11 @@ class OrderService:
         await self.repository.enqueue_iiko_submission_job(order_id=order.id)
 
     async def prepare_order(self, *, payload: OrderCreate, available_bonus_balance: int) -> PreparedOrder:
+        self._validate_iiko_order_payload(payload)
         normalized_items = await self._normalize_order_items(payload)
         subtotal_amount = sum(item.order_item.price * item.order_item.quantity for item in normalized_items)
         if subtotal_amount <= 0:
             raise OrderValidationError("Сумма заказа должна быть больше нуля.")
-        if payload.checkout_type == "delivery" and not (payload.delivery_street or "").strip():
-            raise OrderValidationError("Укажите улицу доставки.")
-        if payload.checkout_type == "delivery" and not (payload.delivery_house or "").strip():
-            raise OrderValidationError("Укажите номер дома.")
         if payload.bonus_spent > available_bonus_balance:
             raise OrderValidationError("Недостаточно бонусов для списания.")
         if payload.bonus_spent > subtotal_amount:
@@ -538,6 +547,23 @@ class OrderService:
             branch_code=normalized_payload.branch_code,
             terminal_group_id=terminal_group_id,
         )
+
+    def _validate_iiko_order_payload(self, payload: OrderCreate, *, order_id: Optional[int] = None) -> None:
+        if payload.checkout_type != "delivery":
+            return
+        try:
+            validate_iiko_delivery_address(
+                street=payload.delivery_street,
+                house=payload.delivery_house,
+            )
+        except IikoDeliveryAddressValidationError as exc:
+            logger.warning(
+                "Order rejected before iiko submission. order_id=%s checkout_type=%s reason=%s",
+                order_id,
+                payload.checkout_type,
+                exc,
+            )
+            raise IikoPayloadValidationError(str(exc)) from exc
 
     async def create_order(
         self,
@@ -703,10 +729,6 @@ class OrderService:
         return normalized_items
 
     async def _prepare_existing_order_for_iiko(self, order) -> PreparedOrder:
-        if order.checkout_type == "delivery":
-            if not (order.delivery_street or "").strip() or not (order.delivery_house or "").strip():
-                raise OrderValidationError("У заказа доставки не заполнены улица и дом для отправки в iiko.")
-
         order_items = [OrderItemPayload.model_validate(item) for item in json.loads(order.items_json)]
         ordered_ids: list[int] = []
         for item in order_items:
@@ -747,6 +769,17 @@ class OrderService:
             items=order_items,
             branch_code=BranchCode(order.branch_code),
         )
+        self._validate_iiko_order_payload(payload, order_id=order.id)
+        if payload.checkout_type == "pickup":
+            payload = payload.model_copy(
+                update={
+                    "delivery_address": None,
+                    "delivery_street": None,
+                    "delivery_house": None,
+                    "delivery_flat": None,
+                    "entrance": None,
+                }
+            )
         return PreparedOrder(
             payload=payload,
             normalized_items=normalized_items,

@@ -467,6 +467,10 @@ async def request_validation_exception_handler(request: Request, exc: RequestVal
             location = error.get("loc") or ()
             if "customer_phone" in location:
                 return JSONResponse(status_code=422, content={"detail": "Заполните имя и телефон."})
+            if "delivery_house" in location:
+                return JSONResponse(status_code=422, content={"detail": "Проверьте номер дома."})
+            if "delivery_street" in location:
+                return JSONResponse(status_code=422, content={"detail": "Проверьте улицу доставки."})
         return JSONResponse(status_code=422, content={"detail": "Проверьте данные заказа."})
     return JSONResponse(status_code=422, content={"detail": errors})
 

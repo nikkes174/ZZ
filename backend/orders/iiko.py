@@ -6,6 +6,11 @@ from typing import Optional
 
 from backend.iiko_manager.client import IikoApiClient, IikoClientError
 from backend.orders.schemas import OrderCreate
+from backend.orders.iiko_validation import (
+    IIKO_HOUSE_MAX_LENGTH,
+    IikoDeliveryAddressValidationError,
+    validate_iiko_delivery_address,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -109,6 +114,14 @@ class IikoOrderGateway:
 
             if not delivery_house:
                 raise IikoOrderError("Не указан номер дома.")
+            if len(delivery_house) > IIKO_HOUSE_MAX_LENGTH:
+                raise IikoOrderError(
+                    "Номер дома слишком длинный. Укажите номер дома длиной не более 10 символов."
+                )
+            try:
+                validate_iiko_delivery_address(street=delivery_street, house=delivery_house)
+            except IikoDeliveryAddressValidationError as exc:
+                raise IikoOrderError(str(exc)) from exc
 
             delivery_point = self._build_delivery_point(
                 street=delivery_street,
@@ -225,7 +238,10 @@ class IikoOrderGateway:
                 if item.get("orderServiceType") == target_service_type and item.get("id"):
                     return str(item["id"])
 
-        raise IikoOrderError(f"iiko order type for {checkout_type} was not found.")
+        raise IikoOrderError(
+            f"iiko order type not found: checkout_type={checkout_type}, "
+            f"service_type={target_service_type}, organization_id={organization_id}"
+        )
 
     async def _build_payments(
         self,

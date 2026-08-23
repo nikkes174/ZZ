@@ -57,6 +57,7 @@ class OrderRepository(Protocol):
     async def claim_due_iiko_submission_jobs(self, *, limit: int, created_after: Optional[datetime] = None) -> Sequence[OrderDeliveryJobModel]: ...
     async def mark_iiko_submission_job_done(self, *, job_id: int) -> None: ...
     async def mark_iiko_submission_job_failed(self, *, job_id: int, error_message: str, next_run_at: datetime) -> None: ...
+    async def mark_iiko_submission_job_dead(self, *, job_id: int, error_message: str) -> None: ...
 
 
 class SqlAlchemyOrderRepository:
@@ -384,6 +385,20 @@ class SqlAlchemyOrderRepository:
                 locked_at=None,
                 error_message=error_message[:2000],
                 next_run_at=next_run_at,
+                updated_at=func.now(),
+            )
+        )
+        await self._session.execute(stmt)
+        await self._session.commit()
+
+    async def mark_iiko_submission_job_dead(self, *, job_id: int, error_message: str) -> None:
+        stmt = (
+            update(OrderDeliveryJobModel)
+            .where(OrderDeliveryJobModel.id == job_id)
+            .values(
+                status="dead",
+                locked_at=None,
+                error_message=error_message[:2000],
                 updated_at=func.now(),
             )
         )
