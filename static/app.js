@@ -70,6 +70,10 @@ const checkoutPreviewLines = document.getElementById("checkout-preview-lines");
 const checkoutBonusSpent = document.getElementById("checkout-bonus-spent");
 const checkoutBonusDecrease = document.getElementById("checkout-bonus-decrease");
 const checkoutBonusIncrease = document.getElementById("checkout-bonus-increase");
+const dishPreviewModal = document.getElementById("dish-preview-modal");
+const dishPreviewImage = document.getElementById("dish-preview-image");
+const dishPreviewTitle = document.getElementById("dish-preview-title");
+const dishPreviewDescription = document.getElementById("dish-preview-description");
 const floatingTools = document.querySelector(".floating-tools");
 const adminToggle = document.getElementById("admin-toggle");
 const adminModal = document.getElementById("admin-modal");
@@ -218,6 +222,47 @@ function getCards() {
 function bindClick(element, handler) {
     if (element) {
         element.addEventListener("click", handler);
+    }
+}
+
+function openDishPreview(card) {
+    if (!dishPreviewModal || !dishPreviewImage || !dishPreviewTitle || !dishPreviewDescription || !card) {
+        return;
+    }
+
+    const image = card.querySelector(".dish-image");
+    const title = card.querySelector(".dish-title");
+    const description = card.querySelector(".dish-description");
+    const imageSrc = image?.getAttribute("src")?.trim() || "";
+
+    if (!image || image.classList.contains("is-hidden") || !imageSrc) {
+        return;
+    }
+
+    const titleText = title?.textContent?.trim() || "";
+    const descriptionText = description?.textContent?.trim() || "";
+
+    dishPreviewImage.src = imageSrc;
+    dishPreviewImage.alt = titleText;
+    dishPreviewTitle.textContent = titleText;
+    dishPreviewDescription.textContent = descriptionText;
+    dishPreviewDescription.hidden = !descriptionText;
+    dishPreviewModal.classList.add("is-open");
+    dishPreviewModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("dish-preview-open");
+}
+
+function closeDishPreview() {
+    if (!dishPreviewModal) {
+        return;
+    }
+
+    dishPreviewModal.classList.remove("is-open");
+    dishPreviewModal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("dish-preview-open");
+    if (dishPreviewImage) {
+        dishPreviewImage.src = "";
+        dishPreviewImage.alt = "";
     }
 }
 
@@ -1672,6 +1717,14 @@ async function uploadImage(itemId, version) {
 
 if (menuGrid) {
     menuGrid.addEventListener("click", (event) => {
+        const dishImage = event.target.closest(".dish-image");
+        if (dishImage && menuGrid.contains(dishImage)) {
+            event.preventDefault();
+            event.stopPropagation();
+            openDishPreview(dishImage.closest(".dish-card"));
+            return;
+        }
+
         const target = event.target.closest("button");
         if (!target) {
             return;
@@ -1893,6 +1946,9 @@ bindClick(cartClose, closeCart);
 bindClick(cartBackdrop, closeCart);
 bindClick(checkoutClose, closeCheckoutModal);
 bindClick(checkoutBackdrop, closeCheckoutModal);
+document.querySelectorAll("[data-dish-preview-close]").forEach((element) => {
+    element.addEventListener("click", closeDishPreview);
+});
 bindClick(footerMapOpen, openFooterMapModal);
 bindClick(footerMapClose, closeFooterMapModal);
 bindClick(footerMapBackdrop, closeFooterMapModal);
@@ -2255,6 +2311,7 @@ checkoutBonusSpent?.addEventListener("input", () => {
 
 document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+        closeDishPreview();
         closeCart();
         closeCheckoutModal();
         window.closeZamzamOrderSuccessModal?.();

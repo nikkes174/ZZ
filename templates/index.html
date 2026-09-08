@@ -1006,6 +1006,40 @@
         </div>
     </footer>
 
+    <div class="dish-preview-modal" id="dish-preview-modal" aria-hidden="true">
+        <div class="dish-preview-backdrop" data-dish-preview-close></div>
+
+        <div
+            class="dish-preview-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dish-preview-title"
+        >
+            <button
+                class="dish-preview-close"
+                type="button"
+                aria-label="Закрыть"
+                data-dish-preview-close
+            >
+                ×
+            </button>
+
+            <div class="dish-preview-image-wrap">
+                <img
+                    class="dish-preview-image"
+                    id="dish-preview-image"
+                    src=""
+                    alt=""
+                >
+            </div>
+
+            <div class="dish-preview-content">
+                <h3 id="dish-preview-title"></h3>
+                <p id="dish-preview-description"></p>
+            </div>
+        </div>
+    </div>
+
     <script defer src="/static/app.js?v=20260628-delivery-fields-1"></script>
     <script defer src="/static/catalog-admin.js?v=20260506-hero-mobile-fix-2"></script>
     <script defer src="/static/account.js?v=20260630-free-street-1"></script>

@@ -65,6 +65,10 @@ body.order-success-open {
     overscroll-behavior: none;
 }
 
+body.dish-preview-open {
+    overflow: hidden;
+}
+
 body.preloader-active {
     overflow: hidden;
 }
@@ -3819,6 +3823,7 @@ body.admin-mode .menu-admin-bar {
     border-radius: 0;
     transform: scale(1);
     transition: transform 0.7s ease;
+    cursor: zoom-in;
 }
 
 .dish-card:hover .dish-image {
@@ -3827,6 +3832,98 @@ body.admin-mode .menu-admin-bar {
 
 .dish-image.is-hidden,
 .dish-plate.is-hidden {
+    display: none;
+}
+
+.dish-preview-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.dish-preview-modal.is-open {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.dish-preview-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 15, 15, 0.78);
+}
+
+.dish-preview-dialog {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    width: min(900px, 100%);
+    max-height: 90vh;
+    max-height: 90dvh;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.32);
+}
+
+.dish-preview-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    z-index: 2;
+    width: 42px;
+    height: 42px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--text);
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.dish-preview-image-wrap {
+    display: grid;
+    place-items: center;
+    min-height: 160px;
+    padding: 28px 28px 0;
+    background: #17120f;
+}
+
+.dish-preview-image {
+    display: block;
+    max-width: 100%;
+    max-height: min(65vh, 700px);
+    object-fit: contain;
+}
+
+.dish-preview-content {
+    padding: 22px 28px 28px;
+    overflow-y: auto;
+}
+
+.dish-preview-content h3 {
+    margin: 0 0 8px;
+    font-family: "Playfair Display", Georgia, serif;
+    font-size: clamp(1.5rem, 3vw, 2.2rem);
+}
+
+.dish-preview-content p {
+    margin: 0;
+    color: var(--text-soft);
+    line-height: 1.65;
+    white-space: pre-wrap;
+}
+
+.dish-preview-content p[hidden] {
     display: none;
 }
 
@@ -6681,6 +6778,36 @@ body.admin-mode .dish-edit-button {
 
     .account-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .dish-preview-modal {
+        inset: 12px;
+        padding: 0;
+    }
+
+    .dish-preview-dialog {
+        width: calc(100vw - 24px);
+        max-height: calc(100dvh - 24px);
+        overflow-y: auto;
+    }
+
+    .dish-preview-image-wrap {
+        padding: 48px 16px 0;
+    }
+
+    .dish-preview-image {
+        max-height: min(55dvh, 520px);
+    }
+
+    .dish-preview-content {
+        padding: 18px 18px 22px;
+    }
+
+    .dish-preview-close {
+        top: 8px;
+        right: 8px;
     }
 }
 

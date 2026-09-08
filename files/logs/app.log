@@ -12590,3 +12590,72 @@ backend.orders.service.OrderValidationError: iiko request failed for deliveries/
 2026-06-28 20:21:26,820 | INFO | backend.orders.service | Unknown iiko order status received. iiko_status=Error
 2026-06-28 20:21:26,821 | WARNING | backend.orders.service | iiko order is in Error status. order_id=6 iiko_order_id=08233f82-1e97-48a0-bcfb-ee59bba5c7de payload={"id": "08233f82-1e97-48a0-bcfb-ee59bba5c7de", "posId": "066eb5c3-b50e-4bed-8e36-d07ebd159caf", "externalNumber": "zamzam-order-6", "organizationId": "5b44b114-347a-4c95-a7c0-c146a6bfbde2", "timestamp": 1782569393972, "creationStatus": "Error", "errorInfo": {"code": "Common", "message": "Creation timeout expired, order automatically transited to error creation status", "description": "Creation timeout expired, order automatically transited to error creation status", "additionalData": null}, "order": null}
 2026-06-28 20:21:26,821 | INFO | main | Finished iiko order status sync. checked=14 updated=0
+2026-09-08 06:01:12,449 | INFO | main | Application startup initiated.
+2026-09-08 06:01:12,667 | INFO | main | Database metadata initialized.
+2026-09-08 06:01:12,767 | INFO | main | Order migrations ensured.
+2026-09-08 06:01:12,782 | INFO | main | Menu item iiko migrations ensured.
+2026-09-08 06:01:12,791 | INFO | main | User auth migrations ensured.
+2026-09-08 06:01:12,804 | INFO | main | Admin users synchronized from environment.
+2026-09-08 06:01:12,812 | INFO | main | YooKassa payment reconciliation cutoff initialized. created_after=2026-06-27T04:56:31.149965+00:00
+2026-09-08 06:01:12,812 | INFO | main | Starting iiko catalog sync.
+2026-09-08 06:01:12,812 | INFO | backend.iiko_manager.service | Catalog sync started. terminal_group_id=7bb70c1d-4e12-4a7f-9750-c2aaed6ddabc
+2026-09-08 06:01:12,812 | INFO | backend.iiko_manager.client | Requesting iiko access token.
+2026-09-08 06:01:13,405 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/access_token "HTTP/1.1 200 OK"
+2026-09-08 06:01:13,409 | INFO | backend.iiko_manager.client | iiko access token received successfully.
+2026-09-08 06:01:13,409 | INFO | backend.iiko_manager.service | Using configured iiko organization id=5b44b114-347a-4c95-a7c0-c146a6bfbde2
+2026-09-08 06:01:13,409 | INFO | backend.iiko_manager.client | Requesting iiko nomenclature. organization_id=5b44b114-347a-4c95-a7c0-c146a6bfbde2
+2026-09-08 06:01:13,770 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/nomenclature "HTTP/1.1 200 OK"
+2026-09-08 06:01:13,862 | INFO | backend.iiko_manager.client | iiko nomenclature received. groups=56 products=457
+2026-09-08 06:01:13,871 | INFO | backend.iiko_manager.service | Normalized iiko products. total=457 without_price=0 deleted=270 active=187
+2026-09-08 06:01:13,871 | INFO | backend.iiko_manager.service | Price extraction summary. matched_by_currentPrice=457
+2026-09-08 06:01:13,871 | INFO | backend.iiko_manager.service | Prepared 457 normalized iiko items for sync.
+2026-09-08 06:01:13,871 | INFO | backend.iiko_manager.repository | Repository sync started. terminal_group_id=7bb70c1d-4e12-4a7f-9750-c2aaed6ddabc items=457 synced_at=2026-09-08T03:01:13.871186+00:00
+2026-09-08 06:01:13,931 | INFO | backend.iiko_manager.repository | Loaded existing iiko menu items from database. count=457
+2026-09-08 06:01:13,966 | INFO | backend.iiko_manager.repository | Repository sync committed. created=0 updated=35 deactivated=0
+2026-09-08 06:01:13,967 | INFO | backend.iiko_manager.service | Catalog sync persisted successfully. created=0 updated=35 deactivated=0
+2026-09-08 06:01:13,968 | INFO | main | Finished iiko catalog sync. created=0 updated=35 deactivated=0
+2026-09-08 06:01:13,968 | INFO | main | Application startup completed.
+2026-09-08 06:01:13,969 | INFO | main | Started background iiko sync loop. interval_seconds=300
+2026-09-08 06:01:13,969 | INFO | main | Started background iiko order status sync loop. interval_seconds=30
+2026-09-08 06:01:13,969 | INFO | main | Started background iiko order submission retry loop. interval_seconds=30
+2026-09-08 06:01:21,343 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-09-08 06:01:31,293 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-09-08 06:01:43,992 | INFO | backend.iiko_manager.client | Requesting iiko access token.
+2026-09-08 06:01:44,472 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/access_token "HTTP/1.1 200 OK"
+2026-09-08 06:01:44,475 | INFO | backend.iiko_manager.client | iiko access token received successfully.
+2026-09-08 06:01:44,475 | INFO | backend.iiko_manager.client | Requesting iiko delivery orders by ids. count=14
+2026-09-08 06:01:44,819 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/deliveries/by_id "HTTP/1.1 200 OK"
+2026-09-08 06:01:44,822 | INFO | backend.iiko_manager.client | iiko delivery orders received. count=14
+2026-09-08 06:01:44,823 | INFO | backend.iiko_manager.client | Requesting iiko delivery orders by pos ids. count=1
+2026-09-08 06:01:45,246 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/deliveries/by_id "HTTP/1.1 200 OK"
+2026-09-08 06:01:45,248 | INFO | backend.iiko_manager.client | iiko delivery orders by pos ids received. count=1
+2026-09-08 06:01:45,248 | INFO | backend.orders.service | Unknown iiko order status received. iiko_status=Error
+2026-09-08 06:01:45,248 | WARNING | backend.orders.service | iiko order is in Error status. order_id=6 iiko_order_id=08233f82-1e97-48a0-bcfb-ee59bba5c7de payload={"id": "08233f82-1e97-48a0-bcfb-ee59bba5c7de", "posId": "066eb5c3-b50e-4bed-8e36-d07ebd159caf", "externalNumber": "zamzam-order-6", "organizationId": "5b44b114-347a-4c95-a7c0-c146a6bfbde2", "timestamp": 1782569393972, "creationStatus": "Error", "errorInfo": {"code": "Common", "message": "Creation timeout expired, order automatically transited to error creation status", "description": "Creation timeout expired, order automatically transited to error creation status", "additionalData": null}, "order": null}
+2026-09-08 06:01:45,263 | INFO | backend.orders.service | Synced order status from iiko. order_id=13 iiko_order_id=0b5f33ef-8c2c-4844-95f7-f62a3dff5d0f iiko_status=Cancelled status=Отменен
+2026-09-08 06:01:45,267 | INFO | backend.orders.service | Synced order status from iiko. order_id=10 iiko_order_id=1cf4e85b-c80f-4a4b-82d5-0f1c1b8b30ad iiko_status=Cancelled status=Отменен
+2026-09-08 06:01:45,270 | INFO | backend.orders.service | Synced order status from iiko. order_id=11 iiko_order_id=39986db7-20dc-4e22-a153-86fd5c694436 iiko_status=Cancelled status=Отменен
+2026-09-08 06:01:45,273 | INFO | backend.orders.service | Synced order status from iiko. order_id=7 iiko_order_id=43a3c318-f803-4de2-9399-5ea3782064f6 iiko_status=Cancelled status=Отменен
+2026-09-08 06:01:45,277 | INFO | backend.orders.service | Synced order status from iiko. order_id=17 iiko_order_id=447c737d-604a-4ab7-873f-3615ca740a0c iiko_status=Cancelled status=Отменен
+2026-09-08 06:01:45,281 | INFO | backend.orders.service | Synced order status from iiko. order_id=18 iiko_order_id=58da53de-250c-465a-b2bc-da36a75b6de8 iiko_status=Cancelled status=Отменен
+2026-09-08 06:01:45,284 | INFO | backend.orders.service | Synced order status from iiko. order_id=12 iiko_order_id=5a12eeec-75ff-417d-b6da-cbd6152ae7bc iiko_status=Cancelled status=Отменен
+2026-09-08 06:01:45,287 | INFO | backend.orders.service | Synced order status from iiko. order_id=8 iiko_order_id=6e6383c5-facd-4ed9-bb8b-1921cf196283 iiko_status=Cancelled status=Отменен
+2026-09-08 06:01:45,291 | INFO | backend.orders.service | Synced order status from iiko. order_id=16 iiko_order_id=77bd4469-6c81-4ab8-857a-d4c81047d473 iiko_status=Cancelled status=Отменен
+2026-09-08 06:01:45,295 | INFO | backend.orders.service | Synced order status from iiko. order_id=14 iiko_order_id=854773e5-786e-4648-97cb-4990abdb4296 iiko_status=Cancelled status=Отменен
+2026-09-08 06:01:45,300 | INFO | backend.orders.service | Synced order status from iiko. order_id=19 iiko_order_id=cacad02e-7db6-4ad3-b13c-91783dc9e07f iiko_status=Cancelled status=Отменен
+2026-09-08 06:01:45,303 | INFO | backend.orders.service | Synced order status from iiko. order_id=9 iiko_order_id=d998a0f5-486a-4648-a9dc-493927cf23bc iiko_status=Cancelled status=Отменен
+2026-09-08 06:01:45,306 | INFO | backend.orders.service | Synced order status from iiko. order_id=20 iiko_order_id=f6e600bb-688a-4f5e-8676-a390bc88fbd7 iiko_status=Cancelled status=Отменен
+2026-09-08 06:01:45,306 | INFO | main | Finished iiko order status sync. checked=14 updated=14
+2026-09-08 06:02:15,293 | INFO | backend.iiko_manager.client | Requesting iiko access token.
+2026-09-08 06:02:15,681 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/access_token "HTTP/1.1 200 OK"
+2026-09-08 06:02:15,683 | INFO | backend.iiko_manager.client | iiko access token received successfully.
+2026-09-08 06:02:15,683 | INFO | backend.iiko_manager.client | Requesting iiko delivery orders by ids. count=1
+2026-09-08 06:02:16,028 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/deliveries/by_id "HTTP/1.1 200 OK"
+2026-09-08 06:02:16,030 | INFO | backend.iiko_manager.client | iiko delivery orders received. count=1
+2026-09-08 06:02:16,031 | INFO | backend.iiko_manager.client | Requesting iiko delivery orders by pos ids. count=1
+2026-09-08 06:02:16,352 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/deliveries/by_id "HTTP/1.1 200 OK"
+2026-09-08 06:02:16,354 | INFO | backend.iiko_manager.client | iiko delivery orders by pos ids received. count=1
+2026-09-08 06:02:16,354 | INFO | backend.orders.service | Unknown iiko order status received. iiko_status=Error
+2026-09-08 06:02:16,355 | WARNING | backend.orders.service | iiko order is in Error status. order_id=6 iiko_order_id=08233f82-1e97-48a0-bcfb-ee59bba5c7de payload={"id": "08233f82-1e97-48a0-bcfb-ee59bba5c7de", "posId": "066eb5c3-b50e-4bed-8e36-d07ebd159caf", "externalNumber": "zamzam-order-6", "organizationId": "5b44b114-347a-4c95-a7c0-c146a6bfbde2", "timestamp": 1782569393972, "creationStatus": "Error", "errorInfo": {"code": "Common", "message": "Creation timeout expired, order automatically transited to error creation status", "description": "Creation timeout expired, order automatically transited to error creation status", "additionalData": null}, "order": null}
+2026-09-08 06:02:16,358 | INFO | main | Finished iiko order status sync. checked=1 updated=1
+2026-09-08 06:02:20,248 | INFO | main | Application shutdown initiated.
+2026-09-08 06:02:20,248 | INFO | main | Application shutdown completed.
