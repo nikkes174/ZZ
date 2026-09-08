@@ -3823,7 +3823,7 @@ body.admin-mode .menu-admin-bar {
     border-radius: 0;
     transform: scale(1);
     transition: transform 0.7s ease;
-    cursor: zoom-in;
+    cursor: pointer;
 }
 
 .dish-card:hover .dish-image {
@@ -3870,7 +3870,7 @@ body.admin-mode .menu-admin-bar {
     max-height: 90dvh;
     overflow: hidden;
     border-radius: var(--radius-lg);
-    background: var(--surface);
+    background: #1a0f0a;
     box-shadow: 0 30px 90px rgba(0, 0, 0, 0.32);
 }
 
@@ -3914,11 +3914,12 @@ body.admin-mode .menu-admin-bar {
     margin: 0 0 8px;
     font-family: "Playfair Display", Georgia, serif;
     font-size: clamp(1.5rem, 3vw, 2.2rem);
+    color: #d8b26b;
 }
 
 .dish-preview-content p {
     margin: 0;
-    color: var(--text-soft);
+    color: #d8b26b;
     line-height: 1.65;
     white-space: pre-wrap;
 }

@@ -12659,3 +12659,45 @@ backend.orders.service.OrderValidationError: iiko request failed for deliveries/
 2026-09-08 06:02:16,358 | INFO | main | Finished iiko order status sync. checked=1 updated=1
 2026-09-08 06:02:20,248 | INFO | main | Application shutdown initiated.
 2026-09-08 06:02:20,248 | INFO | main | Application shutdown completed.
+2026-09-08 06:06:51,710 | INFO | main | Application startup initiated.
+2026-09-08 06:06:51,930 | INFO | main | Database metadata initialized.
+2026-09-08 06:06:51,960 | INFO | main | Order migrations ensured.
+2026-09-08 06:06:51,974 | INFO | main | Menu item iiko migrations ensured.
+2026-09-08 06:06:51,981 | INFO | main | User auth migrations ensured.
+2026-09-08 06:06:51,986 | INFO | main | Admin users synchronized from environment.
+2026-09-08 06:06:51,993 | INFO | main | YooKassa payment reconciliation cutoff initialized. created_after=2026-06-27T04:56:31.149965+00:00
+2026-09-08 06:06:51,993 | INFO | main | Starting iiko catalog sync.
+2026-09-08 06:06:51,993 | INFO | backend.iiko_manager.service | Catalog sync started. terminal_group_id=7bb70c1d-4e12-4a7f-9750-c2aaed6ddabc
+2026-09-08 06:06:51,994 | INFO | backend.iiko_manager.client | Requesting iiko access token.
+2026-09-08 06:06:52,416 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/access_token "HTTP/1.1 200 OK"
+2026-09-08 06:06:52,420 | INFO | backend.iiko_manager.client | iiko access token received successfully.
+2026-09-08 06:06:52,420 | INFO | backend.iiko_manager.service | Using configured iiko organization id=5b44b114-347a-4c95-a7c0-c146a6bfbde2
+2026-09-08 06:06:52,420 | INFO | backend.iiko_manager.client | Requesting iiko nomenclature. organization_id=5b44b114-347a-4c95-a7c0-c146a6bfbde2
+2026-09-08 06:06:52,948 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/nomenclature "HTTP/1.1 200 OK"
+2026-09-08 06:06:53,041 | INFO | backend.iiko_manager.client | iiko nomenclature received. groups=56 products=457
+2026-09-08 06:06:53,050 | INFO | backend.iiko_manager.service | Normalized iiko products. total=457 without_price=0 deleted=270 active=187
+2026-09-08 06:06:53,050 | INFO | backend.iiko_manager.service | Price extraction summary. matched_by_currentPrice=457
+2026-09-08 06:06:53,051 | INFO | backend.iiko_manager.service | Prepared 457 normalized iiko items for sync.
+2026-09-08 06:06:53,051 | INFO | backend.iiko_manager.repository | Repository sync started. terminal_group_id=7bb70c1d-4e12-4a7f-9750-c2aaed6ddabc items=457 synced_at=2026-09-08T03:06:53.051580+00:00
+2026-09-08 06:06:53,088 | INFO | backend.iiko_manager.repository | Loaded existing iiko menu items from database. count=457
+2026-09-08 06:06:53,109 | INFO | backend.iiko_manager.repository | Repository sync committed. created=0 updated=0 deactivated=0
+2026-09-08 06:06:53,110 | INFO | backend.iiko_manager.service | Catalog sync persisted successfully. created=0 updated=0 deactivated=0
+2026-09-08 06:06:53,111 | INFO | main | Finished iiko catalog sync. created=0 updated=0 deactivated=0
+2026-09-08 06:06:53,111 | INFO | main | Application startup completed.
+2026-09-08 06:06:53,112 | INFO | main | Started background iiko sync loop. interval_seconds=300
+2026-09-08 06:06:53,112 | INFO | main | Started background iiko order status sync loop. interval_seconds=30
+2026-09-08 06:06:53,112 | INFO | main | Started background iiko order submission retry loop. interval_seconds=30
+2026-09-08 06:06:57,847 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-09-08 06:07:21,552 | INFO | main | Loaded 7 active iiko menu items for storefront.
+2026-09-08 06:07:23,143 | INFO | backend.iiko_manager.client | Requesting iiko access token.
+2026-09-08 06:07:23,538 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/access_token "HTTP/1.1 200 OK"
+2026-09-08 06:07:23,540 | INFO | backend.iiko_manager.client | iiko access token received successfully.
+2026-09-08 06:07:23,541 | INFO | backend.iiko_manager.client | Requesting iiko delivery orders by ids. count=1
+2026-09-08 06:07:23,852 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/deliveries/by_id "HTTP/1.1 200 OK"
+2026-09-08 06:07:23,855 | INFO | backend.iiko_manager.client | iiko delivery orders received. count=1
+2026-09-08 06:07:23,855 | INFO | backend.iiko_manager.client | Requesting iiko delivery orders by pos ids. count=1
+2026-09-08 06:07:24,167 | INFO | httpx | HTTP Request: POST https://api-ru.iiko.services/api/1/deliveries/by_id "HTTP/1.1 200 OK"
+2026-09-08 06:07:24,170 | INFO | backend.iiko_manager.client | iiko delivery orders by pos ids received. count=1
+2026-09-08 06:07:24,171 | INFO | backend.orders.service | Unknown iiko order status received. iiko_status=Error
+2026-09-08 06:07:24,171 | WARNING | backend.orders.service | iiko order is in Error status. order_id=6 iiko_order_id=08233f82-1e97-48a0-bcfb-ee59bba5c7de payload={"id": "08233f82-1e97-48a0-bcfb-ee59bba5c7de", "posId": "066eb5c3-b50e-4bed-8e36-d07ebd159caf", "externalNumber": "zamzam-order-6", "organizationId": "5b44b114-347a-4c95-a7c0-c146a6bfbde2", "timestamp": 1782569393972, "creationStatus": "Error", "errorInfo": {"code": "Common", "message": "Creation timeout expired, order automatically transited to error creation status", "description": "Creation timeout expired, order automatically transited to error creation status", "additionalData": null}, "order": null}
+2026-09-08 06:07:24,180 | INFO | main | Finished iiko order status sync. checked=1 updated=1
